@@ -102,6 +102,9 @@ func writeResult(rw http.ResponseWriter, result *v2.QueryResult) {
 	rw.Write(b)
 }
 
+// getDatatypeAndService takes an http request path and extracts the last two
+// fields. For correct requests (e.g. "/v2/query/ndt/ndt5"), this will be the
+// service name (e.g. "ndt") and the datatype (e.g. "ndt5").
 func getDatatypeAndService(p string) (string, string) {
 	datatype := path.Base(p)
 	service := path.Base(path.Dir(p))
