@@ -1,3 +1,4 @@
+// Package static contains static information for the locate service.
 package static
 
 import (
