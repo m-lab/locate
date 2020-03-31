@@ -1,0 +1,10 @@
+runtime: custom
+env: flex
+service: locate
+
+resources:
+  cpu: 2
+  memory_gb: 8
+
+manual_scaling:
+  instances: 2
