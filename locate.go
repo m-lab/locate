@@ -20,6 +20,7 @@ var (
 )
 
 func init() {
+	// PORT and GOOGLE_CLOUD_PROJECT are part of the default App Engine environment.
 	flag.StringVar(&listenPort, "port", "8080", "AppEngine port environment variable")
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
 	flag.StringVar(&signerKey, "encrypted-signer-key", "", "")
