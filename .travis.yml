@@ -1,0 +1,14 @@
+language: go
+
+go:
+- 1.13
+
+install:
+- go get -v -t ./...
+- go get github.com/mattn/goveralls
+
+script:
+- go vet ./...
+- go test ./... -cover=1 -coverprofile=_c.cov
+- go test ./... -race
+- $GOPATH/bin/goveralls -service=travis-ci -coverprofile=_c.cov
