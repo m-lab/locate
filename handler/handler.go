@@ -51,6 +51,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	experiment, datatype := getDatatypeAndExperiment(req.URL.Path)
 	service := experiment + "/" + datatype
 
+	// Check whether the service is valid before all other steps to fail fast.
 	ports, ok := static.Configs[service]
 	if !ok {
 		result.Error = v2.NewError("config", "Unknown datatype/service: "+service, http.StatusBadRequest)
@@ -58,6 +59,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Make proxy request using AppEngine provided lat,lon.
 	lat, lon := splitLatLon(req.Header.Get("X-AppEngine-CityLatLong"))
 	machines, err := proxy.Nearest(req.Context(), service, lat, lon)
 	if err != nil {
@@ -66,10 +68,13 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Construct result targets with empty URLs.
 	targets := []v2.Target{}
 	for i := range machines {
 		targets = append(targets, v2.Target{Machine: machines[i], URLs: map[string]string{}})
 	}
+
+	// Populate the URLs using the ports configuration.
 	for i := range targets {
 		urls, err := c.getURLs(ports, targets[i].Machine, experiment)
 		if err != nil {
