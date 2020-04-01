@@ -47,7 +47,6 @@ func splitLatLon(latlon string) (string, string) {
 // TranslatedQuery uses the legacy mlab-ns service for liveness as a
 // transitional step in loading state directly.
 func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
-	// TODO: make request to mlab-ns and translate reply to v2.QueryReply.
 	result := v2.QueryResult{}
 	experiment, datatype := getDatatypeAndExperiment(req.URL.Path)
 	service := experiment + "/" + datatype
