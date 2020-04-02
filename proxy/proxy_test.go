@@ -222,23 +222,21 @@ func TestNearest(t *testing.T) {
 			mux := http.NewServeMux()
 			mux.HandleFunc("/"+static.LegacyServices[tt.service], f.defaultHandler)
 			srv := httptest.NewServer(mux)
-			p, err := url.Parse(srv.URL)
-			rtx.Must(err, "failed to parse test server url")
-			LegacyServer = *p
+			ll := MustNewLegacyLocator(srv.URL)
 			if tt.badScheme != "" {
 				// While a url with a bad scheme can be converted using .String(),
 				// it will fail to parse again. This injects an error in NewRequestWithContext().
-				LegacyServer.Scheme = ":"
+				ll.Server.Scheme = ":"
 			}
 			if tt.badURL != "" {
 				// Connections should fail to a bad url.
 				p, err := url.Parse(tt.badURL)
 				rtx.Must(err, "failed to parse test server url")
-				LegacyServer = *p
+				ll.Server = *p
 			}
 
 			ctx := context.Background()
-			got, err := Nearest(ctx, tt.service, tt.lat, tt.lon)
+			got, err := ll.Nearest(ctx, tt.service, tt.lat, tt.lon)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Nearest() error = %v, wantErr %v", err, tt.wantErr)
 				return

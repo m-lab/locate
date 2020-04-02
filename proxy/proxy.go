@@ -12,12 +12,13 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/m-lab/go/rtx"
 	"github.com/m-lab/locate/static"
 )
 
 var (
-	// LegacyServer controls the target service for requesting nearest machines.
-	LegacyServer = url.URL{Scheme: "https", Host: "mlab-ns.appspot.com"}
+	// DefaultLegacyServer is the default service for requesting nearest machines.
+	DefaultLegacyServer = "https://mlab-ns.appspot.com"
 )
 
 // geoOptions and target are types for decoding native mlab-ns responses.
@@ -27,12 +28,27 @@ type target struct {
 	FQDN string `json:"fqdn"`
 }
 
+// LegacyLocator manages requests to the legacy mlab-ns service.
+type LegacyLocator struct {
+	Server url.URL
+}
+
+// MustNewLegacyLocator creates a new LegacyLocator instance. If the given url
+// fails to parse, the function will exit.
+func MustNewLegacyLocator(u string) *LegacyLocator {
+	server, err := url.Parse(u)
+	rtx.Must(err, "Failed to parse given url: %q", u)
+	return &LegacyLocator{
+		Server: *server,
+	}
+}
+
 // ErrNoContent is returned when mlab-ns returns http.StatusNoContent.
 var ErrNoContent = errors.New("no content from server")
 
 // Nearest discovers the nearest machines for the target service, using a
 // proxied request to the LegacyServer such as mlab-ns.
-func Nearest(ctx context.Context, service, lat, lon string) ([]string, error) {
+func (ll *LegacyLocator) Nearest(ctx context.Context, service, lat, lon string) ([]string, error) {
 	path, ok := static.LegacyServices[service]
 	if !ok {
 		return nil, fmt.Errorf("Unsupported service: %q", service)
@@ -43,7 +59,7 @@ func Nearest(ctx context.Context, service, lat, lon string) ([]string, error) {
 		params.Set("lat", lat)
 		params.Set("lon", lon)
 	}
-	u := LegacyServer
+	u := ll.Server
 	u.Path = path
 	u.RawQuery = params.Encode()
 
