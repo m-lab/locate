@@ -46,6 +46,8 @@ func NewClient(project string, private *token.Signer) *Client {
 	}
 }
 
+// splitLatLon attempts to split the "<lat>,<lon>" string provided by AppEngine
+// into two fields. The return values preserve the original lat,lon order.
 func splitLatLon(latlon string) (string, string) {
 	if fields := strings.Split(latlon, ","); len(fields) == 2 {
 		return fields[0], fields[1]
