@@ -3,6 +3,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -27,6 +28,13 @@ type Signer interface {
 type Client struct {
 	Signer
 	project string
+	Locator
+}
+
+// Locator defines how the TranslatedQuery handler requests machines nearest to
+// the client.
+type Locator interface {
+	Nearest(ctx context.Context, service, lat, lon string) ([]string, error)
 }
 
 // NewClient creates a new client.
@@ -34,6 +42,7 @@ func NewClient(project string, private *token.Signer) *Client {
 	return &Client{
 		Signer:  private,
 		project: project,
+		Locator: proxy.MustNewLegacyLocator(proxy.DefaultLegacyServer),
 	}
 }
 
@@ -61,7 +70,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 
 	// Make proxy request using AppEngine provided lat,lon.
 	lat, lon := splitLatLon(req.Header.Get("X-AppEngine-CityLatLong"))
-	machines, err := proxy.Nearest(req.Context(), service, lat, lon)
+	machines, err := c.Nearest(req.Context(), service, lat, lon)
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
 		writeResult(rw, &result)
