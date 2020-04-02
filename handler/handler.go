@@ -6,16 +6,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"gopkg.in/square/go-jose.v2/jwt"
 
-	"github.com/m-lab/access/token"
+	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
-	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
 )
 
@@ -38,11 +38,11 @@ type Locator interface {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private *token.Signer) *Client {
+func NewClient(project string, private Signer, locator Locator) *Client {
 	return &Client{
 		Signer:  private,
 		project: project,
-		Locator: proxy.MustNewLegacyLocator(proxy.DefaultLegacyServer),
+		Locator: locator,
 	}
 }
 
@@ -85,14 +85,9 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 		targets = append(targets, v2.Target{Machine: machines[i], URLs: map[string]string{}})
 	}
 
-	// Populate the URLs using the ports configuration.
+	// Populate each set of URLs using the ports configuration.
 	for i := range targets {
-		urls, err := c.getURLs(ports, targets[i].Machine, experiment)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		targets[i].URLs = urls
+		targets[i].URLs = c.getURLs(ports, targets[i].Machine, experiment)
 	}
 	result.Results = targets
 	writeResult(rw, &result)
@@ -108,25 +103,41 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusNotImplemented)
 }
 
-func (c *Client) getURLs(ports static.Ports, machine, service string) (map[string]string, error) {
+// getURLs creates URLs for the named experiment, running on the named machine
+// for each given port. Every URL will include an `access_token=` parameter,
+// authorizing the measurement.
+func (c *Client) getURLs(ports static.Ports, machine, experiment string) map[string]string {
 	urls := map[string]string{}
+
+	// Create the token. The same access token is used for each target port.
+	cl := jwt.Claims{
+		Issuer:   static.IssuerLocate,
+		Subject:  experiment,
+		Audience: jwt.Audience{machine},
+		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Minute)),
+	}
+	token, err := c.Sign(cl)
+	// Sign errors can only happen due to a misconfiguration of the key.
+	// A good config will remain good.
+	rtx.PanicOnError(err, "signing claims has failed")
+
+	// For each port config, prepare the target url with access_token and
+	// complete host field.
 	for name, target := range ports {
-		// TODO: generate real access tokens.
-		token := "this-is-a-fake-token"
-		target.Host = fmt.Sprintf("%s-%s:%s", service, machine, target.Host)
-		target.RawQuery = "access_token=" + token
+		params := url.Values{}
+		params.Set("access_token", token)
+		target.RawQuery = params.Encode()
+		target.Host = fmt.Sprintf("%s-%s:%s", experiment, machine, target.Host)
 		urls[name] = target.String()
 	}
-	return urls, nil
+	return urls
 }
 
+// writeResult marshals the result and writes the result to the response writer.
 func writeResult(rw http.ResponseWriter, result *v2.QueryResult) {
-	// Write response.
 	b, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	// Errors are only possible when marshalling incompatible types, like functions.
+	rtx.PanicOnError(err, "Failed to format result")
 	if result.Error != nil {
 		rw.WriteHeader(result.Error.Status)
 	}
