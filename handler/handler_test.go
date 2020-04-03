@@ -108,10 +108,12 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			}
 			//	pretty.Print(result)
 			if len(tt.locator.machines) != len(result.Results) {
-				t.Errorf("TranslateQuery() wrong result count; got %d, want %d", len(result.Results), len(tt.locator.machines))
+				t.Errorf("TranslateQuery() wrong result count; got %d, want %d",
+					len(result.Results), len(tt.locator.machines))
 			}
 			if len(result.Results[0].URLs) != len(static.Configs[tt.path]) {
-				t.Errorf("TranslateQuery() result wrong URL count; got %d, want %d", len(result.Results[0].URLs), len(static.Configs[tt.path]))
+				t.Errorf("TranslateQuery() result wrong URL count; got %d, want %d",
+					len(result.Results[0].URLs), len(static.Configs[tt.path]))
 			}
 		})
 	}

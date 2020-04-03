@@ -40,7 +40,8 @@ func main() {
 	rtx.Must(err, "Failed to create KMS client")
 	cfg := signer.NewConfig(project, "global", "locate-signer", "private-jwk")
 	// Load encrypted signer key from environment, using variable name derived from project.
-	signer, err := cfg.Load(mainCtx, client, os.Getenv("ENCRYPTED_SIGNER_KEY_"+strings.ReplaceAll(project, "-", "_")))
+	signer, err := cfg.Load(mainCtx, client,
+		os.Getenv("ENCRYPTED_SIGNER_KEY_"+strings.ReplaceAll(project, "-", "_")))
 	rtx.Must(err, "Failed to load signer key")
 	locator := proxy.MustNewLegacyLocator(proxy.DefaultLegacyServer)
 	c := handler.NewClient(project, signer, locator)
