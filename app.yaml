@@ -8,3 +8,6 @@ resources:
 
 manual_scaling:
   instances: 2
+
+env_variables:
+  ENCRYPTED_SIGNER_KEY_mlab_sandbox: "CiQAPSMUYyYwCa0O5g+7bvWpZZlcEq6KPc0yM/35bwDa3t10sg8S1gEAwXT96u/PeFyqf48TbY99k8z/HI+COD7DbAmi+9TR7D0vQlU1aJ41XUvK2Qb+xNwmEO94Kuc7FALbOIW+mRJ36eHZKzV+9B+Tt7Nl9P7pCYvIF0BRO4yXILf1G/cnZJ6dbth+7At3+19Kv6BtCVtGw13y+17cJw1/JMZan8xRq7Hr3hNI+ZOKAsgbpzQMGYaF1m0WVEtXw5Fex8fj+wSi0a0ww+HWXNZrd9H5yJB8otWMlzGoF5jtJSBPTugOAOZ1svSMhYMY+cvYS+gKN+wsI0loJTu6"
