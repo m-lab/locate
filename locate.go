@@ -38,6 +38,7 @@ func main() {
 
 	client, err := kms.NewKeyManagementClient(mainCtx)
 	rtx.Must(err, "Failed to create KMS client")
+	// NOTE: these must be the same parameters used by management/create_encrypted_signer_key.sh.
 	cfg := signer.NewConfig(project, "global", "locate-signer", "private-jwk")
 	// Load encrypted signer key from environment, using variable name derived from project.
 	signer, err := cfg.Load(mainCtx, client,
