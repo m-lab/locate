@@ -34,7 +34,7 @@ key=$(
     --filter "name~.*/${KEY}$" )
 if [[ -z ${key} ]] ; then
   echo "Creating key: ${KEY}"
-  gcloud kms keys create ${KEY} \
+  gcloud ${GCPARGS} kms keys create ${KEY} \
     --location=global \
     --keyring=${KEYRING} \
     --purpose=encryption
@@ -48,7 +48,7 @@ binding=$(
     | grep serviceAccount:${PROJECT}@appspot.gserviceaccount.com || : )
 if [[ -z ${binding} ]]; then
   echo "Binding iam policy for accessing ${KEYRING}/${KEY}"
-  gcloud kms keys add-iam-policy-binding ${KEY} \
+  gcloud ${GCPARGS} kms keys add-iam-policy-binding ${KEY} \
     --location=global \
     --keyring=${KEYRING} \
     --member=serviceAccount:${PROJECT}@appspot.gserviceaccount.com \
@@ -68,7 +68,7 @@ if [[ ! -f ${PRIVATE} ]] ; then
 fi
 
 echo "Encrypting private signer key:"
-ENC_SIGNER_KEY=$( cat ${PRIVATE} | gcloud kms encrypt \
+ENC_SIGNER_KEY=$( cat ${PRIVATE} | gcloud ${GCPARGS} kms encrypt \
   --plaintext-file=- \
   --ciphertext-file=- \
   --location=global \
