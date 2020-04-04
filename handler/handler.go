@@ -65,7 +65,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	// Check whether the service is valid before all other steps to fail fast.
 	ports, ok := static.Configs[service]
 	if !ok {
-		result.Error = v2.NewError("config", "Unknown datatype/service: "+service, http.StatusBadRequest)
+		result.Error = v2.NewError("config", "Unknown service: "+service, http.StatusBadRequest)
 		writeResult(rw, &result)
 		return
 	}
@@ -87,15 +87,10 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 
 	// Populate each set of URLs using the ports configuration.
 	for i := range targets {
-		targets[i].URLs = c.getURLs(ports, targets[i].Machine, experiment)
+		targets[i].URLs = c.getURLs(ports, targets[i].Machine, experiment, experiment)
 	}
 	result.Results = targets
 	writeResult(rw, &result)
-}
-
-// Monitoring implements /v2/monitoring requests.
-func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
-	rw.WriteHeader(http.StatusNotImplemented)
 }
 
 // Heartbeat implements /v2/heartbeat requests.
@@ -106,13 +101,13 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 // getURLs creates URLs for the named experiment, running on the named machine
 // for each given port. Every URL will include an `access_token=` parameter,
 // authorizing the measurement.
-func (c *Client) getURLs(ports static.Ports, machine, experiment string) map[string]string {
+func (c *Client) getURLs(ports static.Ports, machine, experiment, subject string) map[string]string {
 	urls := map[string]string{}
 
 	// Create the token. The same access token is used for each target port.
 	cl := jwt.Claims{
 		Issuer:   static.IssuerLocate,
-		Subject:  experiment,
+		Subject:  subject,
 		Audience: jwt.Audience{machine},
 		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Minute)),
 	}
