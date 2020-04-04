@@ -11,4 +11,4 @@ manual_scaling:
 
 env_variables:
   ENCRYPTED_SIGNER_KEY: "CiQAPSMUYxauHk5RPlCUtkKvRIUDNZ5XhTmD708Genj2MjpfGdYS1gEAwXT96pL8yjsz+Oz4iw+X0jYi9xA5H2jse/Pb1zVG6QyrXiZ5vuXPw1LDqo7AQnz6Lbj0uARIWFDycJJY6OHigEbto2K1eVzwL/rLeTDB24Grn0Vr5rk+OlIT3/5Z4lfFqhQhFC5KbqyovnMQWKHnCG9gVWvXMx70NJorsd15FrY/8R1RR25lcYUql73jXYCUgROyMBbvXaaJXzwCF2etdM2/oN1avKkeKGpSnlvc/9EptSlMI7820sYMfuPcivU4IpN8ULiLMTEb++4iRciAmZuR3FlO"
-  MONITORING_PUBLIC_KEY: '{"use":"sig","kty":"OKP","kid":"20200401","crv":"Ed25519","alg":"EdDSA","x":"yNM7vwX5JnKjNB8i9dU9PtdRsEPd0wyFYWOKsme1wHY"}'
+  MONITORING_VERIFY_KEY: '{"use":"sig","kty":"OKP","kid":"20200401","crv":"Ed25519","alg":"EdDSA","x":"yNM7vwX5JnKjNB8i9dU9PtdRsEPd0wyFYWOKsme1wHY"}'
