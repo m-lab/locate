@@ -1,0 +1,14 @@
+runtime: custom
+env: flex
+service: locate
+
+resources:
+  cpu: 2
+  memory_gb: 8
+
+manual_scaling:
+  instances: 2
+
+env_variables:
+  ENCRYPTED_SIGNER_KEY: "CiQArMcwkRhkZO4sTQO7FB/0RRaD56/u5g+JHrXnXO5dRpXTchIS1gEAxec93IM3w6BIy9QwViUqH8UuVFf/5w+N44CN9iUM7wX4MzHsrqw3vnaCC2ccZogAfmOcOQzRU1I2Z/pOsOhKO3DDs5YNrXAmW+pmnwsU0zPhzw5mCW6uh319UveO4lPbUGViqi3n9lyBb1eda68ON+x+X3KswAq1oFL8YERH2bCHn2JpVdjmSSvDQipqzePvXH+G5T2lT/MUdWowNc21lAiTEkSOgPiTh6HM7eRjA5HaMZ0/vKCx+O1XUNyACjCHVLHdAHuUdUrG+AKg6tFXrAqQSq8y"
+  MONITORING_PUBLIC_KEY: '{"use":"sig","kty":"OKP","kid":"20200401","crv":"Ed25519","alg":"EdDSA","x":"yNM7vwX5JnKjNB8i9dU9PtdRsEPd0wyFYWOKsme1wHY"}'
