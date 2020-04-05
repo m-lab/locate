@@ -24,7 +24,7 @@ import (
 var (
 	listenPort          string
 	project             string
-	encryptedSignerKey  flagx.FileBytes
+	encryptedSignerKey  string
 	monitoringVerifyKey flagx.FileBytes
 )
 
@@ -32,7 +32,7 @@ func init() {
 	// PORT and GOOGLE_CLOUD_PROJECT are part of the default App Engine environment.
 	flag.StringVar(&listenPort, "port", "8080", "AppEngine port environment variable")
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
-	flag.Var(&encryptedSignerKey, "encrypted-signer-key", "Private key of the locate+service key pair")
+	flag.StringVar(&encryptedSignerKey, "encrypted-signer-key", "", "Private key of the locate+service key pair")
 	flag.Var(&monitoringVerifyKey, "monitoring-verify-key", "Public key of the monitoring+locate key pair")
 }
 
