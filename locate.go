@@ -48,7 +48,7 @@ func main() {
 	// NOTE: these must be the same parameters used by management/create_encrypted_signer_key.sh.
 	cfg := signer.NewConfig(project, "global", "locate-signer", "private-jwk")
 	// Load encrypted signer key from environment, using variable name derived from project.
-	signer, err := cfg.Load(mainCtx, client, string(encryptedSignerKey))
+	signer, err := cfg.Load(mainCtx, client, encryptedSignerKey)
 	rtx.Must(err, "Failed to load signer key")
 	locator := proxy.MustNewLegacyLocator(proxy.DefaultLegacyServer)
 	c := handler.NewClient(project, signer, locator)
