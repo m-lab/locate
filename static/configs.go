@@ -8,8 +8,10 @@ import (
 // Constants used by the locate service, clients, and target servers accepting
 // access tokens issued by the locate service.
 const (
-	IssuerLocate     = "locate"
-	IssuerMonitoring = "monitoring"
+	IssuerLocate      = "locate"
+	AudienceLocate    = "locate"
+	IssuerMonitoring  = "monitoring"
+	SubjectMonitoring = "monitoring"
 )
 
 // URL creates inline url.URLs.

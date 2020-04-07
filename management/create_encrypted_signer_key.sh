@@ -75,13 +75,9 @@ ENC_SIGNER_KEY=$( cat ${PRIVATE} | gcloud ${GCPARGS} kms encrypt \
   --keyring=${KEYRING} \
   --key=${KEY} | base64 )
 
-# Replace all hyphens in project name with underscore to create a valid
-# environment variable.
-project=${PROJECT//-/_}
-
 echo ""
 echo ""
-echo "Include the following in app.yaml:"
+echo "Include the following in app.yaml.${PROJECT}:"
 echo ""
 echo "env_variables:"
-echo "  ENCRYPTED_SIGNER_KEY_${project}: \"${ENC_SIGNER_KEY}\""
+echo "  ENCRYPTED_SIGNER_KEY: \"${ENC_SIGNER_KEY}\""

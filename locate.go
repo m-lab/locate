@@ -5,29 +5,35 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 
 	kms "cloud.google.com/go/kms/apiv1"
+	"github.com/justinas/alice"
+	"gopkg.in/square/go-jose.v2/jwt"
+
+	"github.com/m-lab/access/controller"
+	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/rtx"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/signer"
+	"github.com/m-lab/locate/static"
 )
 
 var (
-	listenPort string
-	project    string
-	verifyKey  flagx.FileBytes
+	listenPort          string
+	project             string
+	encryptedSignerKey  string
+	monitoringVerifyKey string
 )
 
 func init() {
 	// PORT and GOOGLE_CLOUD_PROJECT are part of the default App Engine environment.
 	flag.StringVar(&listenPort, "port", "8080", "AppEngine port environment variable")
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
-	flag.Var(&verifyKey, "verify-key", "")
+	flag.StringVar(&encryptedSignerKey, "encrypted-signer-key", "", "Private key of the locate+service key pair")
+	flag.StringVar(&monitoringVerifyKey, "monitoring-verify-key", "", "Public key of the monitoring+locate key pair")
 }
 
 var mainCtx, mainCancel = context.WithCancel(context.Background())
@@ -36,25 +42,36 @@ func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Could not parse env args")
 
+	// SIGNER - load the signer key.
 	client, err := kms.NewKeyManagementClient(mainCtx)
 	rtx.Must(err, "Failed to create KMS client")
 	// NOTE: these must be the same parameters used by management/create_encrypted_signer_key.sh.
 	cfg := signer.NewConfig(project, "global", "locate-signer", "private-jwk")
 	// Load encrypted signer key from environment, using variable name derived from project.
-	signer, err := cfg.Load(mainCtx, client,
-		os.Getenv("ENCRYPTED_SIGNER_KEY_"+strings.ReplaceAll(project, "-", "_")))
+	signer, err := cfg.Load(mainCtx, client, encryptedSignerKey)
 	rtx.Must(err, "Failed to load signer key")
 	locator := proxy.MustNewLegacyLocator(proxy.DefaultLegacyServer)
 	c := handler.NewClient(project, signer, locator)
 
-	// TODO: add verifier chain for monitoring requests.
+	// MONITORING VERIFIER - for access tokens provided by monitoring.
+	v, err := token.NewVerifier([]byte(monitoringVerifyKey))
+	rtx.Must(err, "Failed to create verifier")
+	exp := jwt.Expected{
+		Issuer:   static.IssuerMonitoring,
+		Audience: jwt.Audience{static.AudienceLocate},
+	}
+	tc, err := controller.NewTokenController(v, true, exp)
+	rtx.Must(err, "Failed to create token controller")
+	monitoringChain := alice.New(tc.Limit).Then(http.HandlerFunc(c.Monitoring))
+
+	// TODO: add verifier for heartbeat access tokens.
 	// TODO: add verifier for optional access tokens to support NextRequest.
 
 	mux := http.NewServeMux()
 	// Services report their health to the heartbeat service.
 	mux.HandleFunc("/v2/heartbeat/", http.HandlerFunc(c.Heartbeat))
 	// End to end monitoring requests access tokens for specific targets.
-	mux.Handle("/v2/monitoring/", http.HandlerFunc(c.Monitoring))
+	mux.Handle("/v2/monitoring/", monitoringChain)
 	// Clients request access tokens for specific services.
 	mux.HandleFunc("/v2/query/", http.HandlerFunc(c.TranslatedQuery))
 
