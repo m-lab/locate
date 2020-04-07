@@ -59,8 +59,7 @@ func splitLatLon(latlon string) (string, string) {
 // transitional step in loading state directly.
 func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	result := v2.QueryResult{}
-	experiment, datatype := getDatatypeAndExperiment(req.URL.Path)
-	service := experiment + "/" + datatype
+	experiment, service := getExperimentAndService(req.URL.Path)
 
 	// Check whether the service is valid before all other steps to fail fast.
 	ports, ok := static.Configs[service]
@@ -139,11 +138,11 @@ func writeResult(rw http.ResponseWriter, result *v2.QueryResult) {
 	rw.Write(b)
 }
 
-// getDatatypeAndExperiment takes an http request path and extracts the last two
+// getExperimentAndService takes an http request path and extracts the last two
 // fields. For correct requests (e.g. "/v2/query/ndt/ndt5"), this will be the
 // experiment name (e.g. "ndt") and the datatype (e.g. "ndt5").
-func getDatatypeAndExperiment(p string) (string, string) {
+func getExperimentAndService(p string) (string, string) {
 	datatype := path.Base(p)
 	experiment := path.Base(path.Dir(p))
-	return experiment, datatype
+	return experiment, experiment + "/" + datatype
 }

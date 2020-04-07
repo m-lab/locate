@@ -30,8 +30,7 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Lookup service configuration.
-	experiment, datatype := getDatatypeAndExperiment(req.URL.Path)
-	service := experiment + "/" + datatype
+	experiment, service := getExperimentAndService(req.URL.Path)
 	ports, ok := static.Configs[service]
 	if !ok {
 		result.Error = v2.NewError("config", "Unknown service: "+service, http.StatusBadRequest)
