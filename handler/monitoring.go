@@ -15,7 +15,7 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 
 	// Validate request.
 	cl := controller.GetClaim(req.Context())
-	if cl == nil { // && requireClaim {
+	if cl == nil {
 		result.Error = v2.NewError("claim", "Must provide access_token", http.StatusBadRequest)
 		writeResult(rw, &result)
 		return
