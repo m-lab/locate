@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,12 +19,13 @@ import (
 
 func TestClient_Monitoring(t *testing.T) {
 	tests := []struct {
-		name    string
-		claim   *jwt.Claims
-		signer  Signer
-		locator Locator
-		path    string
-		wantErr *v2.Error
+		name            string
+		claim           *jwt.Claims
+		signer          Signer
+		locator         Locator
+		path            string
+		wantTokenPrefix string
+		wantErr         *v2.Error
 	}{
 		{
 			name: "success-machine",
@@ -38,6 +40,9 @@ func TestClient_Monitoring(t *testing.T) {
 				machines: []string{"mlab1-lga0t.measurement-lab.org"},
 			},
 			path: "ndt/ndt5",
+			// The fakeSigner generates synthetic access tokens based on the claim constructed by the handler.
+			// The audience (machine), the subject (monitoring), and issuer (locate). The suffix is the timestamp, which varies.
+			wantTokenPrefix: "mlab1-lga0t.mlab-oti.measurement-lab.org--monitoring--locate--",
 		},
 		{
 			name:  "error-no-claim",
@@ -102,16 +107,22 @@ func TestClient_Monitoring(t *testing.T) {
 				}
 				return
 			}
-			if len(q.Results) > 1 {
-				t.Errorf("Monitoring() returned wrong result count; got %d, want 1", len(q.Results))
+			if q.Target == nil {
+				t.Fatalf("Monitoring() returned nil Target")
 			}
-			if q.Results[0].Machine != tt.claim.Subject {
+			if q.Target.Machine != tt.claim.Subject {
 				t.Errorf("Monitoring() returned different machine than claim subject; got %s, want %s",
-					q.Results[0].Machine, tt.claim.Subject)
+					q.Target.Machine, tt.claim.Subject)
 			}
-			if len(q.Results[0].URLs) != len(static.Configs[tt.path]) {
+			if len(q.Target.URLs) != len(static.Configs[tt.path]) {
 				t.Errorf("Monitoring() returned incomplete urls; got %d, want %d",
-					len(q.Results[0].URLs), len(static.Configs[tt.path]))
+					len(q.Target.URLs), len(static.Configs[tt.path]))
+			}
+			if q.AccessToken == "" {
+				t.Errorf("Monitoring() expected AccessToken, got empty string")
+			}
+			if strings.Contains(tt.wantTokenPrefix, q.AccessToken) {
+				t.Errorf("Monitoring() did not get access token;\ngot %s,\nwant %s", q.AccessToken, tt.wantTokenPrefix)
 			}
 		})
 	}

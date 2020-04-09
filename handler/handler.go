@@ -65,7 +65,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	ports, ok := static.Configs[service]
 	if !ok {
 		result.Error = v2.NewError("config", "Unknown service: "+service, http.StatusBadRequest)
-		writeResult(rw, &result)
+		writeResult(rw, result.Error.Status, &result)
 		return
 	}
 
@@ -74,7 +74,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	machines, err := c.Nearest(req.Context(), service, lat, lon)
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
-		writeResult(rw, &result)
+		writeResult(rw, result.Error.Status, &result)
 		return
 	}
 
@@ -86,10 +86,11 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 
 	// Populate each set of URLs using the ports configuration.
 	for i := range targets {
-		targets[i].URLs = c.getURLs(ports, targets[i].Machine, experiment, experiment)
+		token := c.getAccessToken(targets[i].Machine, experiment)
+		targets[i].URLs = c.getURLs(ports, targets[i].Machine, experiment, token)
 	}
 	result.Results = targets
-	writeResult(rw, &result)
+	writeResult(rw, http.StatusOK, &result)
 }
 
 // Heartbeat implements /v2/heartbeat requests.
@@ -97,12 +98,9 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusNotImplemented)
 }
 
-// getURLs creates URLs for the named experiment, running on the named machine
-// for each given port. Every URL will include an `access_token=` parameter,
-// authorizing the measurement.
-func (c *Client) getURLs(ports static.Ports, machine, experiment, subject string) map[string]string {
-	urls := map[string]string{}
-
+// getAccessToken allocates a new access token using the given machine name as
+// the intended audience and the subject as the target service.
+func (c *Client) getAccessToken(machine, subject string) string {
 	// Create the token. The same access token is used for each target port.
 	cl := jwt.Claims{
 		Issuer:   static.IssuerLocate,
@@ -114,7 +112,14 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, subject string
 	// Sign errors can only happen due to a misconfiguration of the key.
 	// A good config will remain good.
 	rtx.PanicOnError(err, "signing claims has failed")
+	return token
+}
 
+// getURLs creates URLs for the named experiment, running on the named machine
+// for each given port. Every URL will include an `access_token=` parameter,
+// authorizing the measurement.
+func (c *Client) getURLs(ports static.Ports, machine, experiment, token string) map[string]string {
+	urls := map[string]string{}
 	// For each port config, prepare the target url with access_token and
 	// complete host field.
 	for name, target := range ports {
@@ -128,13 +133,11 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, subject string
 }
 
 // writeResult marshals the result and writes the result to the response writer.
-func writeResult(rw http.ResponseWriter, result *v2.QueryResult) {
+func writeResult(rw http.ResponseWriter, status int, result interface{}) {
 	b, err := json.MarshalIndent(result, "", "  ")
 	// Errors are only possible when marshalling incompatible types, like functions.
 	rtx.PanicOnError(err, "Failed to format result")
-	if result.Error != nil {
-		rw.WriteHeader(result.Error.Status)
-	}
+	rw.WriteHeader(status)
 	rw.Write(b)
 }
 

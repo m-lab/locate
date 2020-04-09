@@ -17,7 +17,7 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 	cl := controller.GetClaim(req.Context())
 	if cl == nil {
 		result.Error = v2.NewError("claim", "Must provide access_token", http.StatusBadRequest)
-		writeResult(rw, &result)
+		writeResult(rw, result.Error.Status, &result)
 		return
 	}
 
@@ -25,7 +25,7 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 	_, err := host.Parse(cl.Subject)
 	if err != nil {
 		result.Error = v2.NewError("subject", "Subject must be specified", http.StatusBadRequest)
-		writeResult(rw, &result)
+		writeResult(rw, result.Error.Status, &result)
 		return
 	}
 
@@ -34,16 +34,19 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 	ports, ok := static.Configs[service]
 	if !ok {
 		result.Error = v2.NewError("config", "Unknown service: "+service, http.StatusBadRequest)
-		writeResult(rw, &result)
+		writeResult(rw, result.Error.Status, &result)
 		return
 	}
 
 	// Get monitoring subject access tokens for the given machine.
 	machine := cl.Subject
-	urls := c.getURLs(ports, machine, experiment, static.SubjectMonitoring)
-	result.Results = []v2.Target{
+	token := c.getAccessToken(machine, static.SubjectMonitoring)
+	urls := c.getURLs(ports, machine, experiment, token)
+	result.AccessToken = token
+	result.Target = &v2.Target{
 		// Monitoring results only include one target.
-		{Machine: machine, URLs: urls},
+		Machine: machine,
+		URLs:    urls,
 	}
-	writeResult(rw, &result)
+	writeResult(rw, http.StatusOK, &result)
 }

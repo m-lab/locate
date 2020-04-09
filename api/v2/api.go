@@ -43,9 +43,19 @@ type QueryResult struct {
 	Results []Target `json:"results,omitempty"`
 }
 
-// MonitoringResult reuses the QueryResult as a base. In practice, a
-// MonitoringResult will only have a single Target in Results.
-type MonitoringResult = QueryResult
+// MonitoringResult contains one Target with a single-purpose access-token
+// useful only for monitoring services on the target machine.
+type MonitoringResult struct {
+	// Error contains information about request failures.
+	Error *Error `json:"error,omitempty"`
+
+	// AccessToken is the access token used in Target URLs. Some applications
+	// may use this value instead of specific Target.URLs.
+	AccessToken string `json:"access_token"`
+
+	// Target contains service URLs for monitoring the service on the target machine.
+	Target *Target `json:"target,omitempty"`
+}
 
 // NextRequest contains a URL for scheduling the next request. The URL embeds an
 // access token that will be valid after `NotBefore`. The access token will
