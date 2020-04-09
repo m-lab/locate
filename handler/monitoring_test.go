@@ -102,16 +102,16 @@ func TestClient_Monitoring(t *testing.T) {
 				}
 				return
 			}
-			if len(q.Results) > 1 {
-				t.Errorf("Monitoring() returned wrong result count; got %d, want 1", len(q.Results))
+			if q.Target == nil {
+				t.Fatalf("Monitoring() returned nil Target")
 			}
-			if q.Results[0].Machine != tt.claim.Subject {
+			if q.Target.Machine != tt.claim.Subject {
 				t.Errorf("Monitoring() returned different machine than claim subject; got %s, want %s",
-					q.Results[0].Machine, tt.claim.Subject)
+					q.Target.Machine, tt.claim.Subject)
 			}
-			if len(q.Results[0].URLs) != len(static.Configs[tt.path]) {
+			if len(q.Target.URLs) != len(static.Configs[tt.path]) {
 				t.Errorf("Monitoring() returned incomplete urls; got %d, want %d",
-					len(q.Results[0].URLs), len(static.Configs[tt.path]))
+					len(q.Target.URLs), len(static.Configs[tt.path]))
 			}
 		})
 	}
