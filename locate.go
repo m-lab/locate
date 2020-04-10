@@ -11,20 +11,19 @@ import (
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/access/controller"
-	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/rtx"
+	"github.com/m-lab/locate/decrypt"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/proxy"
-	"github.com/m-lab/locate/signer"
 	"github.com/m-lab/locate/static"
 )
 
 var (
 	listenPort          string
 	project             string
-	encryptedSignerKey  string
+	locateSignerKey     string
 	monitoringVerifyKey string
 )
 
@@ -32,7 +31,7 @@ func init() {
 	// PORT and GOOGLE_CLOUD_PROJECT are part of the default App Engine environment.
 	flag.StringVar(&listenPort, "port", "8080", "AppEngine port environment variable")
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
-	flag.StringVar(&encryptedSignerKey, "encrypted-signer-key", "", "Private key of the locate+service key pair")
+	flag.StringVar(&locateSignerKey, "locate-signer-key", "", "Private key of the locate+service key pair")
 	flag.StringVar(&monitoringVerifyKey, "monitoring-verify-key", "", "Public key of the monitoring+locate key pair")
 }
 
@@ -46,21 +45,21 @@ func main() {
 	client, err := kms.NewKeyManagementClient(mainCtx)
 	rtx.Must(err, "Failed to create KMS client")
 	// NOTE: these must be the same parameters used by management/create_encrypted_signer_key.sh.
-	cfg := signer.NewConfig(project, "global", "locate-signer", "private-jwk")
+	cfg := decrypt.NewConfig(project, "global", "locate-signer", "jwk")
 	// Load encrypted signer key from environment, using variable name derived from project.
-	signer, err := cfg.Load(mainCtx, client, encryptedSignerKey)
+	signer, err := cfg.LoadSigner(mainCtx, client, locateSignerKey)
 	rtx.Must(err, "Failed to load signer key")
 	locator := proxy.MustNewLegacyLocator(proxy.DefaultLegacyServer)
 	c := handler.NewClient(project, signer, locator)
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
-	v, err := token.NewVerifier([]byte(monitoringVerifyKey))
+	verifier, err := cfg.LoadVerifier(mainCtx, client, monitoringVerifyKey)
 	rtx.Must(err, "Failed to create verifier")
 	exp := jwt.Expected{
 		Issuer:   static.IssuerMonitoring,
 		Audience: jwt.Audience{static.AudienceLocate},
 	}
-	tc, err := controller.NewTokenController(v, true, exp)
+	tc, err := controller.NewTokenController(verifier, true, exp)
 	rtx.Must(err, "Failed to create token controller")
 	monitoringChain := alice.New(tc.Limit).Then(http.HandlerFunc(c.Monitoring))
 
