@@ -1,5 +1,5 @@
-// Package signer loads encrypted keys from Google KMS.
-package signer
+// Package decrypt loads encrypted keys from Google KMS.
+package decrypt
 
 import (
 	"context"
@@ -36,7 +36,7 @@ func NewConfig(project, region, keyring, key string) *Config {
 
 // Load decrypts the ciphertext using the given KMS keypath and creates a new
 // token signer from the decrypted text.
-func (c *Config) Load(ctx context.Context, client Decrypter, ciphertext string) (*token.Signer, error) {
+func (c *Config) Load(ctx context.Context, client Decrypter, ciphertext string) ([]byte, error) {
 	// ciphertext is base64 encoded; before decrypting, decode the ciphertext.
 	data, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
@@ -56,7 +56,25 @@ func (c *Config) Load(ctx context.Context, client Decrypter, ciphertext string) 
 	}
 
 	// The plain text should be the original key.
-	return token.NewSigner(resp.Plaintext)
+	return resp.Plaintext, nil
+}
+
+// LoadSigner decryptes the given ciphertext and uses it to initialize a token Signer.
+func (c *Config) LoadSigner(ctx context.Context, client Decrypter, ciphertext string) (*token.Signer, error) {
+	b, err := c.Load(ctx, client, ciphertext)
+	if err != nil {
+		return nil, err
+	}
+	return token.NewSigner(b)
+}
+
+// LoadVerifier decryptes the given ciphertext and uses it to initialize a token Signer.
+func (c *Config) LoadVerifier(ctx context.Context, client Decrypter, ciphertext string) (*token.Verifier, error) {
+	b, err := c.Load(ctx, client, ciphertext)
+	if err != nil {
+		return nil, err
+	}
+	return token.NewVerifier(b)
 }
 
 // path creates a GCP resource path for the KMS key referenced by Config.
