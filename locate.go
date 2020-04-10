@@ -23,7 +23,7 @@ import (
 var (
 	listenPort          string
 	project             string
-	encryptedSignerKey  string
+	locateSignerKey     string
 	monitoringVerifyKey string
 )
 
@@ -31,7 +31,7 @@ func init() {
 	// PORT and GOOGLE_CLOUD_PROJECT are part of the default App Engine environment.
 	flag.StringVar(&listenPort, "port", "8080", "AppEngine port environment variable")
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
-	flag.StringVar(&encryptedSignerKey, "encrypted-signer-key", "", "Private key of the locate+service key pair")
+	flag.StringVar(&locateSignerKey, "locate-signer-key", "", "Private key of the locate+service key pair")
 	flag.StringVar(&monitoringVerifyKey, "monitoring-verify-key", "", "Public key of the monitoring+locate key pair")
 }
 
@@ -47,7 +47,7 @@ func main() {
 	// NOTE: these must be the same parameters used by management/create_encrypted_signer_key.sh.
 	cfg := decrypt.NewConfig(project, "global", "locate-signer", "jwk")
 	// Load encrypted signer key from environment, using variable name derived from project.
-	signer, err := cfg.LoadSigner(mainCtx, client, encryptedSignerKey)
+	signer, err := cfg.LoadSigner(mainCtx, client, locateSignerKey)
 	rtx.Must(err, "Failed to load signer key")
 	locator := proxy.MustNewLegacyLocator(proxy.DefaultLegacyServer)
 	c := handler.NewClient(project, signer, locator)
