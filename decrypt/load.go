@@ -68,7 +68,7 @@ func (c *Config) LoadSigner(ctx context.Context, client Decrypter, ciphertext st
 	return token.NewSigner(b)
 }
 
-// LoadVerifier decryptes the given ciphertext and uses it to initialize a token Signer.
+// LoadVerifier decryptes the given ciphertext and uses it to initialize a token Verifier.
 func (c *Config) LoadVerifier(ctx context.Context, client Decrypter, ciphertext string) (*token.Verifier, error) {
 	b, err := c.Load(ctx, client, ciphertext)
 	if err != nil {
