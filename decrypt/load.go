@@ -34,8 +34,8 @@ func NewConfig(project, region, keyring, key string) *Config {
 	}
 }
 
-// Load decrypts the ciphertext using the given KMS keypath and creates a new
-// token signer from the decrypted text.
+// Load decrypts the ciphertext using the given KMS keypath and returns the
+// decrypted plain text as bytes.
 func (c *Config) Load(ctx context.Context, client Decrypter, ciphertext string) ([]byte, error) {
 	// ciphertext is base64 encoded; before decrypting, decode the ciphertext.
 	data, err := base64.StdEncoding.DecodeString(ciphertext)
