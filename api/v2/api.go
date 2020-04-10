@@ -1,6 +1,6 @@
 // Package v2 defines the request API for the location service.
 //
-// While well provisioned, the M-Lab Platform is finite. On occassion, due to
+// While well provisioned, the M-Lab Platform is finite. On occasion, due to
 // peak usage, local service outages, or abnormal client behavior the location
 // service must decline to schedule new user requests. This is necesssary to
 // safegaurd measurement quality of your measurements and those of others. The
