@@ -11,7 +11,7 @@ KEYID=${2:?please provide keyid}
 GCPARGS="--project ${PROJECT}"
 
 KEYRING=locate-signer
-KEY=private-jwk
+KEY=jwk
 
 # Create keyring if it's not already present.
 keyring=$(
@@ -59,16 +59,31 @@ which jwk-keygen &> /dev/null || \
     ( echo "Run: go get gopkg.in/square/go-jose.v2/jwk-keygen" && \
     exit 1 )
 
-PRIVATE=jwk_sig_EdDSA_${KEYID}
+LOCATE_PRIVATE=jwk_sig_EdDSA_locate_${KEYID}
+MONITORING_PRIVATE=jwk_sig_EdDSA_monitoring_${KEYID}
 
-if [[ ! -f ${PRIVATE} ]] ; then
+if [[ ! -f ${LOCATE_PRIVATE} ]] ; then
   # Create JWK key.
-  echo "Creating private signer key: ${PRIVATE}"
-  jwk-keygen --use=sig --alg=EdDSA --kid=${KEYID}
+  echo "Creating private locate key: ${LOCATE_PRIVATE}"
+  jwk-keygen --use=sig --alg=EdDSA --kid=locate_${KEYID}
 fi
 
-echo "Encrypting private signer key:"
-ENC_SIGNER_KEY=$( cat ${PRIVATE} | gcloud ${GCPARGS} kms encrypt \
+if [[ ! -f ${MONITORING_PRIVATE} ]] ; then
+  # Create JWK key.
+  echo "Creating private monitoring key: ${MONITORING_PRIVATE}"
+  jwk-keygen --use=sig --alg=EdDSA --kid=monitoring_${KEYID}
+fi
+
+echo "Encrypting private locate signer key:"
+ENC_SIGNER_KEY=$( cat ${LOCATE_PRIVATE} | gcloud ${GCPARGS} kms encrypt \
+  --plaintext-file=- \
+  --ciphertext-file=- \
+  --location=global \
+  --keyring=${KEYRING} \
+  --key=${KEY} | base64 )
+
+echo "Encrypting public monitoring verify key:"
+ENC_VERIFY_KEY=$( cat ${MONITORING_PRIVATE}.pub | gcloud ${GCPARGS} kms encrypt \
   --plaintext-file=- \
   --ciphertext-file=- \
   --location=global \
@@ -81,3 +96,4 @@ echo "Include the following in app.yaml.${PROJECT}:"
 echo ""
 echo "env_variables:"
 echo "  ENCRYPTED_SIGNER_KEY: \"${ENC_SIGNER_KEY}\""
+echo "  MONITORING_VERIFY_KEY: \"${ENC_VERIFY_KEY}\""
