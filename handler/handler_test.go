@@ -52,6 +52,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 		locator    *fakeLocator
 		project    string
 		latlon     string
+		wantKey    string
 		wantStatus int
 	}{
 		{
@@ -75,6 +76,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 				machines: []string{"mlab1-lga0t.measurement-lab.org"},
 			},
 			latlon:     "40.3,-70.4",
+			wantKey:    "ws://:3001/ndt_protocol",
 			wantStatus: http.StatusOK,
 		},
 	}
@@ -114,6 +116,9 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			if len(result.Results[0].URLs) != len(static.Configs[tt.path]) {
 				t.Errorf("TranslateQuery() result wrong URL count; got %d, want %d",
 					len(result.Results[0].URLs), len(static.Configs[tt.path]))
+			}
+			if _, ok := result.Results[0].URLs[tt.wantKey]; !ok {
+				t.Errorf("TranslateQuery() result missing URLs key; want %q", tt.wantKey)
 			}
 		})
 	}

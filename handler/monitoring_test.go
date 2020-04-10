@@ -25,6 +25,7 @@ func TestClient_Monitoring(t *testing.T) {
 		locator         Locator
 		path            string
 		wantTokenPrefix string
+		wantKey         string
 		wantErr         *v2.Error
 	}{
 		{
@@ -39,7 +40,8 @@ func TestClient_Monitoring(t *testing.T) {
 			locator: &fakeLocator{
 				machines: []string{"mlab1-lga0t.measurement-lab.org"},
 			},
-			path: "ndt/ndt5",
+			path:    "ndt/ndt5",
+			wantKey: "wss://:3010/ndt_protocol",
 			// The fakeSigner generates synthetic access tokens based on the claim constructed by the handler.
 			// The audience (machine), the subject (monitoring), and issuer (locate). The suffix is the timestamp, which varies.
 			wantTokenPrefix: "mlab1-lga0t.mlab-oti.measurement-lab.org--monitoring--locate--",
@@ -123,6 +125,9 @@ func TestClient_Monitoring(t *testing.T) {
 			}
 			if strings.Contains(tt.wantTokenPrefix, q.AccessToken) {
 				t.Errorf("Monitoring() did not get access token;\ngot %s,\nwant %s", q.AccessToken, tt.wantTokenPrefix)
+			}
+			if _, ok := q.Target.URLs[tt.wantKey]; !ok {
+				t.Errorf("Monitoring() result missing URLs key; want %q", tt.wantKey)
 			}
 		})
 	}
