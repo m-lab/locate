@@ -122,11 +122,12 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string) 
 	urls := map[string]string{}
 	// For each port config, prepare the target url with access_token and
 	// complete host field.
-	for name, target := range ports {
+	for _, target := range ports {
+		name := target.String()
 		params := url.Values{}
 		params.Set("access_token", token)
 		target.RawQuery = params.Encode()
-		target.Host = fmt.Sprintf("%s-%s:%s", experiment, machine, target.Host)
+		target.Host = fmt.Sprintf("%s-%s%s", experiment, machine, target.Host)
 		urls[name] = target.String()
 	}
 	return urls
