@@ -39,3 +39,15 @@ monitoring-token \
     -service=ndt/ndt5 -- \
     ndt5-client -throttle=131072 -protocol=ndt5+wss
 ```
+
+## Debug
+
+By default, `monitoring-token` does not report any extra output and the
+subcommand output is discarded. To report diagnostic information from
+`monitoring-token` and print the subcommand's stdout and stderr, use the
+`-logx.debug=true` flag.
+
+```sh
+monitoring-token -logx.debug=true \
+    ...
+```
