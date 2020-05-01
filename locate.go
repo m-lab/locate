@@ -72,7 +72,7 @@ func main() {
 	// End to end monitoring requests access tokens for specific targets.
 	mux.Handle("/v2/monitoring/", monitoringChain)
 	// Clients request access tokens for specific services.
-	mux.HandleFunc("/v2/query/", http.HandlerFunc(c.TranslatedQuery))
+	mux.HandleFunc("/v2beta1/query/", http.HandlerFunc(c.TranslatedQuery))
 
 	srv := &http.Server{
 		Addr:    ":" + listenPort,
