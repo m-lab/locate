@@ -69,12 +69,16 @@ func (c *Config) LoadSigner(ctx context.Context, client Decrypter, ciphertext st
 }
 
 // LoadVerifier decryptes the given ciphertext and uses it to initialize a token Verifier.
-func (c *Config) LoadVerifier(ctx context.Context, client Decrypter, ciphertext string) (*token.Verifier, error) {
-	b, err := c.Load(ctx, client, ciphertext)
-	if err != nil {
-		return nil, err
+func (c *Config) LoadVerifier(ctx context.Context, client Decrypter, ciphertext ...string) (*token.Verifier, error) {
+	keys := [][]byte{}
+	for i := range ciphertext {
+		b, err := c.Load(ctx, client, ciphertext[i])
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, b)
 	}
-	return token.NewVerifier(b)
+	return token.NewVerifier(keys...)
 }
 
 // path creates a GCP resource path for the KMS key referenced by Config.

@@ -24,7 +24,7 @@ var (
 	listenPort          string
 	project             string
 	locateSignerKey     string
-	monitoringVerifyKey string
+	monitoringVerifyKey = flagx.StringArray{}
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 	flag.StringVar(&listenPort, "port", "8080", "AppEngine port environment variable")
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
 	flag.StringVar(&locateSignerKey, "locate-signer-key", "", "Private key of the locate+service key pair")
-	flag.StringVar(&monitoringVerifyKey, "monitoring-verify-key", "", "Public key of the monitoring+locate key pair")
+	flag.Var(&monitoringVerifyKey, "monitoring-verify-key", "Public keys of the monitoring+locate key pair")
 }
 
 var mainCtx, mainCancel = context.WithCancel(context.Background())
@@ -53,7 +53,7 @@ func main() {
 	c := handler.NewClient(project, signer, locator)
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
-	verifier, err := cfg.LoadVerifier(mainCtx, client, monitoringVerifyKey)
+	verifier, err := cfg.LoadVerifier(mainCtx, client, monitoringVerifyKey...)
 	rtx.Must(err, "Failed to create verifier")
 	exp := jwt.Expected{
 		Issuer:   static.IssuerMonitoring,
