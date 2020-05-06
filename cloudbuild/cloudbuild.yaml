@@ -9,8 +9,7 @@ steps:
 # Run unit tests for environment.
 - name: gcr.io/$PROJECT_ID/golang-cbif
   env:
-  - GO111MODULE=off
-  - GOPROXY=off
+  - GOPROXY=direct
   args:
   - go version
   - go get -v -t ./...
