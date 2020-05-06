@@ -10,7 +10,7 @@ steps:
 - name: gcr.io/$PROJECT_ID/golang-cbif
   env:
   - GO111MODULE=off
-  - GOPROXY=direct
+  - GOPROXY=off
   args:
   - go version
   - go get -v -t ./...
