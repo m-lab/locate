@@ -10,7 +10,7 @@ steps:
 - name: gcr.io/$PROJECT_ID/golang-cbif
   env:
   - GO111MODULE=off
-  - GOPRIVATE=github.com/m-lab/go/*
+  - GOPROXY=direct
   args:
   - go version
   - go get -v -t ./...
