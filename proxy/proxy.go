@@ -9,9 +9,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"regexp"
 	"time"
 
+	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/rtx"
 	"github.com/m-lab/locate/static"
 )
@@ -96,18 +96,15 @@ func UnmarshalResponse(req *http.Request, result interface{}) error {
 	return json.Unmarshal(b, result)
 }
 
-// NOTE: this pattern assumes mlab-ns is returning flat host names, and should
-// be future compatible with project-decorated DNS names.
-var machinePattern = regexp.MustCompile("([a-z-]+)-(mlab[1-4][.-][a-z]{3}[0-9ct]{2}(\\.mlab-[a-z]+)?.measurement-lab.org)")
-
 func collect(opts *geoOptions) []string {
 	targets := []string{}
 	for _, opt := range *opts {
-		fields := machinePattern.FindStringSubmatch(opt.FQDN)
-		if len(fields) < 3 {
+		name, err := host.Parse(opt.FQDN)
+		if err != nil {
 			continue
 		}
-		targets = append(targets, fields[2])
+		// Convert the service name into a canonical machine name.
+		targets = append(targets, name.String())
 	}
 	return targets
 }

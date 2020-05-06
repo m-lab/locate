@@ -143,7 +143,7 @@ func TestNearest(t *testing.T) {
 			content: legacyNames,
 			status:  http.StatusOK,
 			want: []string{
-				"mlab1-lga06.measurement-lab.org", "mlab3-lga05.measurement-lab.org",
+				"mlab1.lga06.measurement-lab.org", "mlab3.lga05.measurement-lab.org",
 			},
 		},
 		{
@@ -165,7 +165,7 @@ func TestNearest(t *testing.T) {
 			content: shortNames,
 			status:  http.StatusOK,
 			want: []string{
-				"mlab2-lga03.measurement-lab.org", "mlab3-lga08.measurement-lab.org",
+				"mlab2.lga03.measurement-lab.org", "mlab3.lga08.measurement-lab.org",
 			},
 		},
 		{
