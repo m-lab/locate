@@ -23,6 +23,7 @@ import (
 var (
 	listenPort          string
 	project             string
+	platform            string
 	locateSignerKey     string
 	monitoringVerifyKey = flagx.StringArray{}
 )
@@ -31,6 +32,7 @@ func init() {
 	// PORT and GOOGLE_CLOUD_PROJECT are part of the default App Engine environment.
 	flag.StringVar(&listenPort, "port", "8080", "AppEngine port environment variable")
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
+	flag.StringVar(&platform, "platform-project", "", "GCP project for platform machine names")
 	flag.StringVar(&locateSignerKey, "locate-signer-key", "", "Private key of the locate+service key pair")
 	flag.Var(&monitoringVerifyKey, "monitoring-verify-key", "Public keys of the monitoring+locate key pair")
 }
@@ -50,7 +52,7 @@ func main() {
 	signer, err := cfg.LoadSigner(mainCtx, client, locateSignerKey)
 	rtx.Must(err, "Failed to load signer key")
 	locator := proxy.MustNewLegacyLocator(proxy.DefaultLegacyServer)
-	c := handler.NewClient(project, signer, locator)
+	c := handler.NewClient(project, platform, signer, locator)
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
 	verifier, err := cfg.LoadVerifier(mainCtx, client, monitoringVerifyKey...)
