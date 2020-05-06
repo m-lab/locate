@@ -4,12 +4,12 @@ options:
   env:
   - PROJECT_ID=$PROJECT_ID
   - WORKSPACE_LINK=/go/src/github.com/m-lab/locate
-  - GIT_ORIGIN_URL=https://github.com/m-lab/locate.git
-  - COMMIT_SHA=$COMMIT_SHA
 
 steps:
 # Run unit tests for environment.
 - name: gcr.io/$PROJECT_ID/golang-cbif
+  env:
+  - GO111MODULE=off
   args:
   - go version
   - go get -v -t ./...
