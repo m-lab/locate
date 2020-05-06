@@ -14,6 +14,7 @@ import (
 
 	"gopkg.in/square/go-jose.v2/jwt"
 
+	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
@@ -27,7 +28,8 @@ type Signer interface {
 // Client contains state needed for xyz.
 type Client struct {
 	Signer
-	project string
+	project  string
+	platform string
 	Locator
 }
 
@@ -38,11 +40,12 @@ type Locator interface {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator) *Client {
+func NewClient(project, platform string, private Signer, locator Locator) *Client {
 	return &Client{
-		Signer:  private,
-		project: project,
-		Locator: locator,
+		Signer:   private,
+		project:  project,
+		platform: platform,
+		Locator:  locator,
 	}
 }
 
@@ -101,11 +104,27 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 // getAccessToken allocates a new access token using the given machine name as
 // the intended audience and the subject as the target service.
 func (c *Client) getAccessToken(machine, subject string) string {
+	// Create canonical v1 and v2 machine names.
+	// TODO: after the v2 migration, eliminate machine parsing and v1 logic.
+	name, err := host.Parse(machine)
+	rtx.PanicOnError(err, "failed to parse given machine name")
+	aud := jwt.Audience{}
+	if name.Version == "v1" {
+		aud = append(aud, name.String())
+		// Override to the platform project name. This should only be active in production
+		// until the v2 migration is complete.
+		name.Project = c.platform
+	}
+	// If the machine name was v1, then name.Project is now set.
+	// If the machine name was v2, then this assignment is redundant and a project is already set.
+	name.Version = "v2"
+	aud = append(aud, name.String())
+
 	// Create the token. The same access token is used for each target port.
 	cl := jwt.Claims{
 		Issuer:   static.IssuerLocate,
 		Subject:  subject,
-		Audience: jwt.Audience{machine},
+		Audience: aud,
 		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Minute)),
 	}
 	token, err := c.Sign(cl)

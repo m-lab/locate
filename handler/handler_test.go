@@ -51,6 +51,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 		signer     Signer
 		locator    *fakeLocator
 		project    string
+		platform   string
 		latlon     string
 		wantKey    string
 		wantStatus int
@@ -82,7 +83,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient(tt.project, tt.signer, tt.locator)
+			c := NewClient(tt.project, tt.platform, tt.signer, tt.locator)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/query/", c.TranslatedQuery)
@@ -126,10 +127,11 @@ func TestClient_TranslatedQuery(t *testing.T) {
 
 func TestClient_Heartbeat(t *testing.T) {
 	tests := []struct {
-		name    string
-		Signer  Signer
-		project string
-		Locator Locator
+		name     string
+		Signer   Signer
+		project  string
+		platform string
+		Locator  Locator
 	}{
 		{
 			// Provide basic coverage until handler implementation is complete.
@@ -138,7 +140,7 @@ func TestClient_Heartbeat(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient(tt.project, tt.Signer, tt.Locator)
+			c := NewClient(tt.project, tt.platform, tt.Signer, tt.Locator)
 			rw := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/v2/heartbeat/ndt/ndt5", nil)
 			c.Heartbeat(rw, req)
