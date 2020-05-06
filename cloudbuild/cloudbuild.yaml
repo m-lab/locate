@@ -9,7 +9,7 @@ steps:
 # Run unit tests for environment.
 - name: gcr.io/$PROJECT_ID/golang-cbif
   env:
-  - GOPROXY=direct
+  - GONOPROXY=github.com/m-lab/go/*
   args:
   - go version
   - go get -v -t ./...
