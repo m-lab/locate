@@ -14,6 +14,7 @@ import (
 
 	"gopkg.in/square/go-jose.v2/jwt"
 
+	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
@@ -101,11 +102,19 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 // getAccessToken allocates a new access token using the given machine name as
 // the intended audience and the subject as the target service.
 func (c *Client) getAccessToken(machine, subject string) string {
+	// Create canonical v1 and v2 machine names.
+	name, err := host.Parse(machine)
+	rtx.PanicOnError(err, "failed to parse given machine name")
+	aud := jwt.Audience{name.String()}
+	// TODO: after the v2 migration, eliminate machine parsing and v1 logic.
+	name.Version = "v1"
+	aud = append(aud, name.String())
+
 	// Create the token. The same access token is used for each target port.
 	cl := jwt.Claims{
 		Issuer:   static.IssuerLocate,
 		Subject:  subject,
-		Audience: jwt.Audience{machine},
+		Audience: aud,
 		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Minute)),
 	}
 	token, err := c.Sign(cl)
