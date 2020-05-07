@@ -53,8 +53,8 @@ func main() {
 	// Load encrypted signer key from environment, using variable name derived from project.
 	signer, err := cfg.LoadSigner(mainCtx, client, locateSignerKey)
 	rtx.Must(err, "Failed to load signer key")
-	locator := proxy.MustNewLegacyLocator(legacyServer)
-	c := handler.NewClient(project, platform, signer, locator)
+	locator := proxy.MustNewLegacyLocator(legacyServer, platform)
+	c := handler.NewClient(project, signer, locator)
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
 	verifier, err := cfg.LoadVerifier(mainCtx, client, monitoringVerifyKey...)
