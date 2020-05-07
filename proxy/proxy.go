@@ -30,16 +30,18 @@ type target struct {
 
 // LegacyLocator manages requests to the legacy mlab-ns service.
 type LegacyLocator struct {
-	Server url.URL
+	Server  url.URL
+	project string
 }
 
 // MustNewLegacyLocator creates a new LegacyLocator instance. If the given url
 // fails to parse, the function will exit.
-func MustNewLegacyLocator(u string) *LegacyLocator {
+func MustNewLegacyLocator(u, project string) *LegacyLocator {
 	server, err := url.Parse(u)
 	rtx.Must(err, "Failed to parse given url: %q", u)
 	return &LegacyLocator{
-		Server: *server,
+		Server:  *server,
+		project: project,
 	}
 }
 
@@ -74,7 +76,7 @@ func (ll *LegacyLocator) Nearest(ctx context.Context, service, lat, lon string) 
 	if err != nil {
 		return nil, err
 	}
-	return collect(opts), nil
+	return ll.collect(opts), nil
 }
 
 // UnmarshalResponse reads the response from the given request and unmarshals
@@ -96,12 +98,20 @@ func UnmarshalResponse(req *http.Request, result interface{}) error {
 	return json.Unmarshal(b, result)
 }
 
-func collect(opts *geoOptions) []string {
+// collect reads all FQDN results from the given options and guarantees to
+// return v2 formatted hostnames.
+func (ll *LegacyLocator) collect(opts *geoOptions) []string {
 	targets := []string{}
 	for _, opt := range *opts {
 		name, err := host.Parse(opt.FQDN)
 		if err != nil {
 			continue
+		}
+		// TODO: after the v2 migration, eliminate v1 logic.
+		if name.Version == "v1" {
+			// Convert name to v2.
+			name.Project = ll.project
+			name.Version = "v2"
 		}
 		// Convert the service name into a canonical machine name.
 		targets = append(targets, name.String())
