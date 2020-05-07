@@ -89,7 +89,7 @@ func TestClient_Monitoring(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("mlab-sandbox", "mlab-testing", tt.signer, tt.locator)
+			c := NewClient("mlab-sandbox", tt.signer, tt.locator)
 			rw := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/v2/monitoring/"+tt.path, nil)
 			req = req.Clone(controller.SetClaim(req.Context(), tt.claim))

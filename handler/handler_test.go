@@ -83,7 +83,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient(tt.project, tt.platform, tt.signer, tt.locator)
+			c := NewClient(tt.project, tt.signer, tt.locator)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/query/", c.TranslatedQuery)
@@ -140,7 +140,7 @@ func TestClient_Heartbeat(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient(tt.project, tt.platform, tt.Signer, tt.Locator)
+			c := NewClient(tt.project, tt.Signer, tt.Locator)
 			rw := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/v2/heartbeat/ndt/ndt5", nil)
 			c.Heartbeat(rw, req)
