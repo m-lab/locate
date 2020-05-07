@@ -51,7 +51,6 @@ func TestClient_TranslatedQuery(t *testing.T) {
 		signer     Signer
 		locator    *fakeLocator
 		project    string
-		platform   string
 		latlon     string
 		wantKey    string
 		wantStatus int
@@ -127,11 +126,10 @@ func TestClient_TranslatedQuery(t *testing.T) {
 
 func TestClient_Heartbeat(t *testing.T) {
 	tests := []struct {
-		name     string
-		Signer   Signer
-		project  string
-		platform string
-		Locator  Locator
+		name    string
+		Signer  Signer
+		project string
+		Locator Locator
 	}{
 		{
 			// Provide basic coverage until handler implementation is complete.
