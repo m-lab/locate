@@ -303,13 +303,16 @@ func Test_UnmarshalResponse(t *testing.T) {
 			if err != nil {
 				t.Errorf("failed to create request")
 			}
-			if err := UnmarshalResponse(req, tt.result); (err != nil) != tt.wantErr {
+			resp, err := UnmarshalResponse(req, tt.result)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("getRequest() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.wantErr {
 				return
 			}
-
+			if resp.StatusCode != tt.status {
+				t.Errorf("UnmarshalResponse() got %d, want %d", resp.StatusCode, tt.status)
+			}
 			obj := tt.result.(*fakeObject)
 			if obj.Message != "success" {
 				t.Errorf("Result did not decode message: got %q, want 'success'", obj.Message)

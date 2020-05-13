@@ -62,6 +62,10 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	result := v2.QueryResult{}
 	experiment, service := getExperimentAndService(req.URL.Path)
 
+	// Set CORS policy to allow third-party websites to use returned resources.
+	rw.Header().Set("Content-Type", "application/json")
+	rw.Header().Set("Access-Control-Allow-Origin", "*")
+
 	// Check whether the service is valid before all other steps to fail fast.
 	ports, ok := static.Configs[service]
 	if !ok {
