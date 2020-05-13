@@ -94,11 +94,14 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			req.Header.Set("X-AppEngine-CityLatLong", tt.latlon)
 
 			result := &v2.QueryResult{}
-			err = proxy.UnmarshalResponse(req, result)
+			resp, err := proxy.UnmarshalResponse(req, result)
 			if err != nil {
 				t.Fatalf("Failed to get response from: %s %s", srv.URL, tt.path)
 			}
-
+			if resp.Header.Get("Access-Control-Allow-Origin") != "*" {
+				t.Errorf("TranslatedQuery() wrong Access-Control-Allow-Origin header; got %s, want '*'",
+					resp.Header.Get("Access-Control-Allow-Origin"))
+			}
 			if result.Error != nil && result.Error.Status != tt.wantStatus {
 				t.Errorf("TranslatedQuery() wrong status; got %d, want %d", result.Error.Status, tt.wantStatus)
 			}
