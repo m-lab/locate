@@ -102,6 +102,10 @@ func TestClient_TranslatedQuery(t *testing.T) {
 				t.Errorf("TranslatedQuery() wrong Access-Control-Allow-Origin header; got %s, want '*'",
 					resp.Header.Get("Access-Control-Allow-Origin"))
 			}
+			if resp.Header.Get("Content-Type") != "application/json" {
+				t.Errorf("TranslatedQuery() wrong Content-Type header; got %s, want 'application/json'",
+					resp.Header.Get("Content-Type"))
+			}
 			if result.Error != nil && result.Error.Status != tt.wantStatus {
 				t.Errorf("TranslatedQuery() wrong status; got %d, want %d", result.Error.Status, tt.wantStatus)
 			}
