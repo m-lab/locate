@@ -85,7 +85,7 @@ func main() {
 
 	// Get monitoring result.
 	mr := &v2.MonitoringResult{}
-	err = proxy.UnmarshalResponse(req, mr)
+	_, err = proxy.UnmarshalResponse(req, mr)
 	rtx.Must(err, "Failed to get response")
 	logx.Debug.Println(pretty.Sprint(mr))
 	if mr.Error != nil {
