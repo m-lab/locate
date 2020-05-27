@@ -6,35 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
 	"testing"
 
+	"github.com/go-test/deep"
 	"github.com/m-lab/go/rtx"
+	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
 )
-
-var legacyNames = `[
-  {
-    "ip": [
-      "128.177.119.203",
-      "2001:438:fffd:2b::203"
-    ],
-    "country": "US",
-    "city": "New York_NY",
-    "fqdn": "ndt-iupui-mlab1-lga06.measurement-lab.org",
-    "site": "lga06"
-  },
-  {
-    "ip": [
-      "4.35.94.37",
-      "2001:1900:2100:14::37"
-    ],
-    "country": "US",
-    "city": "New York_NY",
-    "fqdn": "ndt-iupui-mlab3-lga05.measurement-lab.org",
-    "site": "lga05"
-  }
-]`
 
 var projectNames = `[
   {
@@ -43,7 +21,7 @@ var projectNames = `[
       "2001:438:fffd:2b::203"
     ],
     "country": "US",
-    "city": "New York_NY",
+    "city": "New York",
     "fqdn": "ndt-mlab1-lga06.mlab-staging.measurement-lab.org",
     "site": "lga06"
   },
@@ -53,7 +31,7 @@ var projectNames = `[
       "2001:1900:2100:14::37"
     ],
     "country": "US",
-    "city": "New York_NY",
+    "city": "New York",
     "fqdn": "ndt-mlab3-lga05.mlab-staging.measurement-lab.org",
     "site": "lga05"
   }
@@ -66,8 +44,8 @@ var shortNames = `[
       "2001:5a0:4300::152"
     ],
     "country": "US",
-    "city": "New York_NY",
-    "fqdn": "ndt-mlab2-lga03.measurement-lab.org",
+    "city": "New York",
+    "fqdn": "ndt-mlab2-lga03.mlab-sandbox.measurement-lab.org",
     "site": "lga03"
   },
   {
@@ -76,8 +54,8 @@ var shortNames = `[
       "2001:550:1d00:100::165"
     ],
     "country": "US",
-    "city": "New York_NY",
-    "fqdn": "ndt-mlab3-lga08.measurement-lab.org",
+    "city": "New York",
+    "fqdn": "ndt-mlab3-lga08.mlab-sandbox.measurement-lab.org",
     "site": "lga08"
   }
 ]`
@@ -89,7 +67,7 @@ var badNames = `[
       "2001:5a0:4300::152"
     ],
     "country": "US",
-    "city": "New York_NY",
+    "city": "New York",
     "fqdn": "invalid-hostname.measurementlab.net",
     "site": "lga03"
   },
@@ -99,7 +77,7 @@ var badNames = `[
       "2001:550:1d00:100::165"
     ],
     "country": "US",
-    "city": "New York_NY",
+    "city": "New York",
     "fqdn": "invalid-hostname-2.measurementlab.net",
     "site": "lga08"
   }
@@ -132,20 +110,9 @@ func TestNearest(t *testing.T) {
 		breakReader bool
 		badScheme   string
 		badURL      string
-		want        []string
+		want        []v2.Target
 		wantErr     bool
 	}{
-		{
-			name:    "success-legacy-names",
-			service: "ndt/ndt5",
-			lat:     "40.3",
-			lon:     "-70.1",
-			content: legacyNames,
-			status:  http.StatusOK,
-			want: []string{
-				"mlab1-lga06.mlab-testing.measurement-lab.org", "mlab3-lga05.mlab-testing.measurement-lab.org",
-			},
-		},
 		{
 			name:    "success-project-names",
 			service: "ndt/ndt5",
@@ -153,8 +120,21 @@ func TestNearest(t *testing.T) {
 			lon:     "-70.1",
 			content: projectNames,
 			status:  http.StatusOK,
-			want: []string{
-				"mlab1-lga06.mlab-staging.measurement-lab.org", "mlab3-lga05.mlab-staging.measurement-lab.org",
+			want: []v2.Target{
+				{
+					Machine: "mlab1-lga06.mlab-staging.measurement-lab.org",
+					Location: &v2.Location{
+						City:    "New York",
+						Country: "US",
+					},
+				},
+				{
+					Machine: "mlab3-lga05.mlab-staging.measurement-lab.org",
+					Location: &v2.Location{
+						City:    "New York",
+						Country: "US",
+					},
+				},
 			},
 		},
 		{
@@ -164,8 +144,21 @@ func TestNearest(t *testing.T) {
 			lon:     "-70.1",
 			content: shortNames,
 			status:  http.StatusOK,
-			want: []string{
-				"mlab2-lga03.mlab-testing.measurement-lab.org", "mlab3-lga08.mlab-testing.measurement-lab.org",
+			want: []v2.Target{
+				{
+					Machine: "mlab2-lga03.mlab-sandbox.measurement-lab.org",
+					Location: &v2.Location{
+						City:    "New York",
+						Country: "US",
+					},
+				},
+				{
+					Machine: "mlab3-lga08.mlab-sandbox.measurement-lab.org",
+					Location: &v2.Location{
+						City:    "New York",
+						Country: "US",
+					},
+				},
 			},
 		},
 		{
@@ -175,7 +168,7 @@ func TestNearest(t *testing.T) {
 			lon:     "-70.1",
 			content: badNames,
 			status:  http.StatusOK,
-			want:    []string{},
+			want:    []v2.Target{},
 		},
 		{
 			name:    "error-no-content",
@@ -241,8 +234,8 @@ func TestNearest(t *testing.T) {
 				t.Errorf("Nearest() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Nearest() = %v, want %v", got, tt.want)
+			if diff := deep.Equal(got, tt.want); diff != nil {
+				t.Errorf("Nearest() = %#v, want %v", diff, tt.want)
 			}
 		})
 	}
