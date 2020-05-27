@@ -77,6 +77,12 @@ type NextRequest struct {
 	URL string `json:"url"`
 }
 
+// Location contains metadata about the geographic location of a target machine.
+type Location struct {
+	City    string `json:"city"`
+	Country string `json:"country"`
+}
+
 // Target contains information needed to run a measurement to a measurement
 // service on a single M-Lab machine. Measurement services may support multiple
 // resources. A Target contains at least one measurement service resource in
@@ -84,6 +90,9 @@ type NextRequest struct {
 type Target struct {
 	// Machine is the FQDN of the machine hosting the measurement service.
 	Machine string `json:"machine"`
+
+	// Location contains metadata about the geographic location of the target machine.
+	Location *Location `json:"location,omitempty"`
 
 	// URLs contains measurement service resource names and the complete URL for
 	// running a measurement.
