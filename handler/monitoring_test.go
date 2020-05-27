@@ -38,7 +38,7 @@ func TestClient_Monitoring(t *testing.T) {
 			},
 			signer: &fakeSigner{},
 			locator: &fakeLocator{
-				machines: []string{"mlab1-lga0t.measurement-lab.org"},
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
 			},
 			path:    "ndt/ndt5",
 			wantKey: "wss://:3010/ndt_protocol",

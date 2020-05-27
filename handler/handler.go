@@ -35,7 +35,7 @@ type Client struct {
 // Locator defines how the TranslatedQuery handler requests machines nearest to
 // the client.
 type Locator interface {
-	Nearest(ctx context.Context, service, lat, lon string) ([]string, error)
+	Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error)
 }
 
 // NewClient creates a new client.
@@ -76,17 +76,16 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 
 	// Make proxy request using AppEngine provided lat,lon.
 	lat, lon := splitLatLon(req.Header.Get("X-AppEngine-CityLatLong"))
-	machines, err := c.Nearest(req.Context(), service, lat, lon)
+	targets, err := c.Nearest(req.Context(), service, lat, lon)
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
 		writeResult(rw, result.Error.Status, &result)
 		return
 	}
 
-	// Construct result targets with empty URLs.
-	targets := []v2.Target{}
-	for i := range machines {
-		targets = append(targets, v2.Target{Machine: machines[i], URLs: map[string]string{}})
+	// Update targets with empty URLs.
+	for i := range targets {
+		targets[i].URLs = map[string]string{}
 	}
 
 	// Populate each set of URLs using the ports configuration.

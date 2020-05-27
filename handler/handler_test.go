@@ -33,15 +33,15 @@ func (s *fakeSigner) Sign(cl jwt.Claims) (string, error) {
 }
 
 type fakeLocator struct {
-	err      error
-	machines []string
+	err     error
+	targets []v2.Target
 }
 
-func (l *fakeLocator) Nearest(ctx context.Context, service, lat, lon string) ([]string, error) {
+func (l *fakeLocator) Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error) {
 	if l.err != nil {
 		return nil, l.err
 	}
-	return l.machines, nil
+	return l.targets, nil
 }
 
 func TestClient_TranslatedQuery(t *testing.T) {
@@ -73,7 +73,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
 			locator: &fakeLocator{
-				machines: []string{"mlab1-lga0t.measurement-lab.org"},
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
 			},
 			latlon:     "40.3,-70.4",
 			wantKey:    "ws://:3001/ndt_protocol",
@@ -116,9 +116,9 @@ func TestClient_TranslatedQuery(t *testing.T) {
 				t.Errorf("TranslatedQuery() wrong status; got %d, want %d", result.Error.Status, tt.wantStatus)
 			}
 			//	pretty.Print(result)
-			if len(tt.locator.machines) != len(result.Results) {
+			if len(tt.locator.targets) != len(result.Results) {
 				t.Errorf("TranslateQuery() wrong result count; got %d, want %d",
-					len(result.Results), len(tt.locator.machines))
+					len(result.Results), len(tt.locator.targets))
 			}
 			if len(result.Results[0].URLs) != len(static.Configs[tt.path]) {
 				t.Errorf("TranslateQuery() result wrong URL count; got %d, want %d",

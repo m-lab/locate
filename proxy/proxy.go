@@ -13,6 +13,7 @@ import (
 
 	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/rtx"
+	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
 )
 
@@ -25,7 +26,9 @@ var (
 type geoOptions []target
 
 type target struct {
-	FQDN string `json:"fqdn"`
+	FQDN    string `json:"fqdn"`
+	City    string `json:"city"`
+	Country string `json:"country"`
 }
 
 // LegacyLocator manages requests to the legacy mlab-ns service.
@@ -50,7 +53,7 @@ var ErrNoContent = errors.New("no content from server")
 
 // Nearest discovers the nearest machines for the target service, using a
 // proxied request to the LegacyServer such as mlab-ns.
-func (ll *LegacyLocator) Nearest(ctx context.Context, service, lat, lon string) ([]string, error) {
+func (ll *LegacyLocator) Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error) {
 	path, ok := static.LegacyServices[service]
 	if !ok {
 		return nil, fmt.Errorf("Unsupported service: %q", service)
@@ -100,21 +103,22 @@ func UnmarshalResponse(req *http.Request, result interface{}) (*http.Response, e
 
 // collect reads all FQDN results from the given options and guarantees to
 // return v2 formatted hostnames.
-func (ll *LegacyLocator) collect(opts *geoOptions) []string {
-	targets := []string{}
+func (ll *LegacyLocator) collect(opts *geoOptions) []v2.Target {
+	targets := []v2.Target{}
 	for _, opt := range *opts {
 		name, err := host.Parse(opt.FQDN)
 		if err != nil {
 			continue
 		}
-		// TODO: after the v2 migration, eliminate v1 logic.
-		if name.Version == "v1" {
-			// Convert name to v2.
-			name.Project = ll.project
-			name.Version = "v2"
+		target := v2.Target{
+			Machine: name.String(),
+			Location: &v2.Location{
+				City:    opt.City,
+				Country: opt.Country,
+			},
 		}
 		// Convert the service name into a canonical machine name.
-		targets = append(targets, name.String())
+		targets = append(targets, target)
 	}
 	return targets
 }
