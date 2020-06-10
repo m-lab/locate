@@ -78,6 +78,9 @@ func main() {
 	// Clients request access tokens for specific services.
 	mux.HandleFunc("/v2beta1/query/", http.HandlerFunc(c.TranslatedQuery))
 
+	// REQUIRED: API keys parameters required for priority requests.
+	mux.HandleFunc("/v2/priority/nearest/", http.HandlerFunc(c.TranslatedQuery))
+
 	srv := &http.Server{
 		Addr:    ":" + listenPort,
 		Handler: mux,
