@@ -71,15 +71,21 @@ func main() {
 	// TODO: add verifier for optional access tokens to support NextRequest.
 
 	mux := http.NewServeMux()
+	// PLATFORM APIs
 	// Services report their health to the heartbeat service.
-	mux.HandleFunc("/v2/heartbeat/", http.HandlerFunc(c.Heartbeat))
+	mux.HandleFunc("/v2/platform/heartbeat/", http.HandlerFunc(c.Heartbeat))
 	// End to end monitoring requests access tokens for specific targets.
-	mux.Handle("/v2/monitoring/", monitoringChain)
-	// Clients request access tokens for specific services.
-	mux.HandleFunc("/v2beta1/query/", http.HandlerFunc(c.TranslatedQuery))
+	mux.Handle("/v2/platform/monitoring/", monitoringChain)
 
+	// USER APIs
+	// Clients request access tokens for specific services.
+	mux.HandleFunc("/v2/nearest/", http.HandlerFunc(c.TranslatedQuery))
 	// REQUIRED: API keys parameters required for priority requests.
 	mux.HandleFunc("/v2/priority/nearest/", http.HandlerFunc(c.TranslatedQuery))
+
+	// DEPRECATED APIs: TODO: retire after migrating clients.
+	mux.Handle("/v2/monitoring/", monitoringChain)
+	mux.HandleFunc("/v2beta1/query/", http.HandlerFunc(c.TranslatedQuery))
 
 	srv := &http.Server{
 		Addr:    ":" + listenPort,
