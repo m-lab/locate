@@ -1,0 +1,224 @@
+# Copyright 2020, locate Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# [START swagger]
+swagger: "2.0"
+info:
+  description: |-
+    The locate API provides consistent, expected measurement quality for M-Lab
+    clients.
+  title: "M-Lab Locate API"
+  version: "2.0.0"
+host: "locate-dot-{{PROJECT}}.appspot.com"
+# [END swagger]
+
+consumes:
+- "application/json"
+produces:
+- "application/json"
+schemes:
+- "https"
+
+paths:
+  # DEPRECATED: original v2beta1 query for "nearest" servers.
+  # TODO: remove once clients have migrated.
+  "/v2beta1/query/{name}/{type}":
+    get:
+      description: |-
+        DEPRECATED, use /v2/nearest/ instead.
+      operationId: "v2beta1-query"
+      produces:
+      - "application/json"
+      parameters:
+        - name: name
+          in: path
+          type: string
+          required: true
+          description: name
+        - name: type
+          in: path
+          type: string
+          required: true
+          description: type
+      responses:
+        '200':
+          description: Nearest results.
+          schema:
+            $ref: "#/definitions/NearestResult"
+
+  # Shared "nearest" requests without an API key.
+  "/v2/nearest/{name}/{type}":
+    get:
+      description: |-
+        Find the nearest healthy service.
+
+        All requests are scheduled as part of a "shared" resource pool. This
+        is a good choice for small client integrations. When the platform is
+        overloaded and the locate API must choose which requests to allow and
+        which to block, priority is given to requests using explicit API keys
+        to the /v2/priority/* resource.
+
+        This resource does not require an API key. All requests to this resource
+        are managed collectively as if they all used a single API key.
+
+      operationId: "v2-shared-nearest"
+      produces:
+      - "application/json"
+      parameters:
+        - name: name
+          in: path
+          description: The service name, e.g. "ndt", "neubot", "wehe", etc.
+          type: string
+          required: true
+        - name: type
+          in: path
+          description: The service type, e.g. "ndt7", "dash", "replay", etc.
+          type: string
+          required: true
+      responses:
+        # NOTE: non-number values are a schema error for the config, despite
+        # openapi documentation.
+        '200':
+          description: The result of the nearest request. Clients should use the
+            next request fields to schedule the next request in the event of
+            error or batch scheduling.
+          schema:
+            $ref: "#/definitions/NearestResult"
+        '500':
+          description: An error occurred while looking for the service.
+            Clients should use the next request fields to schedule the next
+            request in the event of error.
+          schema:
+            $ref: "#/definitions/ErrorResult"
+
+  # Priority "nearest" requests WITH an API key.
+  "/v2/priority/nearest/{name}/{type}":
+    get:
+      description: |-
+        Find the nearest healthy service.
+
+        This resource requires an API key. When the system is under sufficient
+        load that the locate API must choose which requests to allow and which
+        to reject, these requests are prioritized over "shared" requests.
+
+      operationId: "v2-priority-nearest"
+      produces:
+      - "application/json"
+      parameters:
+        - name: name
+          in: path
+          description: service
+          type: string
+          required: true
+        - name: type
+          in: path
+          description: datatype
+          type: string
+          required: true
+      responses:
+        '200':
+          description: The result of the nearest request. Clients should use the
+            next request fields to schedule the next request for batch
+            scheduling.
+          schema:
+            $ref: "#/definitions/NearestResult"
+        '500':
+          description: An error occurred while looking for the service.
+            Clients should use the next request fields to schedule the next
+            request in the event of error.
+          schema:
+            $ref: "#/definitions/ErrorResult"
+      security:
+      - api_key: []
+
+definitions:
+  # Define the query reply without being specific about the structure.
+  ErrorResult:
+    type: object
+    properties:
+        error:
+          type: object
+          properties:
+            type:
+              type: string
+              description: The error type.
+            title:
+              type: string
+              description: A descriptive title for this error.
+            status:
+              type: integer
+              description: The HTTP status code of this error, e.g. 4xx or 5xx.
+            detail:
+              type: string
+            instance:
+              type: string
+        next_request:
+          $ref: "#/definitions/NextRequest"
+
+  NearestResult:
+    type: object
+    properties:
+        next_request:
+          $ref: "#/definitions/NextRequest"
+          description: The next request defines the earliest time that a client
+            should make a new request using the included URL.
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              machine:
+                type: string
+                description: The machine name that all URLs reference.
+              location:
+                type: object
+                additionalProperties: {}
+                description: The machine location metadata.
+              urls:
+                type: object
+                additionalProperties: {}
+                description: Specific service URLs with access tokens.
+
+  NextRequest:
+    type: object
+    properties:
+      nbf:
+        type: string
+        description: |-
+          "not before" defines the time after which the URL will
+          become valid. This value is the same time used in "nbf" field of
+          the underlying JSON Web Token (JWT) claim. To show this equivalence,
+          we use the same name.
+      exp:
+        type: string
+        description: |-
+          Expires defines the time after which the URL will be invalid.
+          Expires will always be greater than NotBefore. This value is the
+          same time used in the "exp" field of the underlying JWT claim.
+      url:
+        type: string
+        description: |-
+          URL should be used to make the next request to the location service.
+
+securityDefinitions:
+  # This section configures basic authentication with an API key.
+  # Paths configured with api_key security require an API key for all requests.
+  api_key:
+    type: "apiKey"
+    description: |-
+      An API key for your client integration restricted to the Locate API and
+      allocated using a self-service signup (TODO: link) or allocated by M-Lab
+      for your client integration (TODO: link).
+    name: "key"
+    in: "query"

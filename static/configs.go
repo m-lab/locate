@@ -40,8 +40,14 @@ var Configs = map[string]Ports{
 		URL("ws", ":3001", "/ndt_protocol"),
 		URL("wss", ":3010", "/ndt_protocol"),
 	},
+	"neubot/dash": {
+		URL("wss", "", "/v0/envelope/access"),
+	},
 	"wehe/replay": {
-		URL("https", "", "/v0/allow"),
+		URL("wss", "", "/v0/envelope/access"),
+	},
+	"iperf/test": {
+		URL("wss", "", "/v0/envelope/access"),
 	},
 }
 
@@ -51,6 +57,8 @@ type Ports []url.URL
 // LegacyServices associates legacy mlab-ns experiment target names with their
 // v2 equivalent.
 var LegacyServices = map[string]string{
-	"ndt/ndt5": "ndt_ssl",
-	"ndt/ndt7": "ndt7",
+	"neubot/dash": "neubot",
+	"wehe/replay": "ndt_ssl", // TODO: replace with heartbeat health.
+	"ndt/ndt5":    "ndt_ssl",
+	"ndt/ndt7":    "ndt7",
 }
