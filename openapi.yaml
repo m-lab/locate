@@ -20,7 +20,7 @@ info:
     clients.
   title: "M-Lab Locate API"
   version: "2.0.0"
-host: "locate-dot-mlab-sandbox.appspot.com"
+host: "locate-dot-{{PROJECT}}.appspot.com"
 # [END swagger]
 
 consumes:
