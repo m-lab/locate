@@ -35,3 +35,6 @@ steps:
   args:
   - cp cloudbuild/app.yaml.$PROJECT_ID app.yaml
   - gcloud --project $PROJECT_ID app deploy --promote app.yaml
+  # After deploying the new service, deploy the openapi spec.
+  - sed -i -e "s/{{PROJECT}}/$PROJECT_ID" openapi.yaml
+  - gcloud endpoints services deploy openapi.yaml
