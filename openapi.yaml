@@ -20,7 +20,7 @@ info:
     clients.
   title: "M-Lab Locate API"
   version: "2.0.0"
-host: "locate-dot-{{PROJECT}}.appspot.com"
+host: "locate-dot-mlab-sandbox.appspot.com"
 # [END swagger]
 
 consumes:
@@ -45,12 +45,15 @@ paths:
           in: path
           type: string
           required: true
+          description: name
         - name: type
           in: path
           type: string
           required: true
+          description: type
       responses:
-        200:
+        '200':
+          description: Nearest results.
           schema:
             $ref: "#/definitions/NearestResult"
 
@@ -154,7 +157,7 @@ definitions:
               type: string
               description: A descriptive title for this error.
             status:
-              type: int
+              type: integer
               description: The HTTP status code of this error, e.g. 4xx or 5xx.
             detail:
               type: string
@@ -192,19 +195,21 @@ definitions:
     properties:
       nbf:
         type: string
-        description: "not before" defines the time after which the URL will
+        description: |-
+          "not before" defines the time after which the URL will
           become valid. This value is the same time used in "nbf" field of
           the underlying JSON Web Token (JWT) claim. To show this equivalence,
           we use the same name.
       exp:
         type: string
-        description: Expires defines the time after which the URL will be
-          invalid. Expires will always be greater than NotBefore. This value
-          is the same time used in the "exp" field of the underlying JWT claim.
+        description: |-
+          Expires defines the time after which the URL will be invalid.
+          Expires will always be greater than NotBefore. This value is the
+          same time used in the "exp" field of the underlying JWT claim.
       url:
         type: string
-        description: URL should be used to make the next request to the
-          location service.
+        description: |-
+          URL should be used to make the next request to the location service.
 
 securityDefinitions:
   # This section configures basic authentication with an API key.
