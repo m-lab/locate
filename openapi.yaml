@@ -60,12 +60,14 @@ paths:
       description: |-
         Find the nearest healthy service.
 
-        This resource does not require an API key. As a result, all client
-        requests are scheduled as if they shared an implicit API key. This
-        resource provides "shared" access to the platform. When the system is
-        overloaded and the locate API must choose what requests to allow and
+        All requests are scheduled as part of a "shared" resource pool. This
+        is a good choice for small client integrations. When the platform is
+        overloaded and the locate API must choose which requests to allow and
         which to block, priority is given to requests using explicit API keys
         to the /v2/priority/* resource.
+
+        This resource does not require an API key. All requests to this resource
+        are managed collectively as if they all used a single API key.
 
       operationId: "v2-shared-nearest"
       produces:
@@ -184,6 +186,7 @@ definitions:
                 type: object
                 additionalProperties: {}
                 description: Specific service URLs with access tokens.
+
   NextRequest:
     type: object
     properties:
@@ -203,12 +206,14 @@ definitions:
         description: URL should be used to make the next request to the
           location service.
 
-# This section requires all requests to any path to require an API key.
 securityDefinitions:
   # This section configures basic authentication with an API key.
+  # Paths configured with api_key security require an API key for all requests.
   api_key:
     type: "apiKey"
-    description: An API key allocated by M-Lab for your client integration or
-      through a self-service sign-up.
+    description: |-
+      An API key for your client integration restricted to the Locate API and
+      allocated using a self-service signup (TODO: link) or allocated by M-Lab
+      for your client integration (TODO: link).
     name: "key"
     in: "query"
