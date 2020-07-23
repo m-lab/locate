@@ -139,9 +139,8 @@ paths:
             request in the event of error.
           schema:
             $ref: "#/definitions/ErrorResult"
-      # TODO(soltesz): enable after resolving the onebox API key requirements.
-      #security:
-      #- api_key: []
+      security:
+      - api_key: []
 
 definitions:
   # Define the query reply without being specific about the structure.
