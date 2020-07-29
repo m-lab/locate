@@ -27,7 +27,8 @@ nearby M-Lab servers that satisfy the client query.
 The locate API also considers:
 
 * is the target server online? (required)
-* is the client request frequency [acceptable usage][aup]? (required)
+* is the client request frequency within by our [acceptable use policy][aup]?
+  (required)
 
 > PLANNED(v2): the locate API will bias results to be in the same country
 as the client.
@@ -100,15 +101,17 @@ parameters for `session=` with a random id that the target server saves with
 the measurement results.
 
 Once a client connects to a target service using a given URL, the target
-server may accept or reject the connection based on local conditions. The
-goal is to preserve the expected measurement quality for every client,
-occassionally at the cost of declining to run a measurement.
+server may accept or reject the connection based on local conditions (e.g.
+sufficient network capacity). The goal is to preserve the expected
+measurement quality for every client. Meeting this goal means that
+occassionally some clients may be temporarily prevented from running a
+measurement on a particular machine.
 
-Therefore, the client must be resilient to transient rejections by continuing
+Therefore, the client should be resilient to transient rejections by continuing
 with the next returned result. Clients must also gracefully handle the case
 where all target servers reject the client request. This could happen when
 the platform is under extreme load. Clients should report the outage to
-users
+users.
 
-> PLANNED(v2): once the `NextRequest` time is available, clients should wait
-before trying again.
+> PLANNED(v2): the Locate API `NextRequest` will provide clients with a wait
+time before trying again.
