@@ -44,7 +44,7 @@ var Configs = map[string]Ports{
 		URL("wss", "", "/v0/envelope/access"),
 	},
 	"wehe/replay": {
-		URL("wss", "", "/v0/envelope/access"),
+		URL("wss", ":4443", "/v0/envelope/access"),
 	},
 	"iperf/test": {
 		URL("wss", "", "/v0/envelope/access"),
