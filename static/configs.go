@@ -44,7 +44,7 @@ var Configs = map[string]Ports{
 		URL("wss", "", "/v0/envelope/access"),
 	},
 	"wehe/replay": {
-		URL("wss", "", "/v0/envelope/access"),
+		URL("wss", ":4443", "/v0/envelope/access"),
 	},
 	"iperf/test": {
 		URL("wss", "", "/v0/envelope/access"),
@@ -58,7 +58,7 @@ type Ports []url.URL
 // v2 equivalent.
 var LegacyServices = map[string]string{
 	"neubot/dash": "neubot",
-	"wehe/replay": "ndt_ssl", // TODO: replace with heartbeat health.
+	"wehe/replay": "ndt7", // TODO: replace with heartbeat health.
 	"ndt/ndt5":    "ndt_ssl",
 	"ndt/ndt7":    "ndt7",
 }
