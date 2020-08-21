@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/go/host"
@@ -36,6 +37,11 @@ type Client struct {
 // the client.
 type Locator interface {
 	Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error)
+}
+
+func init() {
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetLevel(log.InfoLevel)
 }
 
 // NewClient creates a new client.
@@ -72,6 +78,13 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 		result.Error = v2.NewError("config", "Unknown service: "+service, http.StatusBadRequest)
 		writeResult(rw, result.Error.Status, &result)
 		return
+	}
+
+	for name, values := range req.Header {
+		log.WithFields(log.Fields{
+			"name":   name,
+			"values": fmt.Sprintf("%#v", values),
+		}).Info("header")
 	}
 
 	// Make proxy request using AppEngine provided lat,lon.
