@@ -15,8 +15,14 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
+
+func init() {
+	// Disable most logs for unit tests.
+	log.SetLevel(log.FatalLevel)
+}
 
 type fakeSigner struct {
 	err error
@@ -35,9 +41,13 @@ func (s *fakeSigner) Sign(cl jwt.Claims) (string, error) {
 type fakeLocator struct {
 	err     error
 	targets []v2.Target
+	gotLat  string
+	gotLon  string
 }
 
 func (l *fakeLocator) Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error) {
+	l.gotLat = lat
+	l.gotLon = lon
 	if l.err != nil {
 		return nil, l.err
 	}
@@ -52,6 +62,8 @@ func TestClient_TranslatedQuery(t *testing.T) {
 		locator    *fakeLocator
 		project    string
 		latlon     string
+		header     http.Header
+		wantLatLon string
 		wantKey    string
 		wantStatus int
 	}{
@@ -69,13 +81,61 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
+			name:   "error-corrupt-latlon",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocator{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+			},
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"corrupt-value"},
+			},
+			wantLatLon: "",
+			wantKey:    "ws://:3001/ndt_protocol",
+			wantStatus: http.StatusOK,
+		},
+		{
 			name:   "success-nearest-server",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
 			locator: &fakeLocator{
 				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
 			},
-			latlon:     "40.3,-70.4",
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+			},
+			wantLatLon: "40.3,-70.4", // Client receives lat/lon provided by AppEngine.
+			wantKey:    "ws://:3001/ndt_protocol",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "success-nearest-server-using-region",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocator{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+			},
+			header: http.Header{
+				"X-AppEngine-Country": []string{"US"},
+				"X-AppEngine-Region":  []string{"ny"},
+			},
+			wantLatLon: "43.19880000,-75.3242000", // Region center.
+			wantKey:    "ws://:3001/ndt_protocol",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "success-nearest-server-using-country",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocator{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+			},
+			header: http.Header{
+				"X-AppEngine-Region":      []string{"fake-region"},
+				"X-AppEngine-Country":     []string{"US"},
+				"X-AppEngine-CityLatLong": []string{"0.000000,0.000000"},
+			},
+			wantLatLon: "37.09024,-95.712891", // Country center.
 			wantKey:    "ws://:3001/ndt_protocol",
 			wantStatus: http.StatusOK,
 		},
@@ -85,13 +145,13 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			c := NewClient(tt.project, tt.signer, tt.locator)
 
 			mux := http.NewServeMux()
-			mux.HandleFunc("/v2/query/", c.TranslatedQuery)
+			mux.HandleFunc("/v2/nearest/", c.TranslatedQuery)
 			srv := httptest.NewServer(mux)
 			defer srv.Close()
 
-			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2/query/"+tt.path, nil)
+			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2/nearest/"+tt.path, nil)
 			rtx.Must(err, "Failed to create request")
-			req.Header.Set("X-AppEngine-CityLatLong", tt.latlon)
+			req.Header = tt.header
 
 			result := &v2.QueryResult{}
 			resp, err := proxy.UnmarshalResponse(req, result)
@@ -106,6 +166,10 @@ func TestClient_TranslatedQuery(t *testing.T) {
 				t.Errorf("TranslatedQuery() wrong Content-Type header; got %s, want 'application/json'",
 					resp.Header.Get("Content-Type"))
 			}
+			if resp.Header.Get("X-Locate-ClientLatLon") != tt.wantLatLon {
+				t.Errorf("TranslatedQuery() wrong X-Locate-ClientLatLon header; got %s, want '%s'",
+					resp.Header.Get("X-Locate-ClientLatLon"), tt.wantLatLon)
+			}
 			if result.Error != nil && result.Error.Status != tt.wantStatus {
 				t.Errorf("TranslatedQuery() wrong status; got %d, want %d", result.Error.Status, tt.wantStatus)
 			}
@@ -115,7 +179,6 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			if result.Results == nil && tt.wantStatus == http.StatusOK {
 				t.Errorf("TranslatedQuery() wrong status; got %d, want %d", result.Error.Status, tt.wantStatus)
 			}
-			//	pretty.Print(result)
 			if len(tt.locator.targets) != len(result.Results) {
 				t.Errorf("TranslateQuery() wrong result count; got %d, want %d",
 					len(result.Results), len(tt.locator.targets))
