@@ -41,13 +41,9 @@ func (s *fakeSigner) Sign(cl jwt.Claims) (string, error) {
 type fakeLocator struct {
 	err     error
 	targets []v2.Target
-	gotLat  string
-	gotLon  string
 }
 
 func (l *fakeLocator) Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error) {
-	l.gotLat = lat
-	l.gotLon = lon
 	if l.err != nil {
 		return nil, l.err
 	}
