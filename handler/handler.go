@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/go/host"
@@ -38,6 +39,11 @@ type Locator interface {
 	Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error)
 }
 
+func init() {
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetLevel(log.InfoLevel)
+}
+
 // NewClient creates a new client.
 func NewClient(project string, private Signer, locator Locator) *Client {
 	return &Client{
@@ -54,6 +60,55 @@ func splitLatLon(latlon string) (string, string) {
 		return fields[0], fields[1]
 	}
 	return "", ""
+}
+
+var (
+	latlonMethod  = "appengine-latlong"
+	regionMethod  = "appengine-region"
+	countryMethod = "appengine-country"
+	noneMethod    = "appengine-none"
+	nullLatLon    = "0.000000,0.000000"
+)
+
+func findLocation(rw http.ResponseWriter, headers http.Header) (string, string) {
+	fields := log.Fields{
+		"CityLatLong": headers.Get("X-AppEngine-CityLatLong"),
+		"Country":     headers.Get("X-AppEngine-Country"),
+		"Region":      headers.Get("X-AppEngine-Region"),
+	}
+
+	// First, try the given lat/lon. Avoid invalid values like 0,0.
+	latlon := headers.Get("X-AppEngine-CityLatLong")
+	if lat, lon := splitLatLon(latlon); latlon != nullLatLon && lat != "" && lon != "" {
+		log.WithFields(fields).Info(latlonMethod)
+		rw.Header().Set("X-Locate-ClientLatLon", latlon)
+		rw.Header().Set("X-Locate-ClientLatLon-Method", latlonMethod)
+		return lat, lon
+	}
+	// The next two fallback methods require the country, so check this next.
+	country := headers.Get("X-AppEngine-Country")
+	if country == "" || static.Countries[country] == "" {
+		// Without a valid country value, we can neither lookup the
+		// region nor country.
+		log.WithFields(fields).Info(noneMethod)
+		rw.Header().Set("X-Locate-ClientLatLon-Method", noneMethod)
+		return "", ""
+	}
+	// Second, country is valid, so try to lookup region.
+	region := strings.ToUpper(headers.Get("X-AppEngine-Region"))
+	if region != "" && static.Regions[country+"-"+region] != "" {
+		latlon = static.Regions[country+"-"+region]
+		log.WithFields(fields).Info(regionMethod)
+		rw.Header().Set("X-Locate-ClientLatLon", latlon)
+		rw.Header().Set("X-Locate-ClientLatLon-Method", regionMethod)
+		return splitLatLon(latlon)
+	}
+	// Third, region was not found, fallback to using the country.
+	latlon = static.Countries[country]
+	log.WithFields(fields).Info(countryMethod)
+	rw.Header().Set("X-Locate-ClientLatLon", latlon)
+	rw.Header().Set("X-Locate-ClientLatLon-Method", countryMethod)
+	return splitLatLon(latlon)
 }
 
 // TranslatedQuery uses the legacy mlab-ns service for liveness as a
@@ -75,7 +130,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Make proxy request using AppEngine provided lat,lon.
-	lat, lon := splitLatLon(req.Header.Get("X-AppEngine-CityLatLong"))
+	lat, lon := findLocation(rw, req.Header)
 	targets, err := c.Nearest(req.Context(), service, lat, lon)
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
