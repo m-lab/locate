@@ -114,7 +114,7 @@ func findLocation(rw http.ResponseWriter, headers http.Header) (string, string) 
 // TranslatedQuery uses the legacy mlab-ns service for liveness as a
 // transitional step in loading state directly.
 func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
-	result := v2.QueryResult{}
+	result := v2.NearestResult{}
 	experiment, service := getExperimentAndService(req.URL.Path)
 
 	// Set CORS policy to allow third-party websites to use returned resources.
