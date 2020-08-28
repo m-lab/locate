@@ -39,12 +39,12 @@ healthy in a geographic region. The locate API may return an error when no
 servers are available.
 
 > PLANNED(v2): in all cases above, the locate API will return a recommended
-[v2.QueryResult.NextRequest][nextRequest] time and signed URL for the client
+[v2.NearestResult.NextRequest][nextRequest] time and signed URL for the client
 to issue the next request. This will make retry logic in clients simpler and
 encourages best practices for the API. See the [request priority
 hierarchy][priority].
 
-[nextRequest]: https://godoc.org/github.com/m-lab/locate/api/v2#QueryResult
+[nextRequest]: https://godoc.org/github.com/m-lab/locate/api/v2#NearestResult
 [priority]: https://godoc.org/github.com/m-lab/locate/api/v2
 [aup]: https://www.measurementlab.net/aup
 

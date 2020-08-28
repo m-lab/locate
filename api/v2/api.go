@@ -13,14 +13,14 @@
 //  NO      | NO           | Global Best Effort Pool
 //
 // For highest priority access to the platform, register an API key and use the
-// QueryResult.NextRequest.URL when provided.
+// NearestResult.NextRequest.URL when provided.
 package v2
 
 import "time"
 
-// QueryResult is returned by the location service in response to query
+// NearestResult is returned by the location service in response to query
 // requests.
-type QueryResult struct {
+type NearestResult struct {
 	// Error contains information about request failures.
 	Error *Error `json:"error,omitempty"`
 
@@ -104,7 +104,7 @@ type Target struct {
 }
 
 // Error describes an error condition that prevents the server from completing a
-// QueryResult.
+// NearestResult.
 type Error struct {
 	// RFC7807 Fields for "Problem Details".
 	Type     string `json:"type"`
@@ -114,7 +114,7 @@ type Error struct {
 	Instance string `json:"instance,omitempty"`
 }
 
-// NewError creates a new api Error for a QueryResult.
+// NewError creates a new api Error for a NearestResult.
 func NewError(typ, title string, status int) *Error {
 	return &Error{
 		Type:   typ,

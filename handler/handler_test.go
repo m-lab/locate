@@ -149,7 +149,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			rtx.Must(err, "Failed to create request")
 			req.Header = tt.header
 
-			result := &v2.QueryResult{}
+			result := &v2.NearestResult{}
 			resp, err := proxy.UnmarshalResponse(req, result)
 			if err != nil {
 				t.Fatalf("Failed to get response from: %s %s", srv.URL, tt.path)
