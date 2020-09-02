@@ -19,10 +19,10 @@ import (
 // clients should pause before scheduling a new request.
 var ErrNoAvailableServers = errors.New("No available M-Lab servers")
 
-// ErrNoUserAgent is a foo.
+// ErrNoUserAgent is returned when an empty user agent is used.
 var ErrNoUserAgent = errors.New("client has no user-agent specified")
 
-// Client is an locate client.
+// Client is a client for contacting the Locate API.
 type Client struct {
 	// HTTPClient performs all requests. Initialized to http.DefaultClient by
 	// NewClient. You may override it for alternate settings.
