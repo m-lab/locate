@@ -10,44 +10,23 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"time"
 
 	"github.com/m-lab/go/flagx"
 	v2 "github.com/m-lab/locate/api/v2"
 )
 
-// DefaultTimeout is the default request timeout.
-const DefaultTimeout = 15 * time.Second
-
-// ErrNoAvailableServers is returned when there are no available servers. A
-// background client should treat this error specially as described in the
-// specification of the ndt7 protocol.
+// ErrNoAvailableServers is returned when there are no available servers. Batch
+// clients should pause before scheduling a new request.
 var ErrNoAvailableServers = errors.New("No available M-Lab servers")
-
-// ErrQueryFailed indicates a non-200 status code.
-var ErrQueryFailed = errors.New("locate API returned 4xx status code")
-
-// ErrRetry indicates an error that should be retried.
-var ErrRetry = errors.New("returned non-200 status code")
-
-// ErrServerError is a foo.
-var ErrServerError = errors.New("5xx status code")
 
 // ErrNoUserAgent is a foo.
 var ErrNoUserAgent = errors.New("client has no user-agent specified")
 
 // Client is an locate client.
 type Client struct {
-	// HTTPClient is the client that will perform the request. By default
-	// it is initialized to http.DefaultClient. You may override it for
-	// testing purpses and more generally whenever you are not satisfied
-	// with the behaviour of the default HTTP client.
+	// HTTPClient performs all requests. Initialized to http.DefaultClient by
+	// NewClient. You may override it for alternate settings.
 	HTTPClient *http.Client
-
-	// Timeout is the optional maximum amount of time we're willing to wait
-	// for mlabns to respond. This setting is initialized by NewClient to its
-	// default value, but you may override it.
-	Timeout time.Duration
 
 	// UserAgent is the mandatory user agent to be used. Also this
 	// field is initialized by NewClient.
@@ -69,7 +48,6 @@ func init() {
 func NewClient(userAgent string) *Client {
 	return &Client{
 		HTTPClient: http.DefaultClient,
-		Timeout:    DefaultTimeout,
 		UserAgent:  userAgent,
 		BaseURL:    baseURL.URL,
 	}
@@ -89,8 +67,9 @@ func (c *Client) Nearest(ctx context.Context, service string) ([]v2.Target, erro
 	reply := &v2.NearestResult{}
 	err = json.Unmarshal(data, reply)
 	if err != nil {
-		// Cloud Endpoint errors have a different JSON structure.
-		// AppEngine 500 failures have no structure.
+		// TODO: Distinguish these:
+		// * Cloud Endpoint errors have a different JSON structure.
+		// * AppEngine 500 gateway failures have no JSON structure.
 		return nil, err
 	}
 	if status != http.StatusOK && reply.Error != nil {
@@ -98,7 +77,7 @@ func (c *Client) Nearest(ctx context.Context, service string) ([]v2.Target, erro
 		return nil, errors.New(reply.Error.Title + ": " + reply.Error.Detail)
 	}
 	if reply.Results == nil {
-		// Not an explicit error, and no results.
+		// No explicit error and no results.
 		return nil, ErrNoAvailableServers
 	}
 	return reply.Results, nil
@@ -106,9 +85,7 @@ func (c *Client) Nearest(ctx context.Context, service string) ([]v2.Target, erro
 
 // get is an internal function used to perform the request.
 func (c *Client) get(ctx context.Context, URL string) ([]byte, int, error) {
-	reqctx, cancel := context.WithTimeout(ctx, c.Timeout)
-	defer cancel()
-	req, err := http.NewRequestWithContext(reqctx, http.MethodGet, URL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, URL, nil)
 	if err != nil {
 		// e.g. due to an invalid parameter.
 		return nil, 0, err
