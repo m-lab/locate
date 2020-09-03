@@ -10,15 +10,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 )
-
-func mustParseURL(u string) *url.URL {
-	URL, err := url.Parse(u)
-	rtx.Must(err, "failed to parse url")
-	return URL
-}
 
 func TestClient_Nearest(t *testing.T) {
 	tests := []struct {
@@ -32,8 +25,6 @@ func TestClient_Nearest(t *testing.T) {
 		closeServer bool
 		badJSON     bool
 	}{
-		/*
-		 */
 		{
 			name:      "success",
 			service:   "ndt/ndt7",

@@ -17,7 +17,7 @@ import (
 
 // ErrNoAvailableServers is returned when there are no available servers. Batch
 // clients should pause before scheduling a new request.
-var ErrNoAvailableServers = errors.New("No available M-Lab servers")
+var ErrNoAvailableServers = errors.New("no available M-Lab servers")
 
 // ErrNoUserAgent is returned when an empty user agent is used.
 var ErrNoUserAgent = errors.New("client has no user-agent specified")
