@@ -22,7 +22,7 @@ var ErrNoAvailableServers = errors.New("No available M-Lab servers")
 // ErrNoUserAgent is returned when an empty user agent is used.
 var ErrNoUserAgent = errors.New("client has no user-agent specified")
 
-// Client is a client for contacting the Locate API.
+// Client is a client for contacting the Locate API. All fields are required.
 type Client struct {
 	// HTTPClient performs all requests. Initialized to http.DefaultClient by
 	// NewClient. You may override it for alternate settings.
@@ -33,6 +33,7 @@ type Client struct {
 	UserAgent string
 
 	// BaseURL is the base url used to contact the Locate API.
+	// NewClient sets the BaseURL to the -locate.url flag.
 	BaseURL *url.URL
 }
 
@@ -44,7 +45,6 @@ func init() {
 }
 
 // NewClient creates a new Client instance. The userAgent must not be empty.
-// NewClient sets the BaseURL to the -locate.url flag.
 func NewClient(userAgent string) *Client {
 	return &Client{
 		HTTPClient: http.DefaultClient,
