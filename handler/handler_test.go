@@ -77,6 +77,14 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
+			name: "error-nearest-failure-no-content",
+			path: "ndt/ndt5",
+			locator: &fakeLocator{
+				err: proxy.ErrNoContent,
+			},
+			wantStatus: http.StatusServiceUnavailable,
+		},
+		{
 			name:   "error-corrupt-latlon",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},

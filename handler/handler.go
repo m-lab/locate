@@ -18,6 +18,7 @@ import (
 	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
 )
 
@@ -133,7 +134,11 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	lat, lon := findLocation(rw, req.Header)
 	targets, err := c.Nearest(req.Context(), service, lat, lon)
 	if err != nil {
-		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
+		status := http.StatusInternalServerError
+		if err == proxy.ErrNoContent {
+			status = http.StatusServiceUnavailable
+		}
+		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", status)
 		writeResult(rw, result.Error.Status, &result)
 		return
 	}
