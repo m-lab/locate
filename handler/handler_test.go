@@ -219,3 +219,12 @@ func TestClient_Heartbeat(t *testing.T) {
 		})
 	}
 }
+
+func TestNewClientDirect(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		c := NewClientDirect("fake-project", nil, nil)
+		if c == nil {
+			t.Error("got nil client!")
+		}
+	})
+}

@@ -3,9 +3,10 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"path"
@@ -15,7 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/square/go-jose.v2/jwt"
 
-	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/proxy"
@@ -32,6 +32,7 @@ type Client struct {
 	Signer
 	project string
 	Locator
+	targetTmpl *template.Template
 }
 
 // Locator defines how the TranslatedQuery handler requests machines nearest to
@@ -48,9 +49,21 @@ func init() {
 // NewClient creates a new client.
 func NewClient(project string, private Signer, locator Locator) *Client {
 	return &Client{
+		Signer:     private,
+		project:    project,
+		Locator:    locator,
+		targetTmpl: template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
+	}
+}
+
+// NewClientDirect creates a new client with a target template using only the target machine.
+func NewClientDirect(project string, private Signer, locator Locator) *Client {
+	return &Client{
 		Signer:  private,
 		project: project,
 		Locator: locator,
+		// Useful for the locatetest package when running a local server.
+		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
 	}
 }
 
@@ -165,19 +178,11 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 // getAccessToken allocates a new access token using the given machine name as
 // the intended audience and the subject as the target service.
 func (c *Client) getAccessToken(machine, subject string) string {
-	// Create canonical v1 and v2 machine names.
-	name, err := host.Parse(machine)
-	rtx.PanicOnError(err, "failed to parse given machine name")
-	aud := jwt.Audience{name.String()}
-	// TODO: after the v2 migration, eliminate machine parsing and v1 logic.
-	name.Version = "v1"
-	aud = append(aud, name.String())
-
 	// Create the token. The same access token is used for each target port.
 	cl := jwt.Claims{
 		Issuer:   static.IssuerLocate,
 		Subject:  subject,
-		Audience: aud,
+		Audience: jwt.Audience{machine},
 		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Minute)),
 	}
 	token, err := c.Sign(cl)
@@ -199,7 +204,15 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string) 
 		params := url.Values{}
 		params.Set("access_token", token)
 		target.RawQuery = params.Encode()
-		target.Host = fmt.Sprintf("%s-%s%s", experiment, machine, target.Host)
+
+		host := &bytes.Buffer{}
+		err := c.targetTmpl.Execute(host, map[string]string{
+			"Experiment": experiment,
+			"Machine":    machine,
+			"Host":       target.Host, // from URL template, so typically just the ":port".
+		})
+		rtx.PanicOnError(err, "bad template evaluation")
+		target.Host = host.String()
 		urls[name] = target.String()
 	}
 	return urls
