@@ -89,6 +89,7 @@ func findLocation(rw http.ResponseWriter, headers http.Header) (string, string) 
 		"CityLatLong": headers.Get("X-AppEngine-CityLatLong"),
 		"Country":     headers.Get("X-AppEngine-Country"),
 		"Region":      headers.Get("X-AppEngine-Region"),
+		"Proto":       headers.Get("X-Forwarded-Proto"),
 	}
 
 	// First, try the given lat/lon. Avoid invalid values like 0,0.
