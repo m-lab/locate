@@ -84,12 +84,14 @@ var (
 	nullLatLon    = "0.000000,0.000000"
 )
 
-func findLocation(rw http.ResponseWriter, headers http.Header) (string, string) {
+func findLocation(rw http.ResponseWriter, req *http.Request) (string, string) {
+	headers := req.Header
 	fields := log.Fields{
 		"CityLatLong": headers.Get("X-AppEngine-CityLatLong"),
 		"Country":     headers.Get("X-AppEngine-Country"),
 		"Region":      headers.Get("X-AppEngine-Region"),
 		"Proto":       headers.Get("X-Forwarded-Proto"),
+		"Path":        req.URL.Path,
 	}
 
 	// First, try the given lat/lon. Avoid invalid values like 0,0.
@@ -126,9 +128,21 @@ func findLocation(rw http.ResponseWriter, headers http.Header) (string, string) 
 	return splitLatLon(latlon)
 }
 
+func clientValues(raw url.Values) url.Values {
+	v := url.Values{}
+	for key := range raw {
+		if strings.HasPrefix(key, "client_") {
+			// note: we only use the first value.
+			v.Set(key, raw.Get(key))
+		}
+	}
+	return v
+}
+
 // TranslatedQuery uses the legacy mlab-ns service for liveness as a
 // transitional step in loading state directly.
 func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
+	req.ParseForm() // Parse any raw query parameters into req.Form url.Values.
 	result := v2.NearestResult{}
 	experiment, service := getExperimentAndService(req.URL.Path)
 
@@ -148,7 +162,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Make proxy request using AppEngine provided lat,lon.
-	lat, lon := findLocation(rw, req.Header)
+	lat, lon := findLocation(rw, req)
 	targets, err := c.Nearest(req.Context(), service, lat, lon)
 	if err != nil {
 		status := http.StatusInternalServerError
@@ -168,7 +182,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	// Populate each set of URLs using the ports configuration.
 	for i := range targets {
 		token := c.getAccessToken(targets[i].Machine, experiment)
-		targets[i].URLs = c.getURLs(ports, targets[i].Machine, experiment, token)
+		targets[i].URLs = c.getURLs(ports, targets[i].Machine, experiment, token, clientValues(req.Form))
 	}
 	result.Results = targets
 	writeResult(rw, http.StatusOK, &result)
@@ -199,7 +213,7 @@ func (c *Client) getAccessToken(machine, subject string) string {
 // getURLs creates URLs for the named experiment, running on the named machine
 // for each given port. Every URL will include an `access_token=` parameter,
 // authorizing the measurement.
-func (c *Client) getURLs(ports static.Ports, machine, experiment, token string) map[string]string {
+func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, extra url.Values) map[string]string {
 	urls := map[string]string{}
 	// For each port config, prepare the target url with access_token and
 	// complete host field.
@@ -207,6 +221,10 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string) 
 		name := target.String()
 		params := url.Values{}
 		params.Set("access_token", token)
+		for key := range extra {
+			// note: we only use the first value.
+			params.Set(key, extra.Get(key))
+		}
 		target.RawQuery = params.Encode()
 
 		host := &bytes.Buffer{}

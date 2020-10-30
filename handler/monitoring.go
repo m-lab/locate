@@ -41,7 +41,7 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 	// Get monitoring subject access tokens for the given machine.
 	machine := cl.Subject
 	token := c.getAccessToken(machine, static.SubjectMonitoring)
-	urls := c.getURLs(ports, machine, experiment, token)
+	urls := c.getURLs(ports, machine, experiment, token, nil)
 	result.AccessToken = token
 	result.Target = &v2.Target{
 		// Monitoring results only include one target.
