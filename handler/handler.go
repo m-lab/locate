@@ -136,7 +136,8 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.Header().Set("Access-Control-Allow-Origin", "*")
 	// Prevent caching of result.
-	rw.Header().Set("Cache-Control", "private, max-age=0, no-transform")
+	// See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	rw.Header().Set("Cache-Control", "no-store")
 
 	// Check whether the service is valid before all other steps to fail fast.
 	ports, ok := static.Configs[service]
