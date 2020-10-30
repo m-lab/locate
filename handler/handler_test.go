@@ -153,7 +153,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			srv := httptest.NewServer(mux)
 			defer srv.Close()
 
-			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2/nearest/"+tt.path, nil)
+			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2/nearest/"+tt.path+"?client_name=foo", nil)
 			rtx.Must(err, "Failed to create request")
 			req.Header = tt.header
 
