@@ -72,10 +72,14 @@ func TestClient_TranslatedQuery(t *testing.T) {
 		{
 			name: "error-nearest-failure",
 			path: "ndt/ndt5",
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+			},
+			wantLatLon: "40.3,-70.4", // Client receives lat/lon provided by AppEngine.
 			locator: &fakeLocator{
 				err: errors.New("Fake signer error"),
 			},
-			wantStatus: http.StatusServiceUnavailable,
+			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name: "error-nearest-failure-no-content",
