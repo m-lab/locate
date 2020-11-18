@@ -1,5 +1,3 @@
-// Package clientgeo supports interfaces to different data sources to help
-// identify client geo location for server selection.
 package clientgeo
 
 import (
