@@ -13,6 +13,7 @@ import (
 
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
 	log "github.com/sirupsen/logrus"
@@ -74,7 +75,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			locator: &fakeLocator{
 				err: errors.New("Fake signer error"),
 			},
-			wantStatus: http.StatusInternalServerError,
+			wantStatus: http.StatusServiceUnavailable,
 		},
 		{
 			name: "error-nearest-failure-no-content",
@@ -96,7 +97,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			},
 			wantLatLon: "",
 			wantKey:    "ws://:3001/ndt_protocol",
-			wantStatus: http.StatusOK,
+			wantStatus: http.StatusServiceUnavailable,
 		},
 		{
 			name:   "success-nearest-server",
@@ -146,7 +147,8 @@ func TestClient_TranslatedQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient(tt.project, tt.signer, tt.locator)
+			cl := clientgeo.NewAppEngineLocator()
+			c := NewClient(tt.project, tt.signer, tt.locator, cl)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.TranslatedQuery)
@@ -212,7 +214,8 @@ func TestClient_Heartbeat(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient(tt.project, tt.Signer, tt.Locator)
+			cl := clientgeo.NewAppEngineLocator()
+			c := NewClient(tt.project, tt.Signer, tt.Locator, cl)
 			rw := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/v2/heartbeat/ndt/ndt5", nil)
 			c.Heartbeat(rw, req)
@@ -222,7 +225,7 @@ func TestClient_Heartbeat(t *testing.T) {
 
 func TestNewClientDirect(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		c := NewClientDirect("fake-project", nil, nil)
+		c := NewClientDirect("fake-project", nil, nil, nil)
 		if c == nil {
 			t.Error("got nil client!")
 		}
