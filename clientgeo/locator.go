@@ -19,3 +19,17 @@ type Location struct {
 	Longitude string
 	Headers   http.Header
 }
+
+// NullLocator always returns a client location of 0,0.
+type NullLocator struct{}
+
+// Locate returns the static 0,0 lat/lon location.
+func (f *NullLocator) Locate(req *http.Request) (*Location, error) {
+	return &Location{
+		Latitude:  "0.000000",
+		Longitude: "0.000000",
+	}, nil
+}
+
+// Reload does nothing.
+func (f *NullLocator) Reload(ctx context.Context) {}
