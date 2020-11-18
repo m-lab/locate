@@ -3,6 +3,7 @@
 package clientgeo
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -91,6 +92,7 @@ func TestAppEngineLocator_Locate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sl := NewAppEngineLocator()
+			sl.Reload(context.Background()) // completes code coverage.
 			req := httptest.NewRequest(http.MethodGet, "/whatever", nil)
 			for key, value := range tt.useHeaders {
 				req.Header.Set(key, value)
