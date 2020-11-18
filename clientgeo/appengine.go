@@ -1,3 +1,5 @@
+// Package clientgeo supports interfaces to different data sources to help
+// identify client geo location for server selection.
 package clientgeo
 
 import (
@@ -24,15 +26,17 @@ var (
 	nullLatLon    = "0.000000,0.000000"
 )
 
-// NewAppEngineLocator thing.
+// NewAppEngineLocator creates a new AppEngineLocator.
 func NewAppEngineLocator() *AppEngineLocator {
 	return &AppEngineLocator{}
 }
 
-// AppEngineLocator thing.
+// AppEngineLocator finds a client location using AppEngine headers for lat/lon,
+// region, or country.
 type AppEngineLocator struct{}
 
-// Locate finds a location for the given client request.
+// Locate finds a location for the given client request using AppEngine headers.
+// If no location is found, an error is returned.
 func (sl *AppEngineLocator) Locate(req *http.Request) (*Location, error) {
 	headers := req.Header
 	fields := log.Fields{
