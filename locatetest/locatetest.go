@@ -11,6 +11,7 @@ import (
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
 )
 
@@ -48,7 +49,7 @@ func (l *Locator) Nearest(ctx context.Context, service, lat, lon string) ([]v2.T
 func NewLocateServer(loc *Locator) *httptest.Server {
 	// fake signer, fake locator.
 	s := &Signer{}
-	c := handler.NewClientDirect("fake-project", s, loc)
+	c := handler.NewClientDirect("fake-project", s, loc, &clientgeo.NullLocator{})
 
 	// USER APIs
 	mux := http.NewServeMux()
