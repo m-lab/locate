@@ -44,8 +44,9 @@ func NewMultiLocator(locators ...Locator) MultiLocator {
 	return locators
 }
 
-// Locate calls Locate on all client Locators and returns the first Location return.
-// If no Locator returns a location, , or an error if no location was found.
+// Locate calls Locate on all client Locators. The first successfully identifiec
+// location is returned. If all Locators returns an error, a multierror.Error is
+// returned as an error with all Locator error messages.
 func (g MultiLocator) Locate(req *http.Request) (*Location, error) {
 	var merr *multierror.Error
 	for _, locator := range g {
