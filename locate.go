@@ -45,8 +45,8 @@ func init() {
 	flag.StringVar(&locateSignerKey, "locate-signer-key", "", "Private key of the locate+service key pair")
 	flag.Var(&monitoringVerifyKey, "monitoring-verify-key", "Public keys of the monitoring+locate key pair")
 	flag.BoolVar(&locatorAE, "locator-appengine", true, "Use the AppEngine clientgeo locator")
-	flag.BoolVar(&locatorMM, "locator-maxmind", true, "Use the MaxMind clientgeo locator")
-	flag.Var(&maxmind, "maxmind-url", "The URL for the file containing MaxMind IP metadata. Accepted URL schemes currently are: gs://bucket/file and file:./relativepath/file")
+	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
+	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
 }
 
 var mainCtx, mainCancel = context.WithCancel(context.Background())
