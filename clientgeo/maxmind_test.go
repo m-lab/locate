@@ -168,11 +168,11 @@ func TestMaxmindLocator_Reload(t *testing.T) {
 			name: "success",
 		},
 		{
-			name:     "success-fail-reload",
+			name:     "success-fail-second-reload-error",
 			workOnce: true,
 		},
 		{
-			name:       "success-fail-reload",
+			name:       "success-fail-second-reload-data",
 			emptyAfter: true,
 		},
 	}
