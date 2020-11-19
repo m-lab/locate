@@ -45,15 +45,12 @@ func (mml *MaxmindLocator) Locate(req *http.Request) (*Location, error) {
 
 	ip, err := ipFromRequest(req)
 	if err != nil {
-		fmt.Println("ipFromRequest err:", err)
 		return nil, err
 	}
 	if ip == nil {
-		fmt.Println("nil ip")
 		return nil, errors.New("cannot locate nil IP")
 	}
 	if mml.maxmind == nil {
-		fmt.Println("maxmind db nil")
 		log.Println("No maxmind DB present. This should only occur during testing.")
 		return nil, errors.New("no maxmind db loaded")
 	}
@@ -106,7 +103,7 @@ func ipFromRequest(req *http.Request) (net.IP, error) {
 func (mml *MaxmindLocator) Reload(ctx context.Context) {
 	mm, err := mml.load(ctx)
 	if err != nil {
-		log.Println("Could not reload dataset:", err)
+		log.Println("Could not reload maxmind dataset:", err)
 		return
 	}
 	// Don't acquire the lock until after the data is in RAM.
