@@ -14,6 +14,7 @@ import (
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/rtx"
+	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/decrypt"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/proxy"
@@ -53,8 +54,9 @@ func main() {
 	// Load encrypted signer key from environment, using variable name derived from project.
 	signer, err := cfg.LoadSigner(mainCtx, client, locateSignerKey)
 	rtx.Must(err, "Failed to load signer key")
-	locator := proxy.MustNewLegacyLocator(legacyServer, platform)
-	c := handler.NewClient(project, signer, locator)
+	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
+	clLocator := clientgeo.NewAppEngineLocator()
+	c := handler.NewClient(project, signer, srvLocator, clLocator)
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
 	verifier, err := cfg.LoadVerifier(mainCtx, client, monitoringVerifyKey...)
