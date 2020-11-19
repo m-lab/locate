@@ -5,6 +5,8 @@ package clientgeo
 import (
 	"context"
 	"net/http"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 // Locator supports locating a client request and Reloading the underlying database.
@@ -33,3 +35,33 @@ func (f *NullLocator) Locate(req *http.Request) (*Location, error) {
 
 // Reload does nothing.
 func (f *NullLocator) Reload(ctx context.Context) {}
+
+// MultiLocator wraps several Locator types into the Locate interface.
+type MultiLocator []Locator
+
+// NewMultiLocator creates a new Locator from all individual parameters.
+func NewMultiLocator(locators ...Locator) MultiLocator {
+	return locators
+}
+
+// Locate calls Locate on all client Locators and returns the first Location return.
+// If no Locator returns a location, , or an error if no location was found.
+func (g MultiLocator) Locate(req *http.Request) (*Location, error) {
+	var merr *multierror.Error
+	for _, locator := range g {
+		l, err := locator.Locate(req)
+		if err != nil {
+			merr = multierror.Append(merr, err)
+			continue
+		}
+		return l, nil
+	}
+	return nil, merr
+}
+
+// Reload calls Reload on all Client Locators.
+func (g MultiLocator) Reload(ctx context.Context) {
+	for _, locator := range g {
+		locator.Reload(ctx)
+	}
+}
