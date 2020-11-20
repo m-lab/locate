@@ -29,7 +29,7 @@ func NewMaxmindLocator(ctx context.Context, mm content.Provider) *MaxmindLocator
 	return mml
 }
 
-// MaxmindLocator is the central struct for this module.
+// MaxmindLocator manages access to the maxmind database.
 type MaxmindLocator struct {
 	mut        sync.RWMutex
 	dataSource content.Provider
@@ -38,7 +38,8 @@ type MaxmindLocator struct {
 
 var emptyResult = geoip2.City{}
 
-// Locate finds the Location of the given IP.
+// Locate finds the Location of the given request using client's remote IP or IP
+// from X-Forwarded-For header.
 func (mml *MaxmindLocator) Locate(req *http.Request) (*Location, error) {
 	mml.mut.RLock()
 	defer mml.mut.RUnlock()
