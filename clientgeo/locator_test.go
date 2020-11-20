@@ -32,25 +32,25 @@ func (e *errLocator) Locate(req *http.Request) (*Location, error) {
 
 func (e *errLocator) Reload(ctx context.Context) {}
 
-func TestNewMultiLocator(t *testing.T) {
+func TestMultiLocator(t *testing.T) {
 	want := &Location{
 		Latitude:  "0.000000",
 		Longitude: "0.000000",
 	}
 	t.Run("success", func(t *testing.T) {
-		ml := NewMultiLocator(&errLocator{}, &NullLocator{})
+		ml := MultiLocator{&errLocator{}, &NullLocator{}}
 		req := httptest.NewRequest(http.MethodGet, "/anyurl", nil)
 		l, err := ml.Locate(req)
 		if err != nil {
 			t.Errorf("MultiLocator.Locate returned error: %v", err)
 		}
 		if !reflect.DeepEqual(l, want) {
-			t.Errorf("NewMultiLocator() = %v, want %v", l, want)
+			t.Errorf("MultiLocator() = %v, want %v", l, want)
 		}
 		ml.Reload(req.Context())
 	})
 	t.Run("all-errors", func(t *testing.T) {
-		ml := NewMultiLocator(&errLocator{}, &errLocator{})
+		ml := MultiLocator{&errLocator{}, &errLocator{}}
 		req := httptest.NewRequest(http.MethodGet, "/anyurl", nil)
 		_, err := ml.Locate(req)
 		if err == nil {
