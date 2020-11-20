@@ -5,14 +5,17 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"time"
 
 	kms "cloud.google.com/go/kms/apiv1"
 	"github.com/justinas/alice"
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/access/controller"
+	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/httpx"
+	"github.com/m-lab/go/memoryless"
 	"github.com/m-lab/go/rtx"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/decrypt"
@@ -25,8 +28,11 @@ var (
 	listenPort          string
 	project             string
 	platform            string
+	locatorAE           bool
+	locatorMM           bool
 	legacyServer        string
 	locateSignerKey     string
+	maxmind             = flagx.URL{}
 	monitoringVerifyKey = flagx.StringArray{}
 )
 
@@ -38,6 +44,9 @@ func init() {
 	flag.StringVar(&legacyServer, "legacy-server", proxy.DefaultLegacyServer, "Base URL to mlab-ns server")
 	flag.StringVar(&locateSignerKey, "locate-signer-key", "", "Private key of the locate+service key pair")
 	flag.Var(&monitoringVerifyKey, "monitoring-verify-key", "Public keys of the monitoring+locate key pair")
+	flag.BoolVar(&locatorAE, "locator-appengine", true, "Use the AppEngine clientgeo locator")
+	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
+	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
 }
 
 var mainCtx, mainCancel = context.WithCancel(context.Background())
@@ -55,8 +64,33 @@ func main() {
 	signer, err := cfg.LoadSigner(mainCtx, client, locateSignerKey)
 	rtx.Must(err, "Failed to load signer key")
 	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
-	clLocator := clientgeo.NewAppEngineLocator()
-	c := handler.NewClient(project, signer, srvLocator, clLocator)
+
+	locators := clientgeo.MultiLocator{}
+	if locatorAE {
+		aeLocator := clientgeo.NewAppEngineLocator()
+		locators = append(locators, aeLocator)
+	}
+	if locatorMM {
+		mm, err := content.FromURL(mainCtx, maxmind.URL)
+		rtx.Must(err, "failed to load maxmindurl: %s", maxmind.URL)
+		mmLocator := clientgeo.NewMaxmindLocator(mainCtx, mm)
+		locators = append(locators, mmLocator)
+	}
+	c := handler.NewClient(project, signer, srvLocator, locators)
+
+	go func() {
+		// Check and reload db at least once a day.
+		reloadConfig := memoryless.Config{
+			Min:      time.Hour,
+			Max:      24 * time.Hour,
+			Expected: 6 * time.Hour,
+		}
+		tick, err := memoryless.NewTicker(mainCtx, reloadConfig)
+		rtx.Must(err, "Could not create ticker for reloading")
+		for range tick.C {
+			locators.Reload(mainCtx)
+		}
+	}()
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
 	verifier, err := cfg.LoadVerifier(mainCtx, client, monitoringVerifyKey...)
