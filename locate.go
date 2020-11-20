@@ -65,7 +65,7 @@ func main() {
 	rtx.Must(err, "Failed to load signer key")
 	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
 
-	locators := []clientgeo.Locator{}
+	locators := clientgeo.MultiLocator{}
 	if locatorAE {
 		aeLocator := clientgeo.NewAppEngineLocator()
 		locators = append(locators, aeLocator)
@@ -76,8 +76,7 @@ func main() {
 		mmLocator := clientgeo.NewMaxmindLocator(mainCtx, mm)
 		locators = append(locators, mmLocator)
 	}
-	clLocator := clientgeo.NewMultiLocator(locators...)
-	c := handler.NewClient(project, signer, srvLocator, clLocator)
+	c := handler.NewClient(project, signer, srvLocator, locators)
 
 	go func() {
 		// Check and reload db at least once a day.
@@ -89,7 +88,7 @@ func main() {
 		tick, err := memoryless.NewTicker(mainCtx, reloadConfig)
 		rtx.Must(err, "Could not create ticker for reloading")
 		for range tick.C {
-			clLocator.Reload(mainCtx)
+			locators.Reload(mainCtx)
 		}
 	}()
 
