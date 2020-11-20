@@ -39,11 +39,6 @@ func (f *NullLocator) Reload(ctx context.Context) {}
 // MultiLocator wraps several Locator types into the Locate interface.
 type MultiLocator []Locator
 
-// NewMultiLocator creates a new Locator from all individual parameters.
-func NewMultiLocator(locators ...Locator) MultiLocator {
-	return locators
-}
-
 // Locate calls Locate on all client Locators. The first successfully identifiec
 // location is returned. If all Locators returns an error, a multierror.Error is
 // returned as an error with all Locator error messages.
