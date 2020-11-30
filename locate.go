@@ -65,7 +65,7 @@ func main() {
 	rtx.Must(err, "Failed to load signer key")
 	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
 
-	locators := clientgeo.MultiLocator{}
+	locators := clientgeo.MultiLocator{clientgeo.NewUserLocator()}
 	if locatorAE {
 		aeLocator := clientgeo.NewAppEngineLocator()
 		locators = append(locators, aeLocator)
