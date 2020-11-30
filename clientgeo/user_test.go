@@ -60,6 +60,38 @@ func TestUserLocator_Locate(t *testing.T) {
 			},
 		},
 		{
+			name: "error-unparsable-latitude-parameters",
+			vals: url.Values{
+				"lat": []string{"xyz.000"},
+				"lon": []string{"34"},
+			},
+			wantErr: true,
+		},
+		{
+			name: "error-unparsable-longitude-parameters",
+			vals: url.Values{
+				"lat": []string{"12"},
+				"lon": []string{"xyz.000"},
+			},
+			wantErr: true,
+		},
+		{
+			name: "error-unparsable-nan",
+			vals: url.Values{
+				"lat": []string{"NaN"},
+				"lon": []string{"NaN"},
+			},
+			wantErr: true,
+		},
+		{
+			name: "error-unparsable-inf",
+			vals: url.Values{
+				"lat": []string{"Inf"},
+				"lon": []string{"Inf"},
+			},
+			wantErr: true,
+		},
+		{
 			name:    "error-no-parameters",
 			wantErr: true,
 		},

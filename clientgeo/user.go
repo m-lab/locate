@@ -3,15 +3,23 @@ package clientgeo
 import (
 	"context"
 	"errors"
+	"math"
 	"net/http"
+	"strconv"
 
 	"github.com/m-lab/locate/static"
 )
 
+// UserLocator definition for accepting user provided location hints.
 type UserLocator struct{}
 
-var ErrNoUserParameters = errors.New("no user location parameters provided")
+// Error values returned by Locate.
+var (
+	ErrNoUserParameters     = errors.New("no user location parameters provided")
+	ErrUsableUserParameters = errors.New("user provided location parameters were unusable")
+)
 
+// NewUserLocator creates a new UserLocator.
 func NewUserLocator() *UserLocator {
 	return &UserLocator{}
 }
@@ -21,6 +29,14 @@ func (u *UserLocator) Locate(req *http.Request) (*Location, error) {
 	lat := req.URL.Query().Get("lat")
 	lon := req.URL.Query().Get("lon")
 	if lat != "" && lon != "" {
+		// Verify that these are valid floating values.
+		flat, errLat := strconv.ParseFloat(lat, 64)
+		flon, errLon := strconv.ParseFloat(lon, 64)
+		if errLat != nil || errLon != nil ||
+			math.IsNaN(flat) || math.IsInf(flat, 0) ||
+			math.IsNaN(flon) || math.IsInf(flon, 0) {
+			return nil, ErrUsableUserParameters
+		}
 		loc := &Location{
 			Latitude:  lat,
 			Longitude: lon,
