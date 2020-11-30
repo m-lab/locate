@@ -15,8 +15,8 @@ type UserLocator struct{}
 
 // Error values returned by Locate.
 var (
-	ErrNoUserParameters     = errors.New("no user location parameters provided")
-	ErrUsableUserParameters = errors.New("user provided location parameters were unusable")
+	ErrNoUserParameters       = errors.New("no user location parameters provided")
+	ErrUnusableUserParameters = errors.New("user provided location parameters were unusable")
 )
 
 // NewUserLocator creates a new UserLocator.
@@ -35,7 +35,7 @@ func (u *UserLocator) Locate(req *http.Request) (*Location, error) {
 		if errLat != nil || errLon != nil ||
 			math.IsNaN(flat) || math.IsInf(flat, 0) ||
 			math.IsNaN(flon) || math.IsInf(flon, 0) {
-			return nil, ErrUsableUserParameters
+			return nil, ErrUnusableUserParameters
 		}
 		loc := &Location{
 			Latitude:  lat,
