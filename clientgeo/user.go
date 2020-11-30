@@ -34,7 +34,9 @@ func (u *UserLocator) Locate(req *http.Request) (*Location, error) {
 		flon, errLon := strconv.ParseFloat(lon, 64)
 		if errLat != nil || errLon != nil ||
 			math.IsNaN(flat) || math.IsInf(flat, 0) ||
-			math.IsNaN(flon) || math.IsInf(flon, 0) {
+			math.IsNaN(flon) || math.IsInf(flon, 0) ||
+			-90 > flat || flat > 90 ||
+			-180 > flon || flon > 180 {
 			return nil, ErrUnusableUserParameters
 		}
 		loc := &Location{

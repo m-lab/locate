@@ -92,6 +92,22 @@ func TestUserLocator_Locate(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "error-unusable-lat-too-big",
+			vals: url.Values{
+				"lat": []string{"91"},
+				"lon": []string{"0"},
+			},
+			wantErr: true,
+		},
+		{
+			name: "error-unusable-lon-too-big",
+			vals: url.Values{
+				"lat": []string{"0"},
+				"lon": []string{"181"},
+			},
+			wantErr: true,
+		},
+		{
 			name:    "error-no-parameters",
 			wantErr: true,
 		},
