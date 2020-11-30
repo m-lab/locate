@@ -48,13 +48,13 @@ func (u *UserLocator) Locate(req *http.Request) (*Location, error) {
 		loc.Headers.Set("X-Locate-ClientLatLon-Method", "user-latlon")
 		return loc, nil
 	}
-	if ll := static.Regions[req.URL.Query().Get("region")]; ll != "" {
+	if ll, ok := static.Regions[req.URL.Query().Get("region")]; ok {
 		loc, err := splitLatLon(ll)
 		loc.Headers.Set("X-Locate-ClientLatLon", ll)
 		loc.Headers.Set("X-Locate-ClientLatLon-Method", "user-region")
 		return loc, err
 	}
-	if ll := static.Countries[req.URL.Query().Get("country")]; ll != "" {
+	if ll, ok := static.Countries[req.URL.Query().Get("country")]; ok {
 		loc, err := splitLatLon(ll)
 		loc.Headers.Set("X-Locate-ClientLatLon", ll)
 		loc.Headers.Set("X-Locate-ClientLatLon-Method", "user-country")
