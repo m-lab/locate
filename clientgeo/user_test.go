@@ -60,7 +60,7 @@ func TestUserLocator_Locate(t *testing.T) {
 			},
 		},
 		{
-			name: "error-unparsable-latitude-parameters",
+			name: "error-unusable-latitude-parameters",
 			vals: url.Values{
 				"lat": []string{"xyz.000"},
 				"lon": []string{"34"},
@@ -68,7 +68,7 @@ func TestUserLocator_Locate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "error-unparsable-longitude-parameters",
+			name: "error-unusable-longitude-parameters",
 			vals: url.Values{
 				"lat": []string{"12"},
 				"lon": []string{"xyz.000"},
@@ -76,7 +76,7 @@ func TestUserLocator_Locate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "error-unparsable-nan",
+			name: "error-unusable-nan",
 			vals: url.Values{
 				"lat": []string{"NaN"},
 				"lon": []string{"NaN"},
@@ -84,7 +84,7 @@ func TestUserLocator_Locate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "error-unparsable-inf",
+			name: "error-unusable-inf",
 			vals: url.Values{
 				"lat": []string{"Inf"},
 				"lon": []string{"Inf"},
