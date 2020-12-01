@@ -66,15 +66,15 @@ func main() {
 	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
 
 	locators := clientgeo.MultiLocator{clientgeo.NewUserLocator()}
+	if locatorAE {
+		aeLocator := clientgeo.NewAppEngineLocator()
+		locators = append(locators, aeLocator)
+	}
 	if locatorMM {
 		mm, err := content.FromURL(mainCtx, maxmind.URL)
 		rtx.Must(err, "failed to load maxmindurl: %s", maxmind.URL)
 		mmLocator := clientgeo.NewMaxmindLocator(mainCtx, mm)
 		locators = append(locators, mmLocator)
-	}
-	if locatorAE {
-		aeLocator := clientgeo.NewAppEngineLocator()
-		locators = append(locators, aeLocator)
 	}
 	c := handler.NewClient(project, signer, srvLocator, locators)
 
