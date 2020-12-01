@@ -9,6 +9,12 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
+// Constants defining the X-Locate-* header names produced by Locators.
+const (
+	hLocateClientlatlon       = "X-Locate-Clientlatlon"
+	hLocateClientlatlonMethod = "X-Locate-Clientlatlon-Method"
+)
+
 // Locator supports locating a client request and Reloading the underlying database.
 type Locator interface {
 	Locate(req *http.Request) (*Location, error)

@@ -75,13 +75,11 @@ func (mml *MaxmindLocator) Locate(req *http.Request) (*Location, error) {
 	tmp := &Location{
 		Latitude:  lat,
 		Longitude: lon,
-		Headers:   http.Header{
-			//"X-Locate-ClientLatLon":        []string{lat + "," + lon},
-			//"X-Locate-ClientLatLon-Method": []string{"maxmind-remoteip"},
+		Headers: http.Header{
+			hLocateClientlatlon:       []string{lat + "," + lon},
+			hLocateClientlatlonMethod: []string{"maxmind-remoteip"},
 		},
 	}
-	tmp.Headers.Set("X-Locate-ClientLatLon", lat+","+lon)
-	tmp.Headers.Set("X-Locate-ClientLatLon-Method", "maxmind-remoteip")
 	return tmp, nil
 }
 

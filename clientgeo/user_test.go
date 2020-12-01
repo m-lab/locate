@@ -22,8 +22,8 @@ func TestUserLocator_Locate(t *testing.T) {
 				Latitude:  "12",
 				Longitude: "34",
 				Headers: http.Header{
-					"X-Locate-Clientlatlon":        []string{"12,34"},
-					"X-Locate-Clientlatlon-Method": []string{"user-latlon"},
+					hLocateClientlatlon:       []string{"12,34"},
+					hLocateClientlatlonMethod: []string{"user-latlon"},
 				},
 			},
 			vals: url.Values{
@@ -37,8 +37,8 @@ func TestUserLocator_Locate(t *testing.T) {
 				Latitude:  "43.19880000",
 				Longitude: "-75.3242000",
 				Headers: http.Header{
-					"X-Locate-Clientlatlon":        []string{"43.19880000,-75.3242000"},
-					"X-Locate-Clientlatlon-Method": []string{"user-region"},
+					hLocateClientlatlon:       []string{"43.19880000,-75.3242000"},
+					hLocateClientlatlonMethod: []string{"user-region"},
 				},
 			},
 			vals: url.Values{
@@ -51,8 +51,8 @@ func TestUserLocator_Locate(t *testing.T) {
 				Latitude:  "37.09024",
 				Longitude: "-95.712891",
 				Headers: http.Header{
-					"X-Locate-Clientlatlon":        []string{"37.09024,-95.712891"},
-					"X-Locate-Clientlatlon-Method": []string{"user-country"},
+					hLocateClientlatlon:       []string{"37.09024,-95.712891"},
+					hLocateClientlatlonMethod: []string{"user-country"},
 				},
 			},
 			vals: url.Values{

@@ -28,8 +28,8 @@ func TestAppEngineLocator_Locate(t *testing.T) {
 				Latitude:  "40.3",
 				Longitude: "-70.4",
 				Headers: http.Header{
-					"X-Locate-Clientlatlon":        []string{"40.3,-70.4"},
-					"X-Locate-Clientlatlon-Method": []string{"appengine-latlong"},
+					hLocateClientlatlon:       []string{"40.3,-70.4"},
+					hLocateClientlatlonMethod: []string{"appengine-latlong"},
 				},
 			},
 		},
@@ -38,7 +38,7 @@ func TestAppEngineLocator_Locate(t *testing.T) {
 			useHeaders: map[string]string{}, // none.
 			want: &Location{
 				Headers: http.Header{
-					"X-Locate-Clientlatlon-Method": []string{"appengine-none"},
+					hLocateClientlatlonMethod: []string{"appengine-none"},
 				},
 			},
 			wantErr: true,
@@ -53,8 +53,8 @@ func TestAppEngineLocator_Locate(t *testing.T) {
 				Latitude:  "43.19880000",
 				Longitude: "-75.3242000",
 				Headers: http.Header{
-					"X-Locate-Clientlatlon-Method": []string{"appengine-region"},
-					"X-Locate-Clientlatlon":        []string{"43.19880000,-75.3242000"},
+					hLocateClientlatlonMethod: []string{"appengine-region"},
+					hLocateClientlatlon:       []string{"43.19880000,-75.3242000"},
 				},
 			},
 		},
@@ -69,8 +69,8 @@ func TestAppEngineLocator_Locate(t *testing.T) {
 				Latitude:  "43.19880000",
 				Longitude: "-75.3242000",
 				Headers: http.Header{
-					"X-Locate-Clientlatlon-Method": []string{"appengine-region"},
-					"X-Locate-Clientlatlon":        []string{"43.19880000,-75.3242000"},
+					hLocateClientlatlonMethod: []string{"appengine-region"},
+					hLocateClientlatlon:       []string{"43.19880000,-75.3242000"},
 				},
 			},
 		},
@@ -83,8 +83,8 @@ func TestAppEngineLocator_Locate(t *testing.T) {
 				Latitude:  "37.09024",
 				Longitude: "-95.712891",
 				Headers: http.Header{
-					"X-Locate-Clientlatlon-Method": []string{"appengine-country"},
-					"X-Locate-Clientlatlon":        []string{"37.09024,-95.712891"},
+					hLocateClientlatlonMethod: []string{"appengine-country"},
+					hLocateClientlatlon:       []string{"37.09024,-95.712891"},
 				},
 			},
 		},

@@ -50,8 +50,8 @@ func (sl *AppEngineLocator) Locate(req *http.Request) (*Location, error) {
 	loc, err := splitLatLon(latlon)
 	if err == nil {
 		log.WithFields(fields).Info(latlonMethod)
-		loc.Headers.Set("X-Locate-ClientLatLon", latlon)
-		loc.Headers.Set("X-Locate-ClientLatLon-Method", latlonMethod)
+		loc.Headers.Set(hLocateClientlatlon, latlon)
+		loc.Headers.Set(hLocateClientlatlonMethod, latlonMethod)
 		return loc, nil
 	}
 	// The next two fallback methods require the country, so check this next.
@@ -60,8 +60,8 @@ func (sl *AppEngineLocator) Locate(req *http.Request) (*Location, error) {
 		// Without a valid country value, we can neither lookup the
 		// region nor country.
 		log.WithFields(fields).Info(noneMethod)
-		loc.Headers.Set("X-Locate-ClientLatLon-Method", noneMethod)
-		return loc, errors.New("X-Locate-ClientLatLon-Method: " + noneMethod)
+		loc.Headers.Set(hLocateClientlatlonMethod, noneMethod)
+		return loc, errors.New(hLocateClientlatlonMethod + ": " + noneMethod)
 	}
 	// Second, country is valid, so try to lookup region.
 	region := strings.ToUpper(headers.Get("X-AppEngine-Region"))
@@ -69,16 +69,16 @@ func (sl *AppEngineLocator) Locate(req *http.Request) (*Location, error) {
 		latlon = static.Regions[country+"-"+region]
 		log.WithFields(fields).Info(regionMethod)
 		loc, err := splitLatLon(latlon)
-		loc.Headers.Set("X-Locate-ClientLatLon", latlon)
-		loc.Headers.Set("X-Locate-ClientLatLon-Method", regionMethod)
+		loc.Headers.Set(hLocateClientlatlon, latlon)
+		loc.Headers.Set(hLocateClientlatlonMethod, regionMethod)
 		return loc, err
 	}
 	// Third, region was not found, fallback to using the country.
 	latlon = static.Countries[country]
 	log.WithFields(fields).Info(countryMethod)
 	loc, err = splitLatLon(latlon)
-	loc.Headers.Set("X-Locate-ClientLatLon", latlon)
-	loc.Headers.Set("X-Locate-ClientLatLon-Method", countryMethod)
+	loc.Headers.Set(hLocateClientlatlon, latlon)
+	loc.Headers.Set(hLocateClientlatlonMethod, countryMethod)
 	return loc, err
 }
 
