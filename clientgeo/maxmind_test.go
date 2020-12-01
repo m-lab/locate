@@ -39,8 +39,8 @@ func TestNewMaxmindLocator(t *testing.T) {
 				Latitude:  "51.750000",
 				Longitude: "-1.250000",
 				Headers: http.Header{
-					"X-Locate-ClientLatLon":        []string{"51.750000,-1.250000"},
-					"X-Locate-ClientLatLon-Method": []string{"maxmind-remoteip"},
+					"X-Locate-Clientlatlon":        []string{"51.750000,-1.250000"},
+					"X-Locate-Clientlatlon-Method": []string{"maxmind-remoteip"},
 				},
 			},
 			filename: "file:./testdata/fake.tar.gz",
@@ -52,8 +52,8 @@ func TestNewMaxmindLocator(t *testing.T) {
 				Latitude:  "51.750000",
 				Longitude: "-1.250000",
 				Headers: http.Header{
-					"X-Locate-ClientLatLon":        []string{"51.750000,-1.250000"},
-					"X-Locate-ClientLatLon-Method": []string{"maxmind-remoteip"},
+					"X-Locate-Clientlatlon":        []string{"51.750000,-1.250000"},
+					"X-Locate-Clientlatlon-Method": []string{"maxmind-remoteip"},
 				},
 			},
 			filename: "file:./testdata/fake.tar.gz",
