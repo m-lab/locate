@@ -76,8 +76,8 @@ func (mml *MaxmindLocator) Locate(req *http.Request) (*Location, error) {
 		Latitude:  lat,
 		Longitude: lon,
 		Headers: http.Header{
-			"X-Locate-ClientLatLon":        []string{lat + "," + lon},
-			"X-Locate-ClientLatLon-Method": []string{"maxmind-remoteip"},
+			hLocateClientlatlon:       []string{lat + "," + lon},
+			hLocateClientlatlonMethod: []string{"maxmind-remoteip"},
 		},
 	}
 	return tmp, nil
