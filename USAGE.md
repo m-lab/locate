@@ -178,8 +178,8 @@ Via: 1.1 google
 Transfer-Encoding: chunked
 ```
 
-Countries are specified using the [ISO 3166-1 alpha 2 country code](iso1) 
-(`country=IN`) or the [ISO 3166-2 region code](iso2) (`region=US-IL`).
+Countries are specified using the [ISO 3166-1 alpha 2 country code][iso1] 
+(`country=IN`) or the [ISO 3166-2 region code][iso2] (`region=US-IL`).
 
 [iso1]: https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
 [iso2]: https://en.wikipedia.org/wiki/ISO_3166-2
