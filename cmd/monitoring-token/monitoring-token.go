@@ -22,14 +22,16 @@ import (
 )
 
 var (
-	locate    = flagx.MustNewURL("http://localhost:8080/v2/monitoring/")
-	privKey   flagx.FileBytes
-	machine   string
-	service   string
-	timeout   time.Duration
-	envName   string
-	envValue  string
-	logFatalf = log.Fatalf
+	locate            = flagx.MustNewURL("http://localhost:8080/v2/monitoring/")
+	privKey           flagx.FileBytes
+	machine           string
+	service           string
+	timeout           time.Duration
+	envName           string
+	envValue          string
+	resultKeyName     string
+	logFatalf         = log.Fatalf
+	monitoringURLOnly bool
 )
 
 func init() {
@@ -43,7 +45,9 @@ func setupFlags() {
 	flag.StringVar(&service, "service", "ndt/ndt5", "<experiment>/<datatype> to request monitoring access tokens")
 	flag.DurationVar(&timeout, "timeout", 60*time.Second, "Complete request and command execution within timeout")
 	flag.StringVar(&envName, "env-name", "SERVICE_URL", "Export the access token to the named environment variable before executing given command")
-	flag.StringVar(&envValue, "env-value", "wss://:3010/ndt_protocol", "The key name to extract form the monitoring result Target.URLs")
+	flag.StringVar(&envValue, "env-value", "", "The value of the named environment variable envName")
+	flag.StringVar(&resultKeyName, "result-key-name", "wss://:3010/ndt_protocol", "The key name to extract from the monitoring result Target.URLs")
+	flag.BoolVar(&monitoringURLOnly, "monitoring-url-only", false, "Return the /v2/monitoring URL instead of the service URL")
 }
 
 func main() {
@@ -79,27 +83,34 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	logx.Debug.Println("Issue request to:", locate.URL)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, locate.String(), nil)
-	rtx.Must(err, "Failed to create request from url: %q", locate.URL)
+	// If the user passed the --monitoring-url-only flag, then drop the
+	// authenticated /v2/monitoring URL into envValue and move on.
+	if monitoringURLOnly {
+		envValue = locate.String()
+	} else {
+		logx.Debug.Println("Issue request to:", locate.URL)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, locate.String(), nil)
+		rtx.Must(err, "Failed to create request from url: %q", locate.URL)
 
-	// Get monitoring result.
-	mr := &v2.MonitoringResult{}
-	_, err = proxy.UnmarshalResponse(req, mr)
-	rtx.Must(err, "Failed to get response")
-	logx.Debug.Println(pretty.Sprint(mr))
-	if mr.Error != nil {
-		logFatalf("ERROR: %s %s", mr.Error.Title, mr.Error.Detail)
-		return
-	}
-	if mr.Target == nil {
-		logFatalf("ERROR: monitoring result Target field is nil!")
-		return
+		// Get monitoring result.
+		mr := &v2.MonitoringResult{}
+		_, err = proxy.UnmarshalResponse(req, mr)
+		rtx.Must(err, "Failed to get response")
+		logx.Debug.Println(pretty.Sprint(mr))
+		if mr.Error != nil {
+			logFatalf("ERROR: %s %s", mr.Error.Title, mr.Error.Detail)
+			return
+		}
+		if mr.Target == nil {
+			logFatalf("ERROR: monitoring result Target field is nil!")
+			return
+		}
+		envValue = mr.Target.URLs[resultKeyName]
 	}
 
 	// Place the URL into the named environment variable for access by the command.
-	os.Setenv(envName, mr.Target.URLs[envValue])
-	logx.Debug.Println("Setting:", envName, "=", mr.Target.URLs[envValue])
+	os.Setenv(envName, envValue)
+	logx.Debug.Println("Setting:", envName, "=", envValue)
 	logx.Debug.Println("Exec:", flag.Args())
 	args := flag.Args()
 	if len(args) == 0 {
