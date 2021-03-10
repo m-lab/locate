@@ -55,6 +55,9 @@ type MonitoringResult struct {
 
 	// Target contains service URLs for monitoring the service on the target machine.
 	Target *Target `json:"target,omitempty"`
+
+	// Results contains an array of Targets matching the client request.
+	Results []Target `json:"results,omitempty"`
 }
 
 // NextRequest contains a URL for scheduling the next request. The URL embeds an

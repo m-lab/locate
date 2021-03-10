@@ -48,5 +48,9 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 		Machine: machine,
 		URLs:    urls,
 	}
+	result.Results = append(result.Results, v2.Target{
+		Machine: machine,
+		URLs:    urls,
+	})
 	writeResult(rw, http.StatusOK, &result)
 }
