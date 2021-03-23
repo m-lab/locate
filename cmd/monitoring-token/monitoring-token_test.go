@@ -35,16 +35,16 @@ func Test_main(t *testing.T) {
 			args: []string{"monitoring-token"},
 		},
 		{
-			name: "error-args-len-zero",
+			name: "error-args-target-len-zero",
 			resp: `{"target": {"urls": {"wss://:3010/ndt_protocol":""}}}`,
-			args: []string{"monitoring-token"},
+			args: []string{"monitoring-token", "-service-url"},
 		},
 		{
-			name: "success-target-urls-value-matches-check_env-arg",
+			name: "success-service-url-value-matches-check_env-arg",
 			// The value "FAKE_URL" is provided to the check_env.sh command via the environment.
 			// The argument to check_env.sh is the value it expects in the SERVICE_URL env variable.
 			resp: `{"target": {"urls": {"wss://:3010/ndt_protocol":"FAKE_VALUE"}}}`,
-			args: []string{"monitoring-token", "--", "testdata/check_env.sh", "FAKE_VALUE"},
+			args: []string{"monitoring-token", "-service-url", "-env-name=SVC_URL", "--", "testdata/check_env.sh", "SVC_URL", "FAKE_VALUE"},
 		},
 	}
 	for _, tt := range tests {

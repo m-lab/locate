@@ -22,16 +22,19 @@ import (
 )
 
 var (
-	locate            = flagx.MustNewURL("http://localhost:8080/v2/monitoring/")
-	privKey           flagx.FileBytes
-	machine           string
-	service           string
-	timeout           time.Duration
-	envName           string
-	envValue          string
-	resultKeyName     string
-	logFatalf         = log.Fatalf
-	monitoringURLOnly bool
+	locate    = flagx.MustNewURL("http://localhost:8080/v2/monitoring/")
+	privKey   flagx.FileBytes
+	machine   string
+	service   string
+	timeout   time.Duration
+	envName   string
+	envValue  string
+	logFatalf = log.Fatalf
+	// TODO (kinkade): Remove these two variables and corresponding flag
+	// definitions once all monitoring clients are migrated to use only
+	// monitoring URLs.
+	serviceURL    bool
+	resultKeyName string
 )
 
 func init() {
@@ -44,10 +47,10 @@ func setupFlags() {
 	flag.StringVar(&machine, "machine", "", "Machine name used as Audience in the jwt Claim")
 	flag.StringVar(&service, "service", "ndt/ndt5", "<experiment>/<datatype> to request monitoring access tokens")
 	flag.DurationVar(&timeout, "timeout", 60*time.Second, "Complete request and command execution within timeout")
-	flag.StringVar(&envName, "env-name", "SERVICE_URL", "Export the access token to the named environment variable before executing given command")
+	flag.StringVar(&envName, "env-name", "MONITORING_URL", "Export the monitoring locate URL to the named environment variable before executing given command")
 	flag.StringVar(&envValue, "env-value", "", "The value of the named environment variable envName")
-	flag.StringVar(&resultKeyName, "result-key-name", "wss://:3010/ndt_protocol", "The key name to extract from the monitoring result Target.URLs")
-	flag.BoolVar(&monitoringURLOnly, "monitoring-url-only", false, "Return the /v2/monitoring URL instead of the service URL")
+	flag.BoolVar(&serviceURL, "service-url", false, "Return a service URL instead of the default monitoring locate URL")
+	flag.StringVar(&resultKeyName, "result-key-name", "wss://:3010/ndt_protocol", "The key name to extract from the locate result Target.URLs")
 }
 
 func main() {
@@ -83,11 +86,10 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// If the user passed the --monitoring-url-only flag, then drop the
-	// authenticated /v2/monitoring URL into envValue and move on.
-	if monitoringURLOnly {
-		envValue = locate.String()
-	} else {
+	// TODO (kinkade): Once all monitoring clients are migrated to use only
+	// monitoring URLs then this whole conditional block can be removed and
+	// envValue will always just contain the monitoring URL.
+	if serviceURL {
 		logx.Debug.Println("Issue request to:", locate.URL)
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, locate.String(), nil)
 		rtx.Must(err, "Failed to create request from url: %q", locate.URL)
@@ -106,6 +108,8 @@ func main() {
 			return
 		}
 		envValue = mr.Target.URLs[resultKeyName]
+	} else {
+		envValue = locate.String()
 	}
 
 	// Place the URL into the named environment variable for access by the command.
