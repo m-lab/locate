@@ -48,7 +48,6 @@ func setupFlags() {
 	flag.StringVar(&service, "service", "ndt/ndt5", "<experiment>/<datatype> to request monitoring access tokens")
 	flag.DurationVar(&timeout, "timeout", 60*time.Second, "Complete request and command execution within timeout")
 	flag.StringVar(&envName, "env-name", "MONITORING_URL", "Export the monitoring locate URL to the named environment variable before executing given command")
-	flag.StringVar(&envValue, "env-value", "", "The value of the named environment variable envName")
 	flag.BoolVar(&serviceURL, "service-url", false, "Return a service URL instead of the default monitoring locate URL")
 	flag.StringVar(&resultKeyName, "result-key-name", "wss://:3010/ndt_protocol", "The key name to extract from the locate result Target.URLs")
 }
