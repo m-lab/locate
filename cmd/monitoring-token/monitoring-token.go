@@ -33,8 +33,8 @@ var (
 	// TODO (kinkade): Remove these two variables and corresponding flag
 	// definitions once all monitoring clients are migrated to use only
 	// monitoring URLs.
-	serviceURL    bool
-	resultKeyName string
+	serviceURL        bool
+	serviceURLKeyName string
 )
 
 func init() {
@@ -49,7 +49,7 @@ func setupFlags() {
 	flag.DurationVar(&timeout, "timeout", 60*time.Second, "Complete request and command execution within timeout")
 	flag.StringVar(&envName, "env-name", "MONITORING_URL", "Export the monitoring locate URL to the named environment variable before executing given command")
 	flag.BoolVar(&serviceURL, "service-url", false, "Return a service URL instead of the default monitoring locate URL")
-	flag.StringVar(&resultKeyName, "result-key-name", "wss://:3010/ndt_protocol", "The key name to extract from the locate result Target.URLs")
+	flag.StringVar(&serviceURLKeyName, "service-url-key-name", "wss://:3010/ndt_protocol", "The key name to extract from the monitoring locate result Target.URLs")
 }
 
 func main() {
@@ -106,7 +106,7 @@ func main() {
 			logFatalf("ERROR: monitoring result Target field is nil!")
 			return
 		}
-		envValue = mr.Target.URLs[resultKeyName]
+		envValue = mr.Target.URLs[serviceURLKeyName]
 	} else {
 		envValue = locate.String()
 	}
