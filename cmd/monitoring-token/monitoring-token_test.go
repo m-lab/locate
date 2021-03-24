@@ -25,26 +25,31 @@ func Test_main(t *testing.T) {
 		args []string
 	}{
 		{
-			name: "error-error-not-nil",
+			name: "error-service-url-error-not-nil",
 			resp: `{"error":{"type":"fake-error"}}`,
-			args: []string{"monitoring-token"},
+			args: []string{"monitoring-token", "-service-url"},
 		},
 		{
-			name: "error-nil-target",
+			name: "error-service-url-nil-target",
 			resp: `{}`,
-			args: []string{"monitoring-token"},
+			args: []string{"monitoring-token", "-service-url"},
 		},
 		{
-			name: "error-args-len-zero",
+			name: "error-service-url-args-target-len-zero",
 			resp: `{"target": {"urls": {"wss://:3010/ndt_protocol":""}}}`,
-			args: []string{"monitoring-token"},
+			args: []string{"monitoring-token", "-service-url"},
 		},
 		{
-			name: "success-target-urls-value-matches-check_env-arg",
+			name: "success-service-url-value-matches-check_env-arg",
 			// The value "FAKE_URL" is provided to the check_env.sh command via the environment.
 			// The argument to check_env.sh is the value it expects in the SERVICE_URL env variable.
 			resp: `{"target": {"urls": {"wss://:3010/ndt_protocol":"FAKE_VALUE"}}}`,
-			args: []string{"monitoring-token", "--", "testdata/check_env.sh", "FAKE_VALUE"},
+			args: []string{"monitoring-token", "-service-url", "-env-name=SVC_URL", "--", "testdata/check_env.sh", "SVC_URL", "FAKE_VALUE"},
+		},
+		{
+			name: "success-locate-monitoring-url",
+			resp: `{}`,
+			args: []string{"monitoring-token"},
 		},
 	}
 	for _, tt := range tests {

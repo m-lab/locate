@@ -25,6 +25,7 @@ steps:
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-ns
   args:
   - cp cloudbuild/app-platform.yaml.$PROJECT_ID app.yaml
+  - gcloud config set app/cloud_build_timeout 900
   - gcloud --project $PROJECT_ID app deploy --promote app.yaml
 
 # Deployment of public APIs in sandbox & staging & mlab-ns. e.g. /v2/nearest/*
