@@ -58,7 +58,7 @@ type Ports []url.URL
 // v2 equivalent.
 var LegacyServices = map[string]string{
 	"neubot/dash": "neubot",
-	"wehe/replay": "ndt7", // TODO: replace with heartbeat health.
+	"wehe/replay": "wehe", // TODO: replace with heartbeat health.
 	"iperf3/test": "ndt7", // TODO: replace with heartbeat health.
 	"ndt/ndt5":    "ndt_ssl",
 	"ndt/ndt7":    "ndt7",
