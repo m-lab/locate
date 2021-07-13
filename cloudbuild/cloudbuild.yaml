@@ -37,7 +37,7 @@ steps:
   - '-c'
   - >
     /go/bin/cbif
-    "[[ $PROJECT == "mlab-ns" ]] && PLATFORM_PROJECT=mlab-oti || PLATFORM_PROJECT=$PROJECT_ID
+    "[[ $PROJECT_ID == "mlab-ns" ]] && PLATFORM_PROJECT=mlab-oti || PLATFORM_PROJECT=$PROJECT_ID
     sed
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
     -e 's/{{PLATFORM_PROJECT}}/$PLATFORM_PROJECT/'
@@ -64,7 +64,7 @@ steps:
   - '-c'
   - >
     /go/bin/cbif
-    "[[ $PROJECT == "mlab-ns" ]] && PLATFORM_PROJECT=mlab-oti || PLATFORM_PROJECT=$PROJECT_ID
+    "[[ $PROJECT_ID == "mlab-ns" ]] && PLATFORM_PROJECT=mlab-oti || PLATFORM_PROJECT=$PROJECT_ID
     "sed
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
     -e 's/{{PLATFORM_PROJECT}}/$PLATFORM_PROJECT/'
