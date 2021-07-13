@@ -36,7 +36,7 @@ steps:
   # into the mlab-oti project, the first conditional below will be necessary.
   - '-c'
   - >
-    /go/bin/cbif
+    /usr/bin/cbif
     "[[ $PROJECT_ID == "mlab-ns" ]] && PLATFORM_PROJECT=mlab-oti || PLATFORM_PROJECT=$PROJECT_ID
     sed
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
@@ -63,7 +63,7 @@ steps:
   # After deploying the new service, deploy the openapi spec.
   - '-c'
   - >
-    /go/bin/cbif
+    /usr/bin/cbif
     "[[ $PROJECT_ID == "mlab-ns" ]] && PLATFORM_PROJECT=mlab-oti || PLATFORM_PROJECT=$PROJECT_ID
     "sed
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
