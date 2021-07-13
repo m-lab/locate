@@ -11,8 +11,12 @@ resources:
   cpu: 2
   memory_gb: 8
 
-manual_scaling:
-  instances: 2
+automatic_scaling:
+  min_num_instances: 2
+  max_num_instances: 4
+  # Anecdotally, it seems to take roughly 5m for an instance to initialize
+  # fully.
+  cool_down_period_sec: 300
 
 env_variables:
   LEGACY_SERVER: https://mlab-sandbox.appspot.com
