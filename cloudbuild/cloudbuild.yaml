@@ -45,7 +45,7 @@ steps:
     -e 's/{{MONITORING_VERIFY_KEY}}/$$MONITORING_VERIFY_KEY/'
     app-platform.yaml"
     "gcloud config set app/cloud_build_timeout 900"
-    "gcloud --project $PROJECT_ID app deploy --promote app.yaml"
+    "gcloud --project $PROJECT_ID app deploy --promote app-platform.yaml"
   secretEnv:
   - LOCATE_SIGNER_KEY
   - MONITORING_VERIFY_KEY
