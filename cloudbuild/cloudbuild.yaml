@@ -5,13 +5,6 @@ options:
   - PROJECT_ID=$PROJECT_ID
   - WORKSPACE_LINK=/go/src/github.com/m-lab/locate
 
-availableSecrets:
-  secretManager:
-  - versionName: projects/${PROJECT_NUMBER}/secrets/locate-service-signer-key/versions/latest
-    env: LOCATE_SIGNER_KEY
-  - versionName: projects/${PROJECT_NUMBER}/secrets/locate-monitoring-service-verify-key/versions/latest
-    env: MONITORING_VERIFY_KEY
-
 steps:
 # Run unit tests for environment.
 - name: gcr.io/$PROJECT_ID/golang-cbif
@@ -27,53 +20,32 @@ steps:
 # Deployment of platform specific APIs in sandbox & staging & mlab-ns.
 # NOTE: these services are not meant for the public, e.g. /v2/platform/*
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif
-  entrypoint: /bin/bash
   env:
   # Use cbif condition: only run these steps in one of these projects.
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-ns
   args:
-  # Until we elimiate the mlab-ns project and move the production Locate Service
-  # into the mlab-oti project, the first conditional below will be necessary.
-  - '-c'
+  - cp cloudbuild/app-platform.yaml.template app-platform.yaml
   - >
-    /usr/bin/cbif
-    "cp cloudbuild/app-platform.yaml.template app-platform.yaml"
-    "sed -i
+    sed -i
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
     -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
-    -e 's/{{LOCATE_SIGNER_KEY}}/$$LOCATE_SIGNER_KEY/'
-    -e 's/{{MONITORING_VERIFY_KEY}}/$$MONITORING_VERIFY_KEY/'
-    app-platform.yaml"
-    "gcloud config set app/cloud_build_timeout 900"
-    "gcloud --project $PROJECT_ID app deploy --promote app-platform.yaml"
-  secretEnv:
-  - LOCATE_SIGNER_KEY
-  - MONITORING_VERIFY_KEY
+    app-platform.yaml
+  - gcloud config set app/cloud_build_timeout 900"
+  - gcloud --project $PROJECT_ID app deploy --promote app-platform.yaml"
 
 # Deployment of public APIs in sandbox & staging & mlab-ns. e.g. /v2/nearest/*
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif
-  entrypoint: /bin/bash
   env:
   # Use cbif condition: only run these steps in one of these projects.
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-ns
   args:
-  # Until we elimiate the mlab-ns project and move the production Locate Service
-  # into the mlab-oti project, the first conditional below will be necessary.
-  #
-  # After deploying the new service, deploy the openapi spec.
-  - '-c'
+  - cp cloudbuild/app.yaml.template app.yaml"
   - >
-    /usr/bin/cbif
-    "cp cloudbuild/app.yaml.template app.yaml"
-    "sed -i
+    sed -i
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
     -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
-    -e 's/{{LOCATE_SIGNER_KEY}}/$$LOCATE_SIGNER_KEY/'
-    -e 's/{{MONITORING_VERIFY_KEY}}/$$MONITORING_VERIFY_KEY/'
-    app.yaml"
-    "gcloud --project $PROJECT_ID app deploy --promote app.yaml"
-    "sed -i -e 's/{{PROJECT}}/$PROJECT_ID/" openapi.yaml"
-    "gcloud endpoints services deploy openapi.yaml"
-  secretEnv:
-  - LOCATE_SIGNER_KEY
-  - MONITORING_VERIFY_KEY
+    app.yaml
+  - gcloud --project $PROJECT_ID app deploy --promote app.yaml"
+  - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/" openapi.yaml"
+  # After deploying the new service, deploy the openapi spec.
+  - gcloud endpoints services deploy openapi.yaml"

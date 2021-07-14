@@ -8,8 +8,7 @@ In advance, an operator should create private JWK signing and verify keys
 using the `management/create_jwt_keys_and_secrets.sh` script.
 
 This script will generate the JWT keys and then load them into GSM for a given
-project. The Google Cloud Build (GCB) (see cloudbuild/cloudbuild.yaml) will load
-the secrets into environment variables for any steps that need them.
+project. These secrets will be read by the locate service at runtime.
 
 It is the operator's responsibility to deploy the public JWK verifier key to
 all target servers.
