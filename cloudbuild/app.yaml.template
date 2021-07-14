@@ -21,7 +21,7 @@ automatic_scaling:
 env_variables:
   LEGACY_SERVER: https://{{PROJECT}}.appspot.com
   PLATFORM_PROJECT: {{PLATFORM_PROJECT}}
-  LOCATE_SIGNER_KEY: {{LOCATE_SIGNER_KEY}}
-  MONITORING_VERIFY_KEY: {{MONITORING_VERIFY_KEY}}
+  LOCATE_SIGNER_KEY: "{{LOCATE_SIGNER_KEY}}"
+  MONITORING_VERIFY_KEY: "{{MONITORING_VERIFY_KEY}}"
   LOCATOR_MAXMIND: true
   MAXMIND_URL: gs://downloader-mlab-oti/Maxmind/current/GeoLite2-City.tar.gz
