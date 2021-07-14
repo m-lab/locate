@@ -7,18 +7,17 @@ import (
 	"net/http"
 	"time"
 
-	kms "cloud.google.com/go/kms/apiv1"
 	"github.com/justinas/alice"
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/access/controller"
+	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/memoryless"
 	"github.com/m-lab/go/rtx"
 	"github.com/m-lab/locate/clientgeo"
-	"github.com/m-lab/locate/decrypt"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
@@ -55,13 +54,7 @@ func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Could not parse env args")
 
-	// SIGNER - load the signer key.
-	client, err := kms.NewKeyManagementClient(mainCtx)
-	rtx.Must(err, "Failed to create KMS client")
-	// NOTE: these must be the same parameters used by management/create_encrypted_signer_key.sh.
-	cfg := decrypt.NewConfig(project, "global", "locate-signer", "jwk")
-	// Load encrypted signer key from environment, using variable name derived from project.
-	signer, err := cfg.LoadSigner(mainCtx, client, locateSignerKey)
+	signer, err := token.NewSigner([]byte(locateSignerKey))
 	rtx.Must(err, "Failed to load signer key")
 	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
 
@@ -93,7 +86,11 @@ func main() {
 	}()
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
-	verifier, err := cfg.LoadVerifier(mainCtx, client, monitoringVerifyKey...)
+	keys := [][]byte{}
+	for _, key := range monitoringVerifyKey {
+		keys = append(keys, []byte(key))
+	}
+	verifier, err := token.NewVerifier(keys...)
 	rtx.Must(err, "Failed to create verifier")
 	exp := jwt.Expected{
 		Issuer:   static.IssuerMonitoring,
