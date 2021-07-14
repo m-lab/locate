@@ -37,13 +37,13 @@ steps:
   - '-c'
   - >
     /usr/bin/cbif
-    "[[ $PROJECT_ID == "mlab-ns" ]] && PLATFORM_PROJECT=mlab-oti || PLATFORM_PROJECT=$PROJECT_ID
-    sed
+    "cp cloudbuild/app-platform.yaml.template app-platform.yaml"
+    "sed -i
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
-    -e 's/{{PLATFORM_PROJECT}}/$$PLATFORM_PROJECT/'
+    -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
     -e 's/{{LOCATE_SIGNER_KEY}}/$$LOCATE_SIGNER_KEY/'
-    -e 's/{{MONTIORING_VERIFY_KEY}}/$$MONITORING_VERIFY_KEY/'
-    cloudbuild/app-platform.yaml.template > app.yaml"
+    -e 's/{{MONITORING_VERIFY_KEY}}/$$MONITORING_VERIFY_KEY/'
+    app-platform.yaml"
     "gcloud config set app/cloud_build_timeout 900"
     "gcloud --project $PROJECT_ID app deploy --promote app.yaml"
   secretEnv:
@@ -64,13 +64,13 @@ steps:
   - '-c'
   - >
     /usr/bin/cbif
-    "[[ $PROJECT_ID == "mlab-ns" ]] && PLATFORM_PROJECT=mlab-oti || PLATFORM_PROJECT=$PROJECT_ID
-    "sed
+    "cp cloudbuild/app.yaml.template app.yaml"
+    "sed -i
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
-    -e 's/{{PLATFORM_PROJECT}}/$$PLATFORM_PROJECT/'
+    -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
     -e 's/{{LOCATE_SIGNER_KEY}}/$$LOCATE_SIGNER_KEY/'
-    -e 's/{{MONTIORING_VERIFY_KEY}}/$$MONITORING_VERIFY_KEY/'
-    cloudbuild/app.yaml.template > app.yaml"
+    -e 's/{{MONITORING_VERIFY_KEY}}/$$MONITORING_VERIFY_KEY/'
+    app.yaml"
     "gcloud --project $PROJECT_ID app deploy --promote app.yaml"
     "sed -i -e 's/{{PROJECT}}/$PROJECT_ID/" openapi.yaml"
     "gcloud endpoints services deploy openapi.yaml"
