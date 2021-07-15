@@ -30,8 +30,8 @@ steps:
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
     -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
     app-platform.yaml
-  - gcloud config set app/cloud_build_timeout 900"
-  - gcloud --project $PROJECT_ID app deploy --promote app-platform.yaml"
+  - gcloud config set app/cloud_build_timeout 900
+  - gcloud --project $PROJECT_ID app deploy --promote app-platform.yaml
 
 # Deployment of public APIs in sandbox & staging & mlab-ns. e.g. /v2/nearest/*
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif
@@ -45,7 +45,7 @@ steps:
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
     -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
     app.yaml
-  - gcloud --project $PROJECT_ID app deploy --promote app.yaml"
-  - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/" openapi.yaml"
+  - gcloud --project $PROJECT_ID app deploy --promote app.yaml
+  - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/" openapi.yaml
   # After deploying the new service, deploy the openapi spec.
-  - gcloud endpoints services deploy openapi.yaml"
+  - gcloud endpoints services deploy openapi.yaml
