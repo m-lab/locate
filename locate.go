@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"time"
 
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/justinas/alice"
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/access/controller"
-	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/httpx"
@@ -20,6 +20,7 @@ import (
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/proxy"
+	"github.com/m-lab/locate/secrets"
 	"github.com/m-lab/locate/static"
 )
 
@@ -32,7 +33,7 @@ var (
 	legacyServer        string
 	locateSignerKey     string
 	maxmind             = flagx.URL{}
-	monitoringVerifyKey = flagx.StringArray{}
+	monitoringVerifyKey string
 )
 
 func init() {
@@ -41,8 +42,8 @@ func init() {
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
 	flag.StringVar(&platform, "platform-project", "", "GCP project for platform machine names")
 	flag.StringVar(&legacyServer, "legacy-server", proxy.DefaultLegacyServer, "Base URL to mlab-ns server")
-	flag.StringVar(&locateSignerKey, "locate-signer-key", "", "Private key of the locate+service key pair")
-	flag.Var(&monitoringVerifyKey, "monitoring-verify-key", "Public keys of the monitoring+locate key pair")
+	flag.StringVar(&locateSignerKey, "locate-signer-key", "locate-service-signer-key", "Name of secret for locate signer key in Secret Manager")
+	flag.StringVar(&monitoringVerifyKey, "monitoring-verify-key", "locate-monitoring-service-verify-key", "Name of secret for monitoring verifier key in Secret Manager")
 	flag.BoolVar(&locatorAE, "locator-appengine", true, "Use the AppEngine clientgeo locator")
 	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
@@ -54,8 +55,16 @@ func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Could not parse env args")
 
-	signer, err := token.NewSigner([]byte(locateSignerKey))
+	// Create the Secret Manager client
+	client, err := secretmanager.NewClient(mainCtx)
+	rtx.Must(err, "Failed to create Secret Manager client")
+	defer client.Close()
+	cfg := secrets.NewConfig(project)
+
+	// SIGNER - load the signer key.
+	signer, err := cfg.LoadSigner(mainCtx, client, locateSignerKey)
 	rtx.Must(err, "Failed to load signer key")
+
 	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
 
 	locators := clientgeo.MultiLocator{clientgeo.NewUserLocator()}
@@ -86,11 +95,7 @@ func main() {
 	}()
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
-	keys := [][]byte{}
-	for _, key := range monitoringVerifyKey {
-		keys = append(keys, []byte(key))
-	}
-	verifier, err := token.NewVerifier(keys...)
+	verifier, err := cfg.LoadVerifier(mainCtx, client, monitoringVerifyKey)
 	rtx.Must(err, "Failed to create verifier")
 	exp := jwt.Expected{
 		Issuer:   static.IssuerMonitoring,
