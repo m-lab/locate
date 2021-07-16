@@ -46,30 +46,16 @@ func (c *Config) getSecret(ctx context.Context, client SecretManager, path strin
 	return result.Payload.Data, nil
 }
 
-// LoadSigner fetches the latest version of the named secret containing the JWT
-// signer key from the Secret Manager API and returns a *token.Signer.
-func (c *Config) LoadSigner(ctx context.Context, client SecretManager, name string) (*token.Signer, error) {
-	c.Name = name
-	path := c.path("/versions/latest")
-	key, err := c.getSecret(ctx, client, path)
-	if err != nil {
-		return nil, err
-	}
-	return token.NewSigner(key)
-}
-
-// LoadVerifier fetches all enabled versions of the named secret containing the
-// JWT verifier keys and returns a * token.Verifier.
-func (c *Config) LoadVerifier(ctx context.Context, client SecretManager, name string) (*token.Verifier, error) {
-	c.Name = name
-
+// getSecretVersions returns a slice of all *enabled* versions for a secret. It
+// will ignore disabled for destroyed versions of a secret.
+func (c *Config) getSecretVersions(ctx context.Context, client SecretManager) ([]string, error) {
 	req := &secretmanagerpb.ListSecretVersionsRequest{
-		Parent:   c.path(""),
+		Parent:   c.path(),
 		PageSize: 1000,
 	}
 
 	it := client.ListSecretVersions(ctx, req)
-	keys := [][]byte{}
+	versions := []string{}
 	for {
 		resp, err := it.Next()
 		if err == iterator.Done {
@@ -78,21 +64,54 @@ func (c *Config) LoadVerifier(ctx context.Context, client SecretManager, name st
 		if err != nil {
 			return nil, err
 		}
-		key, err := c.getSecret(ctx, client, resp.Name)
+		if resp.State != secretmanagerpb.SecretVersion_ENABLED {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		versions = append(versions, resp.Name)
+	}
+
+	if len(versions) < 1 {
+		return nil, fmt.Errorf("No versions found for secret: %s", c.Name)
+	}
+
+	return versions, nil
+}
+
+// LoadSigner fetches the latest version of the named secret containing the JWT
+// signer key from the Secret Manager API and returns a *token.Signer.
+func (c *Config) LoadSigner(ctx context.Context, client SecretManager) (*token.Signer, error) {
+	versions, err := c.getSecretVersions(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+	key, err := c.getSecret(ctx, client, versions[0])
+	if err != nil {
+		return nil, err
+	}
+	return token.NewSigner(key)
+}
+
+// LoadVerifier fetches all enabled versions of the named secret containing the
+// JWT verifier keys and returns a * token.Verifier.
+func (c *Config) LoadVerifier(ctx context.Context, client SecretManager) (*token.Verifier, error) {
+	versions, err := c.getSecretVersions(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+	keys := [][]byte{}
+	for _, version := range versions {
+		key, err := c.getSecret(ctx, client, version)
 		if err != nil {
 			return nil, err
 		}
 		keys = append(keys, key)
 	}
-
-	if len(keys) < 1 {
-		return nil, fmt.Errorf("No versions found for secret: %s", name)
-	}
-
 	return token.NewVerifier(keys...)
 }
 
-// path creates a GCP resource path for the Secret referenced by Config.
-func (c *Config) path(version string) string {
-	return "projects/" + c.Project + "/secrets/" + c.Name + version
+func (c *Config) path() string {
+	return "projects/" + c.Project + "/secrets/" + c.Name
 }
