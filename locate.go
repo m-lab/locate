@@ -62,7 +62,8 @@ func main() {
 	cfg := secrets.NewConfig(project)
 
 	// SIGNER - load the signer key.
-	signer, err := cfg.LoadSigner(mainCtx, client, locateSignerKey)
+	cfg.Name = locateSignerKey
+	signer, err := cfg.LoadSigner(mainCtx, client)
 	rtx.Must(err, "Failed to load signer key")
 
 	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
@@ -95,7 +96,8 @@ func main() {
 	}()
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
-	verifier, err := cfg.LoadVerifier(mainCtx, client, monitoringVerifyKey)
+	cfg.Name = monitoringVerifyKey
+	verifier, err := cfg.LoadVerifier(mainCtx, client)
 	rtx.Must(err, "Failed to create verifier")
 	exp := jwt.Expected{
 		Issuer:   static.IssuerMonitoring,
