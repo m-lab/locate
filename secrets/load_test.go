@@ -12,16 +12,18 @@ import (
 )
 
 type fakeSecretClient struct {
-	data    []byte
+	idx     int
+	data    [][]byte
 	wantErr bool
 }
 
 func (f *fakeSecretClient) AccessSecretVersion(ctx context.Context, req *secretmanagerpb.AccessSecretVersionRequest, opts ...gax.CallOption) (*secretmanagerpb.AccessSecretVersionResponse, error) {
+	defer f.incrementIdx()
 	if !f.wantErr {
 		return &secretmanagerpb.AccessSecretVersionResponse{
 			Name: "fake-secret",
 			Payload: &secretmanagerpb.SecretPayload{
-				Data: f.data,
+				Data: f.data[f.idx],
 			},
 		}, nil
 	}
@@ -35,6 +37,10 @@ func (f *fakeSecretClient) AccessSecretVersion(ctx context.Context, req *secretm
 
 func (f *fakeSecretClient) ListSecretVersions(ctx context.Context, req *secretmanagerpb.ListSecretVersionsRequest, opts ...gax.CallOption) *secretmanager.SecretVersionIterator {
 	return &secretmanager.SecretVersionIterator{}
+}
+
+func (f *fakeSecretClient) incrementIdx() {
+	f.idx = f.idx + 1
 }
 
 type fakeIter struct {
@@ -83,7 +89,8 @@ func Test_getSecret(t *testing.T) {
 	cfg := NewConfig("mlab-sandbox")
 	cfg.iter = &fakeIter{}
 
-	secretData := []byte("fake-secret")
+	var secretData [][]byte
+	secretData = append(secretData, []byte("fake-secret"))
 	client := &fakeSecretClient{
 		data:    secretData,
 		wantErr: false,
@@ -93,8 +100,8 @@ func Test_getSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Did not expect an error, but got error: %s", err)
 	}
-	if string(secret) != string(secretData) {
-		t.Fatalf("Expected secret value '%s', but got: %s", string(secretData), string(secret))
+	if string(secret) != string(secretData[0]) {
+		t.Fatalf("Expected secret value '%s', but got: %s", string(secretData[0]), string(secret))
 	}
 
 	client.wantErr = true
@@ -168,7 +175,7 @@ func Test_getSecretVersions(t *testing.T) {
 		versions, err := cfg.getSecretVersions(ctx, client)
 
 		if (err != nil) != tt.wantErr {
-			t.Fatalf("Did not expect and error, but got error: %s", err)
+			t.Fatalf("Did not expect error, but got error: %s", err)
 		}
 
 		if len(versions) != tt.expectedCount {
@@ -180,5 +187,198 @@ func Test_getSecretVersions(t *testing.T) {
 				t.Fatalf("Expected versions:\n\n%v\n\n...but got:\n\n%v", tt.expectedVersions, versions)
 			}
 		}
+	}
+}
+
+func Test_LoadSigner(t *testing.T) {
+	ctx := context.Background()
+
+	cfg := NewConfig("mlab-sandbox")
+	cfg.iter = &fakeIter{}
+
+	var signerKeys [][]byte
+
+	signerData := `
+		{
+			"use": "sig",
+			"kty": "OKP",
+			"kid": "fake_20210721",
+			"crv": "Ed25519",
+			"alg": "EdDSA",
+			"x": "abcde-abcd-abcdefghijklmnopqrstuv-abcdefghi",
+			"d": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr"
+		}
+	`
+	signerKeys = append(signerKeys, []byte(signerData))
+
+	tests := []struct {
+		name    string
+		client  SecretClient
+		iter    iter
+		wantErr bool
+	}{
+		{
+			name: "no-errors",
+			client: &fakeSecretClient{
+				data:    signerKeys,
+				wantErr: false,
+			},
+			iter: &fakeIter{
+				err: "no-errors",
+				versions: []*secretmanagerpb.SecretVersion{
+					{
+						Name:  "secrets/mlab-sandbox/fake-secret/versions/4",
+						State: secretmanagerpb.SecretVersion_ENABLED,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "get-secret-versions-error",
+			client: &fakeSecretClient{
+				wantErr: false,
+			},
+			iter: &fakeIter{
+				err: "no-versions",
+				versions: []*secretmanagerpb.SecretVersion{
+					{
+						Name:  "secrets/mlab-sandbox/fake-secret/versions/2",
+						State: secretmanagerpb.SecretVersion_DISABLED,
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "get-secret-error",
+			client: &fakeSecretClient{
+				wantErr: true,
+			},
+			iter: &fakeIter{
+				err: "no-errors",
+				versions: []*secretmanagerpb.SecretVersion{
+					{
+						Name:  "secrets/mlab-sandbox/fake-secret/versions/2",
+						State: secretmanagerpb.SecretVersion_ENABLED,
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		cfg.iter = tt.iter
+		_, err := cfg.LoadSigner(ctx, tt.client)
+
+		if (err != nil) != tt.wantErr {
+			t.Fatalf("Did not expect error, but got error: %s", err)
+		}
+
+	}
+}
+
+func Test_LoadVerifier(t *testing.T) {
+	ctx := context.Background()
+
+	cfg := NewConfig("mlab-sandbox")
+	cfg.iter = &fakeIter{}
+
+	var verifyKeys [][]byte
+
+	verifyData0 := `
+		{
+			"use": "sig",
+			"kty": "OKP",
+			"kid": "fake0_20210721",
+			"crv": "Ed25519",
+			"alg": "EdDSA",
+			"x": "abcde-abcd-abcdefghijklmnopqrstuv-abcdefghi"
+		}
+	`
+	verifyKeys = append(verifyKeys, []byte(verifyData0))
+
+	verifyData1 := `
+		{
+			"use": "sig",
+			"kty": "OKP",
+			"kid": "fake1_20210721",
+			"crv": "Ed25519",
+			"alg": "EdDSA",
+			"x": "abcde-abcd-abcdefghijklmnopqrstuv-abcdefghi"
+		}
+	`
+	verifyKeys = append(verifyKeys, []byte(verifyData1))
+
+	tests := []struct {
+		name    string
+		client  SecretClient
+		iter    iter
+		wantErr bool
+	}{
+		{
+			name: "no-errors",
+			client: &fakeSecretClient{
+				data:    verifyKeys,
+				wantErr: false,
+			},
+			iter: &fakeIter{
+				err: "no-errors",
+				versions: []*secretmanagerpb.SecretVersion{
+					{
+						Name:  "secrets/mlab-sandbox/fake-secret/versions/4",
+						State: secretmanagerpb.SecretVersion_ENABLED,
+					},
+					{
+						Name:  "secrets/mlab-sandbox/fake-secret/versions/2",
+						State: secretmanagerpb.SecretVersion_ENABLED,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "get-secret-versions-error",
+			client: &fakeSecretClient{
+				wantErr: false,
+			},
+			iter: &fakeIter{
+				err: "no-versions",
+				versions: []*secretmanagerpb.SecretVersion{
+					{
+						Name:  "secrets/mlab-sandbox/fake-secret/versions/2",
+						State: secretmanagerpb.SecretVersion_DISABLED,
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "get-secret-error",
+			client: &fakeSecretClient{
+				wantErr: true,
+			},
+			iter: &fakeIter{
+				err: "no-errors",
+				versions: []*secretmanagerpb.SecretVersion{
+					{
+						Name:  "secrets/mlab-sandbox/fake-secret/versions/2",
+						State: secretmanagerpb.SecretVersion_ENABLED,
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		cfg.iter = tt.iter
+		_, err := cfg.LoadVerifier(ctx, tt.client)
+
+		if (err != nil) != tt.wantErr {
+			t.Fatalf("Did not expect error, but got error: %s", err)
+		}
+
 	}
 }
