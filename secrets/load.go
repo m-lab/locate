@@ -12,14 +12,30 @@ import (
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 )
 
-// SecretManager wraps the AccessSecretVersion function provided by the secretmanager.Client
-type SecretManager interface {
+// SecretClient wraps the AccessSecretVersion function provided by the
+// secretmanager.Client.
+type SecretClient interface {
 	AccessSecretVersion(ctx context.Context, req *secretmanagerpb.AccessSecretVersionRequest, opts ...gax.CallOption) (*secretmanagerpb.AccessSecretVersionResponse, error)
 	ListSecretVersions(ctx context.Context, req *secretmanagerpb.ListSecretVersionsRequest, opts ...gax.CallOption) *secretmanager.SecretVersionIterator
 }
 
+// iter warps the Next() method of a *secretmanager.SecretVersionIterator.
+type iter interface {
+	Next(it *secretmanager.SecretVersionIterator) (*secretmanagerpb.SecretVersion, error)
+}
+
+// stdIter implements the iter interfaces, and is used to invoke the
+// iterator.Next() method.
+type stdIter struct{}
+
+// Next invokes the Next() method of a *secretmanager.SecretVersionIterator.
+func (s *stdIter) Next(it *secretmanager.SecretVersionIterator) (*secretmanagerpb.SecretVersion, error) {
+	return it.Next()
+}
+
 // Config contains settings for secrets.
 type Config struct {
+	iter    iter
 	Name    string
 	Project string
 }
@@ -27,13 +43,14 @@ type Config struct {
 // NewConfig creates a new secret config.
 func NewConfig(project string) *Config {
 	return &Config{
+		iter:    &stdIter{},
 		Project: project,
 	}
 }
 
 // getSecret fetches the version of a secret specified by 'path' from the Secret
 // Manager API.
-func (c *Config) getSecret(ctx context.Context, client SecretManager, path string) ([]byte, error) {
+func (c *Config) getSecret(ctx context.Context, client SecretClient, path string) ([]byte, error) {
 	req := &secretmanagerpb.AccessSecretVersionRequest{
 		Name: path,
 	}
@@ -48,7 +65,7 @@ func (c *Config) getSecret(ctx context.Context, client SecretManager, path strin
 
 // getSecretVersions returns a slice of all *enabled* versions for a secret. It
 // will ignore disabled for destroyed versions of a secret.
-func (c *Config) getSecretVersions(ctx context.Context, client SecretManager) ([]string, error) {
+func (c *Config) getSecretVersions(ctx context.Context, client SecretClient) ([]string, error) {
 	req := &secretmanagerpb.ListSecretVersionsRequest{
 		Parent:   c.path(),
 		PageSize: 1000,
@@ -57,7 +74,7 @@ func (c *Config) getSecretVersions(ctx context.Context, client SecretManager) ([
 	it := client.ListSecretVersions(ctx, req)
 	versions := []string{}
 	for {
-		resp, err := it.Next()
+		resp, err := c.iter.Next(it)
 		if err == iterator.Done {
 			break
 		}
@@ -67,14 +84,11 @@ func (c *Config) getSecretVersions(ctx context.Context, client SecretManager) ([
 		if resp.State != secretmanagerpb.SecretVersion_ENABLED {
 			continue
 		}
-		if err != nil {
-			return nil, err
-		}
 		versions = append(versions, resp.Name)
 	}
 
 	if len(versions) < 1 {
-		return nil, fmt.Errorf("No versions found for secret: %s", c.Name)
+		return nil, fmt.Errorf("no versions found for secret: %s", c.Name)
 	}
 
 	return versions, nil
@@ -82,7 +96,7 @@ func (c *Config) getSecretVersions(ctx context.Context, client SecretManager) ([
 
 // LoadSigner fetches the latest version of the named secret containing the JWT
 // signer key from the Secret Manager API and returns a *token.Signer.
-func (c *Config) LoadSigner(ctx context.Context, client SecretManager) (*token.Signer, error) {
+func (c *Config) LoadSigner(ctx context.Context, client SecretClient) (*token.Signer, error) {
 	versions, err := c.getSecretVersions(ctx, client)
 	if err != nil {
 		return nil, err
@@ -96,7 +110,7 @@ func (c *Config) LoadSigner(ctx context.Context, client SecretManager) (*token.S
 
 // LoadVerifier fetches all enabled versions of the named secret containing the
 // JWT verifier keys and returns a * token.Verifier.
-func (c *Config) LoadVerifier(ctx context.Context, client SecretManager) (*token.Verifier, error) {
+func (c *Config) LoadVerifier(ctx context.Context, client SecretClient) (*token.Verifier, error) {
 	versions, err := c.getSecretVersions(ctx, client)
 	if err != nil {
 		return nil, err
