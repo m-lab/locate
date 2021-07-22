@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# create_jwt_keys_and_secrets.sh generates encrypted JWT signer keys and uploads
-# them as secrets in the GCP Secret Manager.
+# create_jwt_keys_and_secrets.sh generates JWT signer and verify keys and
+# uploads them as secrets to the Google Secret Manager.
 
 set -eu
 
@@ -104,10 +104,11 @@ else
 
 Would you like to create a new version of this secret?
 
-WARNING: the new secret version will be disabled. Consult the README file of
-this repo for further instructions on rotating keys. DO NOT ENABLE the new
+WARNING: the new secret version will be disabled. Consult the README file in
+this directory for further instructions on rotating keys. DO NOT ENABLE the new
 secret version until you have completed all the steps in the documentation. The
-public key will be found in this directory after this script has completed.
+public key (.pub extension) will be found in this directory after this script
+has completed.
 
 Are you sure you want to continue? [y/N]:
 EOF
@@ -136,8 +137,9 @@ else
 Would you like to create a new version of this secret?
 
 WARNING: the new secret version will be created for the monitoring verify key,
-but will do nothing if the corresponding private key is not updated. See the
-README of this repo for documentation on rotating monitoring keys.
+but will do nothing if the corresponding private key is not updated in the
+script-exporter deployment. See the README of this repo for documentation on
+rotating monitoring keys.
 
 Are you sure you want to continue? [y/N]:
 EOF
@@ -150,3 +152,4 @@ fi
 if ! iamPolicyBindingExists "${MONITORING_SECRET_NAME}"; then
   addIAMPolicyBinding "${MONITORING_SECRET_NAME}"
 fi
+
