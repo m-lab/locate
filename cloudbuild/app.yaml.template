@@ -1,0 +1,25 @@
+runtime: custom
+env: flex
+service: locate
+
+endpoints_api_service:
+  # NOTE: "name" MUST match the "host" name from openapi.yaml
+  name: locate-dot-{{PROJECT}}.appspot.com
+  rollout_strategy: managed
+
+resources:
+  cpu: 2
+  memory_gb: 8
+
+automatic_scaling:
+  min_num_instances: 2
+  max_num_instances: 4
+  # Anecdotally, it seems to take roughly 5m for an instance to initialize
+  # fully.
+  cool_down_period_sec: 300
+
+env_variables:
+  LEGACY_SERVER: https://{{PROJECT}}.appspot.com
+  PLATFORM_PROJECT: {{PLATFORM_PROJECT}}
+  LOCATOR_MAXMIND: true
+  MAXMIND_URL: gs://downloader-{{PROJECT}}/Maxmind/current/GeoLite2-City.tar.gz
