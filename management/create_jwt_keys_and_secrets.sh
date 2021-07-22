@@ -10,7 +10,7 @@ KEYID=${2:?please provide keyid}
 
 LOCATE_PRIVATE_KEY=jwk_sig_EdDSA_locate_${KEYID}
 LOCATE_SECRET_NAME=locate-service-signer-key
-MONITORING_PRIVATE_KEY=jwk_sig_EdDSA_monitoring_${KEYID}
+MONITORING_PUBLIC_KEY=jwk_sig_EdDSA_monitoring_${KEYID}.pub
 MONITORING_SECRET_NAME=locate-monitoring-service-verify-key
 
 GAE_SERVICE_ACCOUNT="serviceAccount:${PROJECT}@appspot.gserviceaccount.com"
@@ -123,14 +123,14 @@ if ! iamPolicyBindingExists "${LOCATE_SECRET_NAME}"; then
 fi
 
 # Create JWT monitoring keys.
-if [[ ! -f ${MONITORING_PRIVATE_KEY} ]] ; then
-  echo "Creating monitoring keys: ${MONITORING_PRIVATE_KEY}"
+if [[ ! -f ${MONITORING_PUBLIC_KEY} ]] ; then
+  echo "Creating monitoring keys: ${MONITORING_PUBLIC_KEY}"
   jwk-keygen --use=sig --alg=EdDSA --kid=monitoring_${KEYID}
 fi
 
 # Create secret for the JWT monitoring key.
 if ! secretExists "${MONITORING_SECRET_NAME}"; then
-  addSecret "${MONITORING_SECRET_NAME}" "${MONITORING_PRIVATE_KEY}"
+  addSecret "${MONITORING_SECRET_NAME}" "${MONITORING_PUBLIC_KEY}"
 else
   cat <<EOF
 
@@ -145,7 +145,7 @@ Are you sure you want to continue? [y/N]:
 EOF
   read addversion
   if [[ "${addversion}" == "y" ]]; then
-    addNewVersion "${MONITORING_SECRET_NAME}" "${MONITORING_PRIVATE_KEY}" "enable"
+    addNewVersion "${MONITORING_SECRET_NAME}" "${MONITORING_PUBLIC_KEY}" "enable"
   fi
 fi
 
