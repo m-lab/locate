@@ -24,9 +24,9 @@ which jwk-keygen &> /dev/null || \
 function secretExists() {
   local name=$1
   existing_secret=$(
-    gcloud secrets list --filter "name:$1" \
+    gcloud secrets list --filter "name:${name}" \
           --format "value(name)" \
-          --project mlab-sandbox
+          --project "${PROJECT}"
   )
   if [[ -n $existing_secret ]]; then
     echo "Secret '${name}' already exists."
@@ -59,7 +59,7 @@ function addNewVersion() {
   version=$(
     gcloud secrets versions list "${name}" --limit 1 \
           --format "value(name)" \
-          --project mlab-sandbox
+          --project "${PROJECT}"
   )
 
   gcloud secrets versions disable "${version}" \
@@ -115,6 +115,8 @@ EOF
   read addversion
   if [[ "${addversion}" == "y" ]]; then
     addNewVersion "${LOCATE_SECRET_NAME}" "${LOCATE_PRIVATE_KEY}" "disable"
+  else
+    exit 0
   fi
 fi
 
@@ -146,10 +148,11 @@ EOF
   read addversion
   if [[ "${addversion}" == "y" ]]; then
     addNewVersion "${MONITORING_SECRET_NAME}" "${MONITORING_PUBLIC_KEY}" "enable"
+  else
+    exit 0
   fi
 fi
 
 if ! iamPolicyBindingExists "${MONITORING_SECRET_NAME}"; then
   addIAMPolicyBinding "${MONITORING_SECRET_NAME}"
 fi
-
