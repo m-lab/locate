@@ -57,7 +57,7 @@ func (c *Config) getSecret(ctx context.Context, client SecretClient, path string
 
 	result, err := client.AccessSecretVersion(ctx, req)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	return result.Payload.Data, nil
