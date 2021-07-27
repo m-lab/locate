@@ -19,20 +19,17 @@ type fakeSecretClient struct {
 
 func (f *fakeSecretClient) AccessSecretVersion(ctx context.Context, req *secretmanagerpb.AccessSecretVersionRequest, opts ...gax.CallOption) (*secretmanagerpb.AccessSecretVersionResponse, error) {
 	defer f.incrementIdx()
-	if !f.wantErr {
-		return &secretmanagerpb.AccessSecretVersionResponse{
-			Name: "fake-secret",
-			Payload: &secretmanagerpb.SecretPayload{
-				Data: f.data[f.idx],
-			},
-		}, nil
-	}
 
 	if f.wantErr {
 		return nil, fmt.Errorf("fake-error")
 	}
 
-	return &secretmanagerpb.AccessSecretVersionResponse{}, nil
+	return &secretmanagerpb.AccessSecretVersionResponse{
+		Name: "fake-secret",
+		Payload: &secretmanagerpb.SecretPayload{
+			Data: f.data[f.idx],
+		},
+	}, nil
 }
 
 func (f *fakeSecretClient) ListSecretVersions(ctx context.Context, req *secretmanagerpb.ListSecretVersionsRequest, opts ...gax.CallOption) *secretmanager.SecretVersionIterator {
