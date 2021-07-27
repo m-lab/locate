@@ -41,26 +41,15 @@ func (f *fakeSecretClient) incrementIdx() {
 }
 
 type fakeIter struct {
-	idx               int
-	versions          []*secretmanagerpb.SecretVersion
-	wantNoVersionsErr bool
-	wantIteratorErr   bool
+	idx      int
+	versions []*secretmanagerpb.SecretVersion
+	wantErr  bool
 }
 
 func (f *fakeIter) Next(it *secretmanager.SecretVersionIterator) (*secretmanagerpb.SecretVersion, error) {
 	defer f.incrementIdx()
 
-	if f.wantNoVersionsErr {
-		if f.idx == len(f.versions) {
-			return nil, iterator.Done
-		}
-		return &secretmanagerpb.SecretVersion{
-			Name:  f.versions[f.idx].Name,
-			State: f.versions[f.idx].State,
-		}, nil
-	}
-
-	if f.wantIteratorErr {
+	if f.wantErr {
 		return nil, fmt.Errorf("fake-error")
 	}
 
@@ -112,12 +101,11 @@ func Test_getSecretVersions(t *testing.T) {
 	client := &fakeSecretClient{}
 
 	tests := []struct {
-		name              string
-		expectedCount     int
-		expectedVersions  []string
-		versions          []*secretmanagerpb.SecretVersion
-		wantNoVersionsErr bool
-		wantIteratorErr   bool
+		name             string
+		expectedCount    int
+		expectedVersions []string
+		versions         []*secretmanagerpb.SecretVersion
+		wantErr          bool
 	}{
 		{
 			name:          "success",
@@ -153,23 +141,22 @@ func Test_getSecretVersions(t *testing.T) {
 					State: secretmanagerpb.SecretVersion_DISABLED,
 				},
 			},
-			wantNoVersionsErr: true,
+			wantErr: true,
 		},
 		{
-			name:            "iterator-error",
-			wantIteratorErr: true,
+			name:    "iterator-error",
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		cfg.iter = &fakeIter{
-			wantNoVersionsErr: tt.wantNoVersionsErr,
-			wantIteratorErr:   tt.wantIteratorErr,
-			versions:          tt.versions,
+			wantErr:  tt.wantErr,
+			versions: tt.versions,
 		}
 		versions, err := cfg.getSecretVersions(ctx, client)
 
-		if err != nil && !tt.wantNoVersionsErr && !tt.wantIteratorErr {
+		if (err != nil) != tt.wantErr {
 			t.Fatalf("Did not expect error, but got error: %s", err)
 		}
 
@@ -234,7 +221,7 @@ func Test_LoadSigner(t *testing.T) {
 				wantErr: false,
 			},
 			iter: &fakeIter{
-				wantNoVersionsErr: true,
+				wantErr: true,
 				versions: []*secretmanagerpb.SecretVersion{
 					{
 						Name:  "secrets/mlab-sandbox/fake-secret/versions/2",
@@ -336,7 +323,7 @@ func Test_LoadVerifier(t *testing.T) {
 				wantErr: false,
 			},
 			iter: &fakeIter{
-				wantNoVersionsErr: true,
+				wantErr: true,
 				versions: []*secretmanagerpb.SecretVersion{
 					{
 						Name:  "secrets/mlab-sandbox/fake-secret/versions/2",
