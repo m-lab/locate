@@ -18,11 +18,11 @@ type fakeSecretClient struct {
 }
 
 func (f *fakeSecretClient) AccessSecretVersion(ctx context.Context, req *secretmanagerpb.AccessSecretVersionRequest, opts ...gax.CallOption) (*secretmanagerpb.AccessSecretVersionResponse, error) {
-	defer f.incrementIdx()
-
 	if f.wantErr {
 		return nil, fmt.Errorf("fake-error")
 	}
+
+	defer f.incrementIdx()
 
 	return &secretmanagerpb.AccessSecretVersionResponse{
 		Name: "fake-secret",
@@ -47,11 +47,11 @@ type fakeIter struct {
 }
 
 func (f *fakeIter) Next(it *secretmanager.SecretVersionIterator) (*secretmanagerpb.SecretVersion, error) {
-	defer f.incrementIdx()
-
 	if f.wantErr {
 		return nil, fmt.Errorf("fake-error")
 	}
+
+	defer f.incrementIdx()
 
 	if f.idx == len(f.versions) {
 		return nil, iterator.Done
@@ -106,6 +106,7 @@ func Test_getSecretVersions(t *testing.T) {
 		expectedVersions []string
 		versions         []*secretmanagerpb.SecretVersion
 		wantErr          bool
+		wantIterErr      bool
 	}{
 		{
 			name:          "success",
@@ -141,17 +142,19 @@ func Test_getSecretVersions(t *testing.T) {
 					State: secretmanagerpb.SecretVersion_DISABLED,
 				},
 			},
-			wantErr: true,
+			wantErr:     true,
+			wantIterErr: false,
 		},
 		{
-			name:    "iterator-error",
-			wantErr: true,
+			name:        "iterator-error",
+			wantErr:     true,
+			wantIterErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		cfg.iter = &fakeIter{
-			wantErr:  tt.wantErr,
+			wantErr:  tt.wantIterErr,
 			versions: tt.versions,
 		}
 		versions, err := cfg.getSecretVersions(ctx, client)
