@@ -74,24 +74,36 @@ func Test_getSecret(t *testing.T) {
 
 	var secretData [][]byte
 	secretData = append(secretData, []byte("fake-secret"))
-	client := &fakeSecretClient{
-		data:    secretData,
-		wantErr: false,
+
+	tests := []struct {
+		wantErr bool
+	}{
+		{
+			wantErr: false,
+		},
+		{
+			wantErr: true,
+		},
 	}
 
-	secret, err := cfg.getSecret(ctx, client, "fake-path")
-	if err != nil {
-		t.Fatalf("Did not expect an error, but got error: %s", err)
-	}
-	if string(secret) != string(secretData[0]) {
-		t.Fatalf("Expected secret value '%s', but got: %s", string(secretData[0]), string(secret))
-	}
+	for _, tt := range tests {
+		client := &fakeSecretClient{
+			data:    secretData,
+			wantErr: tt.wantErr,
+		}
 
-	client.wantErr = true
+		secret, err := cfg.getSecret(ctx, client, "fake-path")
 
-	_, err = cfg.getSecret(ctx, client, "fake-path")
-	if err == nil {
-		t.Fatal("Wanted error, but did not get one.")
+		if (err != nil) != tt.wantErr {
+			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
+			return
+		}
+
+		if !tt.wantErr {
+			if string(secret) != string(secretData[0]) {
+				t.Fatalf("Expected secret value '%s', but got: %s", string(secretData[0]), string(secret))
+			}
+		}
 	}
 }
 
@@ -160,7 +172,8 @@ func Test_getSecretVersions(t *testing.T) {
 		versions, err := cfg.getSecretVersions(ctx, client)
 
 		if (err != nil) != tt.wantErr {
-			t.Fatalf("Did not expect error, but got error: %s", err)
+			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
+			return
 		}
 
 		if len(versions) != tt.expectedCount {
@@ -256,9 +269,8 @@ func Test_LoadSigner(t *testing.T) {
 		_, err := cfg.LoadSigner(ctx, tt.client)
 
 		if (err != nil) != tt.wantErr {
-			t.Fatalf("Did not expect error, but got error: %s", err)
+			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
 		}
-
 	}
 }
 
@@ -358,8 +370,7 @@ func Test_LoadVerifier(t *testing.T) {
 		_, err := cfg.LoadVerifier(ctx, tt.client)
 
 		if (err != nil) != tt.wantErr {
-			t.Fatalf("Did not expect error, but got error: %s", err)
+			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
 		}
-
 	}
 }
