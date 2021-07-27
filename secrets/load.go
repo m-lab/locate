@@ -1,4 +1,4 @@
-// Package secrets loads secrets from the Google Cloud Secret Manager
+// Package secrets loads secrets from the Google Cloud Secret Manager.
 package secrets
 
 import (
