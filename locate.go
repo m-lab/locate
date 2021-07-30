@@ -25,15 +25,15 @@ import (
 )
 
 var (
-	listenPort          string
-	project             string
-	platform            string
-	locatorAE           bool
-	locatorMM           bool
-	legacyServer        string
-	locateSignerKey     string
-	maxmind             = flagx.URL{}
-	monitoringVerifyKey string
+	listenPort       string
+	project          string
+	platform         string
+	locatorAE        bool
+	locatorMM        bool
+	legacyServer     string
+	signerSecretName string
+	maxmind          = flagx.URL{}
+	verifySecretName string
 )
 
 func init() {
@@ -42,8 +42,8 @@ func init() {
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
 	flag.StringVar(&platform, "platform-project", "", "GCP project for platform machine names")
 	flag.StringVar(&legacyServer, "legacy-server", proxy.DefaultLegacyServer, "Base URL to mlab-ns server")
-	flag.StringVar(&locateSignerKey, "locate-signer-key", "locate-service-signer-key", "Name of secret for locate signer key in Secret Manager")
-	flag.StringVar(&monitoringVerifyKey, "monitoring-verify-key", "locate-monitoring-service-verify-key", "Name of secret for monitoring verifier key in Secret Manager")
+	flag.StringVar(&signerSecretName, "signer-secret-name", "locate-service-signer-key", "Name of secret for locate signer key in Secret Manager")
+	flag.StringVar(&verifySecretName, "verify-secret-name", "locate-monitoring-service-verify-key", "Name of secret for monitoring verifier key in Secret Manager")
 	flag.BoolVar(&locatorAE, "locator-appengine", true, "Use the AppEngine clientgeo locator")
 	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
@@ -58,11 +58,10 @@ func main() {
 	// Create the Secret Manager client
 	client, err := secretmanager.NewClient(mainCtx)
 	rtx.Must(err, "Failed to create Secret Manager client")
-	defer client.Close()
 	cfg := secrets.NewConfig(project)
 
 	// SIGNER - load the signer key.
-	cfg.Name = locateSignerKey
+	cfg.Name = signerSecretName
 	signer, err := cfg.LoadSigner(mainCtx, client)
 	rtx.Must(err, "Failed to load signer key")
 
@@ -96,7 +95,7 @@ func main() {
 	}()
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
-	cfg.Name = monitoringVerifyKey
+	cfg.Name = verifySecretName
 	verifier, err := cfg.LoadVerifier(mainCtx, client)
 	rtx.Must(err, "Failed to create verifier")
 	exp := jwt.Expected{
@@ -106,6 +105,9 @@ func main() {
 	tc, err := controller.NewTokenController(verifier, true, exp)
 	rtx.Must(err, "Failed to create token controller")
 	monitoringChain := alice.New(tc.Limit).Then(http.HandlerFunc(c.Monitoring))
+
+	// Close the Secrent Manager client connection.
+	client.Close()
 
 	// TODO: add verifier for heartbeat access tokens.
 	// TODO: add verifier for optional access tokens to support NextRequest.
