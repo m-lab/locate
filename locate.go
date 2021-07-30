@@ -95,6 +95,13 @@ func main() {
 	}()
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
+	// The `verifier` returned by cfg.LoadVerifier() is a single object, but may
+	// possibly itself contain multiple verification keys. The sequence for
+	// getting here is something like: flag --verify-secret-name -> var
+	// verifySecretName -> fetch all enabled secrets associated with name from
+	// the Google Secret Manager -> pass a slice of JWT keys (secrets) to
+	// token.NewVerifier(), which results in the `verifier` value assigned
+	// below.
 	cfg.Name = verifySecretName
 	verifier, err := cfg.LoadVerifier(mainCtx, client)
 	rtx.Must(err, "Failed to create verifier")
