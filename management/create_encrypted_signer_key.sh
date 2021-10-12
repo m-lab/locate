@@ -56,7 +56,7 @@ if [[ -z ${binding} ]]; then
 fi
 
 which jwk-keygen &> /dev/null || \
-    ( echo "Run: go get gopkg.in/square/go-jose.v2/jwk-keygen" && \
+    ( echo "Run: go get gopkg.in/go-jose/go-jose.v2/jwk-keygen" && \
     exit 1 )
 
 LOCATE_PRIVATE=jwk_sig_EdDSA_locate_${KEYID}
