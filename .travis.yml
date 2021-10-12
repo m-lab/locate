@@ -10,6 +10,7 @@ install:
 - go get github.com/mattn/goveralls
 
 script:
+- apt reinstall --yes ca-certificates
 - go vet ./...
 - go test ./... -cover=1 -coverprofile=_c.cov
 - go test ./... -race
