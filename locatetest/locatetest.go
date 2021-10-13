@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/go-jose/go-jose.v2/jwt"
+	"gopkg.in/square/go-jose.v2/jwt"
 
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"

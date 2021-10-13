@@ -18,7 +18,7 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
-	"gopkg.in/go-jose/go-jose.v2/jwt"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 var (

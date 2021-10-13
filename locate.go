@@ -9,7 +9,7 @@ import (
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/justinas/alice"
-	"gopkg.in/go-jose/go-jose.v2/jwt"
+	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/access/controller"
 	"github.com/m-lab/go/content"

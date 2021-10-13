@@ -17,7 +17,7 @@ import (
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/go-jose/go-jose.v2/jwt"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func init() {
