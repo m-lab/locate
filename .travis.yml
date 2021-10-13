@@ -1,7 +1,13 @@
+dist: focal
+
 language: go
 
 go:
-- 1.14.2
+- 1.16
+
+before_install:
+- sudo apt update
+- sudo apt reinstall --yes ca-certificates
 
 install:
 - go get -v -t ./...
