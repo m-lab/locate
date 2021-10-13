@@ -6,6 +6,7 @@ go:
 - 1.16
 
 before_install:
+- sudo apt update
 - sudo apt reinstall --yes ca-certificates
 
 install:
