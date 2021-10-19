@@ -21,4 +21,5 @@ env_variables:
   LEGACY_SERVER: https://{{PROJECT}}.appspot.com
   PLATFORM_PROJECT: {{PLATFORM_PROJECT}}
   LOCATOR_MAXMIND: true
-  MAXMIND_URL: gs://downloader-{{PROJECT}}/Maxmind/current/GeoLite2-City.tar.gz
+  MAXMIND_URL: gs://downloader-{{PLATFORM_PROJECT}}/Maxmind/current/GeoLite2-City.tar.gz
+
