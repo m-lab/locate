@@ -105,7 +105,7 @@ else
 Would you like to create a new version of this secret?
 
 WARNING: the new secret version will be disabled. Consult the README file in
-this directory for further instructions on rotating keys. DO NOT ENABLE the new
+this directory for further instructions on rotating keys. Do not enable the new
 secret version until you have completed all the steps in the documentation. The
 public key (.pub extension) will be found in this directory after this script
 has completed.
