@@ -94,14 +94,14 @@ func (c *Config) getSecretVersions(ctx context.Context, client SecretClient) ([]
 	return versions, nil
 }
 
-// LoadSigner fetches the latest version of the named secret containing the JWT
-// signer key from the Secret Manager API and returns a *token.Signer.
+// LoadSigner fetches the oldest enabled version of the named secret containing
+// the JWT signer key from the Secret Manager API and returns a *token.Signer.
 func (c *Config) LoadSigner(ctx context.Context, client SecretClient) (*token.Signer, error) {
 	versions, err := c.getSecretVersions(ctx, client)
 	if err != nil {
 		return nil, err
 	}
-	key, err := c.getSecret(ctx, client, versions[0])
+	key, err := c.getSecret(ctx, client, versions[len(versions)-1])
 	if err != nil {
 		return nil, err
 	}
