@@ -125,6 +125,35 @@ go get github.com/m-lab/gcp-config/cmd/cbctl
 cbctl -repo locate -trigger_name push-m-lab-locate-trigger -project mlab-staging
 ```
 
+You can verify which private signer key the LS loaded on initialization by
+looking through LS logs. You can find relevant entries with something like:
+
+```sh
+gcloud app logs read --service locate  --project mlab-sandbox | grep 'Loading JWT'
+```
+
+To test that things are working as intended with the new signer key and deployed
+verifier key, you can use the ndt7-client-go client. Install the client:
+
+```sh
+go get github.com/m-lab/ndt7-client-go/cmd/ndt7-client
+```
+
+Open your browser and navigate to the LS URL for the project you are working on.
+For example:
+
+<https://mlab-sandbox.appspot.com/v2/nearest/ndt/ndt7>
+
+... copy one of the "wss" URLs (either download or upload) for one of the
+results returned, then run the ndt7-client using that URL. For example:
+
+```sh
+ndt7-client -service-url "wss://ndt-mlab4-lga0t.mlab-sandbox.measurement-lab.org/ndt/v7/upload?access_token=eyJhbGciOiJFZERTQSIsImtpZCI6ImxvY2F0ZV8yMDIwMDQwOSJ9.eyJhdWQiOlsibWxhYjQtbGdhMHQubWxhYi1zYW5kYm94Lm1lYXN1cmVtZW50LWxhYi5vcmciXSwiZXhwIjoxNjM1Mjc1NTMzLCJpc3MiOiJsb2NhdGUiLCJzdWIiOiJuZHQifQ.w0q4sBahcgYh6fXqUuPc4wJJaarnc3HpBJ0G8f62FPSrVlSm7QwS_aX-O8GMcwbxx_XmZm_fXnFgM4AjWHFeAg"
+```
+
+If the test succeeds then you have successfully verified end-to-end
+functionality of the newly deployed keys.
+
 ### Monitoring
 
 The script-exporter pod in the prometheus-federation cluster uses the monitoring
