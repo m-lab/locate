@@ -4,6 +4,7 @@ package secrets
 import (
 	"context"
 	"fmt"
+	"log"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/googleapis/gax-go"
@@ -101,6 +102,7 @@ func (c *Config) LoadSigner(ctx context.Context, client SecretClient) (*token.Si
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("Loading JWT private signer key %v", versions[len(versions)-1])
 	key, err := c.getSecret(ctx, client, versions[len(versions)-1])
 	if err != nil {
 		return nil, err
