@@ -102,7 +102,7 @@ func (c *Config) LoadSigner(ctx context.Context, client SecretClient) (*token.Si
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Loading JWT private signer key %v", versions[len(versions)-1])
+	log.Printf("Loading JWT private signer key %q", versions[len(versions)-1])
 	key, err := c.getSecret(ctx, client, versions[len(versions)-1])
 	if err != nil {
 		return nil, err
