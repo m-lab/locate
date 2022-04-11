@@ -15,7 +15,7 @@ Because target servers treat monitoring access tokens differently than query
 access tokens, additional authorization is required before issuing monitoring
 access tokens. This authorization is provided using access tokens!
 
-The locate service uses a private singing key that issues access tokens. A
+The locate service uses a private signing key that issues access tokens. A
 privileged, end to end monitoring client will also have the ability to create
 access tokens to request monitoring access tokens from the locate service.
 
