@@ -4,3 +4,28 @@
 
 M-Lab Locate Service, a load balancer providing consistent “expected
 measurement quality” using access control.
+
+## Local Development
+
+Typically the locate service will run within a GCP environment, either AppEngine
+or GKE. In these cases, the locate service reads signer and verifier keys from
+GCP's secret manager. This dependency is not needed for local development.
+
+Create JSON Web Keys for local development:
+
+```sh
+jwk-keygen --use=sig --alg=EdDSA --kid=localdev_20220415
+```
+
+You may reuse the same key for signer and verifier, or create multiple keys.
+
+```sh
+./locate \
+    -key-source=local \
+    -signer-secret-name ./management/jwk_sig_EdDSA_localdev_20220415 \
+    -verify-secret-name ./management/jwk_sig_EdDSA_localdev_20220415.pub
+```
+
+Now you may visit localhost:8080 in your browser to see a response generating
+`access_token`s using these keys. Of course, the URLs returns will not be valid
+for the public platform.
