@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -76,13 +75,11 @@ func main() {
 	case "secretmanager":
 		cfg = secrets.NewConfig(project)
 	case "local":
-		fmt.Println("local")
 		cfg = secrets.NewLocalConfig()
 	}
 
 	// SIGNER - load the signer key.
 	signer, err := cfg.LoadSigner(mainCtx, client, signerSecretName)
-	fmt.Println(signer, err)
 	rtx.Must(err, "Failed to load signer key")
 
 	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
