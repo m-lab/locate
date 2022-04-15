@@ -47,7 +47,6 @@ func TestLocalConfig_LoadVerifier(t *testing.T) {
 		file    string
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "success",
 			file: "testdata/jwk_sig_EdDSA_unittest_20220415.pub",
