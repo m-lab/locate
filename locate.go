@@ -12,6 +12,7 @@ import (
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/access/controller"
+	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/httpx"
@@ -34,6 +35,10 @@ var (
 	signerSecretName string
 	maxmind          = flagx.URL{}
 	verifySecretName string
+	keySource        = flagx.Enum{
+		Options: []string{"secretmanager", "local"},
+		Value:   "secretmanager",
+	}
 )
 
 func init() {
@@ -47,9 +52,15 @@ func init() {
 	flag.BoolVar(&locatorAE, "locator-appengine", true, "Use the AppEngine clientgeo locator")
 	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
+	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
 }
 
 var mainCtx, mainCancel = context.WithCancel(context.Background())
+
+type loader interface {
+	LoadSigner(ctx context.Context, client secrets.SecretClient, name string) (*token.Signer, error)
+	LoadVerifier(ctx context.Context, client secrets.SecretClient, name string) (*token.Verifier, error)
+}
 
 func main() {
 	flag.Parse()
@@ -58,11 +69,17 @@ func main() {
 	// Create the Secret Manager client
 	client, err := secretmanager.NewClient(mainCtx)
 	rtx.Must(err, "Failed to create Secret Manager client")
-	cfg := secrets.NewConfig(project)
+	var cfg loader
+
+	switch keySource.Value {
+	case "secretmanager":
+		cfg = secrets.NewConfig(project)
+	case "local":
+		cfg = secrets.NewLocalConfig()
+	}
 
 	// SIGNER - load the signer key.
-	cfg.Name = signerSecretName
-	signer, err := cfg.LoadSigner(mainCtx, client)
+	signer, err := cfg.LoadSigner(mainCtx, client, signerSecretName)
 	rtx.Must(err, "Failed to load signer key")
 
 	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
@@ -102,8 +119,7 @@ func main() {
 	// the Google Secret Manager -> pass a slice of JWT keys (secrets) to
 	// token.NewVerifier(), which results in the `verifier` value assigned
 	// below.
-	cfg.Name = verifySecretName
-	verifier, err := cfg.LoadVerifier(mainCtx, client)
+	verifier, err := cfg.LoadVerifier(mainCtx, client, verifySecretName)
 	rtx.Must(err, "Failed to create verifier")
 	exp := jwt.Expected{
 		Issuer:   static.IssuerMonitoring,

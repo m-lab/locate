@@ -37,7 +37,6 @@ func (s *stdIter) Next(it *secretmanager.SecretVersionIterator) (*secretmanagerp
 // Config contains settings for secrets.
 type Config struct {
 	iter    iter
-	Name    string
 	Project string
 }
 
@@ -66,9 +65,9 @@ func (c *Config) getSecret(ctx context.Context, client SecretClient, path string
 
 // getSecretVersions returns a slice of all *enabled* versions for a secret. It
 // will ignore disabled for destroyed versions of a secret.
-func (c *Config) getSecretVersions(ctx context.Context, client SecretClient) ([]string, error) {
+func (c *Config) getSecretVersions(ctx context.Context, client SecretClient, name string) ([]string, error) {
 	req := &secretmanagerpb.ListSecretVersionsRequest{
-		Parent:   c.path(),
+		Parent:   c.path(name),
 		PageSize: 1000,
 	}
 
@@ -89,7 +88,7 @@ func (c *Config) getSecretVersions(ctx context.Context, client SecretClient) ([]
 	}
 
 	if len(versions) < 1 {
-		return nil, fmt.Errorf("no versions found for secret: %s", c.Name)
+		return nil, fmt.Errorf("no versions found for secret: %s", name)
 	}
 
 	return versions, nil
@@ -97,8 +96,8 @@ func (c *Config) getSecretVersions(ctx context.Context, client SecretClient) ([]
 
 // LoadSigner fetches the oldest enabled version of the named secret containing
 // the JWT signer key from the Secret Manager API and returns a *token.Signer.
-func (c *Config) LoadSigner(ctx context.Context, client SecretClient) (*token.Signer, error) {
-	versions, err := c.getSecretVersions(ctx, client)
+func (c *Config) LoadSigner(ctx context.Context, client SecretClient, name string) (*token.Signer, error) {
+	versions, err := c.getSecretVersions(ctx, client, name)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +111,8 @@ func (c *Config) LoadSigner(ctx context.Context, client SecretClient) (*token.Si
 
 // LoadVerifier fetches all enabled versions of the named secret containing the
 // JWT verifier keys and returns a * token.Verifier.
-func (c *Config) LoadVerifier(ctx context.Context, client SecretClient) (*token.Verifier, error) {
-	versions, err := c.getSecretVersions(ctx, client)
+func (c *Config) LoadVerifier(ctx context.Context, client SecretClient, name string) (*token.Verifier, error) {
+	versions, err := c.getSecretVersions(ctx, client, name)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +127,6 @@ func (c *Config) LoadVerifier(ctx context.Context, client SecretClient) (*token.
 	return token.NewVerifier(keys...)
 }
 
-func (c *Config) path() string {
-	return "projects/" + c.Project + "/secrets/" + c.Name
+func (c *Config) path(name string) string {
+	return "projects/" + c.Project + "/secrets/" + name
 }

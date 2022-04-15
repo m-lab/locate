@@ -169,7 +169,7 @@ func Test_getSecretVersions(t *testing.T) {
 			wantErr:  tt.wantIterErr,
 			versions: tt.versions,
 		}
-		versions, err := cfg.getSecretVersions(ctx, client)
+		versions, err := cfg.getSecretVersions(ctx, client, "test")
 
 		if (err != nil) != tt.wantErr {
 			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
@@ -266,7 +266,7 @@ func Test_LoadSigner(t *testing.T) {
 
 	for _, tt := range tests {
 		cfg.iter = tt.iter
-		_, err := cfg.LoadSigner(ctx, tt.client)
+		_, err := cfg.LoadSigner(ctx, tt.client, "test")
 
 		if (err != nil) != tt.wantErr {
 			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
@@ -367,7 +367,7 @@ func Test_LoadVerifier(t *testing.T) {
 
 	for _, tt := range tests {
 		cfg.iter = tt.iter
-		_, err := cfg.LoadVerifier(ctx, tt.client)
+		_, err := cfg.LoadVerifier(ctx, tt.client, "test2")
 
 		if (err != nil) != tt.wantErr {
 			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
