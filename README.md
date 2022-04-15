@@ -22,8 +22,8 @@ You may reuse the same key for signer and verifier, or create multiple keys.
 ```sh
 ./locate \
     -key-source=local \
-    -signer-secret-name ./management/jwk_sig_EdDSA_localdev_20220415 \
-    -verify-secret-name ./management/jwk_sig_EdDSA_localdev_20220415.pub
+    -signer-secret-name ./jwk_sig_EdDSA_localdev_20220415 \
+    -verify-secret-name ./jwk_sig_EdDSA_localdev_20220415.pub
 ```
 
 Now you may visit localhost:8080 in your browser to see a response generating
