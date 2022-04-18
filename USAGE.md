@@ -19,7 +19,7 @@ operations and describe currently supported queries in more detail.
 #### When best means "geographically close"
 
 GCP automatically adds client latitude and longitude to incoming [HTTP request 
-headers][headers]. The locate API uses this location to search fornearby M-Lab 
+headers][headers]. The locate API uses this location to search for nearby M-Lab 
 servers that satisfy the client query. For additional information about how 
 GCP identifies a client's location, please see the section below, [How GCP 
 identifies client location](#how-gcp-identifies-client-location).
