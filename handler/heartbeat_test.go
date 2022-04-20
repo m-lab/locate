@@ -2,13 +2,16 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/locate/clientgeo"
+	"github.com/m-lab/locate/static"
 )
 
 func TestClient_Heartbeat_Error(t *testing.T) {
@@ -42,6 +45,10 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 
 	if resp.StatusCode != http.StatusSwitchingProtocols {
 		t.Errorf("Heartbeat() failed to switch protocol; got,%d, want %d", resp.StatusCode, http.StatusSwitchingProtocols)
+	}
+
+	if err = ws.WriteMessage(1, []byte("Incoming")); err != nil {
+		t.Errorf("Heartbeat() could not write message to connection; err: %v", err)
 	}
 }
 
