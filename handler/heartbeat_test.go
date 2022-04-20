@@ -2,16 +2,13 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/locate/clientgeo"
-	"github.com/m-lab/locate/static"
 )
 
 func TestClient_Heartbeat_Error(t *testing.T) {
