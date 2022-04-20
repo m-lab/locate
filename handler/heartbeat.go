@@ -36,9 +36,9 @@ func read(ws *websocket.Conn) {
 			log.Errorf("read error: %v", err)
 			return
 		}
+		// Save message in Redis.
 		if message != nil {
 			setReadDeadline(ws)
-			// Save message in Redis.
 		}
 	}
 }
