@@ -204,29 +204,6 @@ func TestClient_TranslatedQuery(t *testing.T) {
 	}
 }
 
-func TestClient_Heartbeat(t *testing.T) {
-	tests := []struct {
-		name    string
-		Signer  Signer
-		project string
-		Locator Locator
-	}{
-		{
-			// Provide basic coverage until handler implementation is complete.
-			name: "placeholder",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cl := clientgeo.NewAppEngineLocator()
-			c := NewClient(tt.project, tt.Signer, tt.Locator, cl)
-			rw := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/v2/heartbeat/ndt/ndt5", nil)
-			c.Heartbeat(rw, req)
-		})
-	}
-}
-
 func TestNewClientDirect(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		c := NewClientDirect("fake-project", nil, nil, nil)
