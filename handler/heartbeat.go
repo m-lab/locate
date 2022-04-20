@@ -37,7 +37,7 @@ func read(ws *websocket.Conn) {
 			return
 		}
 		if message != nil {
-			ws.SetReadDeadline(time.Now().Add(static.DefaultWebsocketReadDeadline))
+			setReadDeadline(ws)
 			// Save read message in Redis.
 		}
 	}
