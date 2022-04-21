@@ -9,6 +9,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var readDeadline = static.DefaultWebsocketReadDeadline
+
 // Heartbeat implements /v2/heartbeat requests.
 // It starts a new persistent connection and a new goroutine
 // to read incoming messages.
@@ -51,6 +53,6 @@ func read(ws *websocket.Conn) {
 
 // setReadDeadline sets/resets the read deadline for the connection.
 func setReadDeadline(ws *websocket.Conn) {
-	deadline := time.Now().Add(static.DefaultWebsocketReadDeadline)
+	deadline := time.Now().Add(readDeadline)
 	ws.SetReadDeadline(deadline)
 }

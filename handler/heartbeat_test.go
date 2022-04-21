@@ -11,13 +11,13 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/locate/clientgeo"
-	"github.com/m-lab/locate/static"
 )
 
 func TestClient_Heartbeat_Error(t *testing.T) {
 	rw := httptest.NewRecorder()
+	// The header from this request will not contain the
+	// necessary "upgrade" tokens.
 	req := httptest.NewRequest(http.MethodGet, "/v2/heartbeat/", nil)
-	req.RemoteAddr = "not-an-ip"
 	c := fakeClient()
 	c.Heartbeat(rw, req)
 
@@ -31,19 +31,21 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(c.Heartbeat))
 	defer s.Close()
 
-	URL, _ := url.Parse(s.URL)
-	URL.Scheme = "ws"
+	u, _ := url.Parse(s.URL)
+	u.Scheme = "ws"
 	ctx := context.Background()
 	dialer := websocket.Dialer{}
-	ws, resp, err := dialer.DialContext(ctx, URL.String(), http.Header{})
-	defer ws.Close()
+	readDeadline = 2 * time.Second
+	ws, resp, err := dialer.DialContext(ctx, u.String(), http.Header{})
 
 	if err != nil {
-		t.Errorf("Heartbeat() connection error; got: %v, want: %v", err, nil)
+		t.Fatalf("Heartbeat() connection error; got: %v, want: %v", err, nil)
 	}
 
+	defer ws.Close()
+
 	if resp.StatusCode != http.StatusSwitchingProtocols {
-		t.Errorf("Heartbeat() failed to switch protocol; got: %d, want: %d", resp.StatusCode, http.StatusSwitchingProtocols)
+		t.Fatalf("Heartbeat() failed to switch protocol; got: %d, want: %d", resp.StatusCode, http.StatusSwitchingProtocols)
 	}
 
 	if err = ws.WriteMessage(1, []byte("Incoming")); err != nil {
@@ -52,7 +54,7 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 
 	// goroutine should exit if there are no new messages within read deadline.
 	before := runtime.NumGoroutine()
-	timer := time.NewTimer(2 * static.DefaultWebsocketReadDeadline)
+	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
 	after := runtime.NumGoroutine()
 	if after >= before {
