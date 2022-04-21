@@ -55,8 +55,8 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 	timer := time.NewTimer(2 * static.DefaultWebsocketReadDeadline)
 	<-timer.C
 	after := runtime.NumGoroutine()
-	if after != before-1 {
-		t.Errorf("Heartbeat() goroutine did not exit; got: %d, want: %d", after, before-1)
+	if after >= before {
+		t.Errorf("Heartbeat() goroutine did not exit; got: %d, want: <%d", after, before)
 	}
 }
 
