@@ -36,10 +36,15 @@ func read(ws *websocket.Conn) {
 			log.Errorf("read error: %v", err)
 			return
 		}
-		// Save message in Redis.
 		if message != nil {
 			setReadDeadline(ws)
+
+			// When a new message (ping) is received, send a pong
+			// back to let the peer know that the connection is
+			// still alive.
 			ws.WriteControl(websocket.PongMessage, nil, time.Now().Add(time.Second))
+
+			// Save message in Redis.
 		}
 	}
 }
