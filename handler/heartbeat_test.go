@@ -5,10 +5,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/locate/clientgeo"
+	"github.com/m-lab/locate/static"
 )
 
 func TestClient_Heartbeat_Error(t *testing.T) {
@@ -30,10 +33,9 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 
 	URL, _ := url.Parse(s.URL)
 	URL.Scheme = "ws"
-	headers := http.Header{}
 	ctx := context.Background()
 	dialer := websocket.Dialer{}
-	ws, resp, err := dialer.DialContext(ctx, URL.String(), headers)
+	ws, resp, err := dialer.DialContext(ctx, URL.String(), http.Header{})
 	defer ws.Close()
 
 	if err != nil {
@@ -41,11 +43,20 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 	}
 
 	if resp.StatusCode != http.StatusSwitchingProtocols {
-		t.Errorf("Heartbeat() failed to switch protocol; got,%d, want %d", resp.StatusCode, http.StatusSwitchingProtocols)
+		t.Errorf("Heartbeat() failed to switch protocol; got: %d, want: %d", resp.StatusCode, http.StatusSwitchingProtocols)
 	}
 
 	if err = ws.WriteMessage(1, []byte("Incoming")); err != nil {
 		t.Errorf("Heartbeat() could not write message to connection; err: %v", err)
+	}
+
+	// goroutine should exit if there are no new messages within read deadline.
+	before := runtime.NumGoroutine()
+	timer := time.NewTimer(2 * static.DefaultWebsocketReadDeadline)
+	<-timer.C
+	after := runtime.NumGoroutine()
+	if after != before-1 {
+		t.Errorf("Heartbeat() goroutine did not exit; got: %d, want: %d", after, before-1)
 	}
 }
 

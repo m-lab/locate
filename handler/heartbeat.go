@@ -39,6 +39,7 @@ func read(ws *websocket.Conn) {
 		// Save message in Redis.
 		if message != nil {
 			setReadDeadline(ws)
+			ws.WriteControl(websocket.PongMessage, nil, time.Now().Add(time.Second))
 		}
 	}
 }
