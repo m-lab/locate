@@ -143,11 +143,6 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	writeResult(rw, http.StatusOK, &result)
 }
 
-// Heartbeat implements /v2/heartbeat requests.
-func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
-	rw.WriteHeader(http.StatusNotImplemented)
-}
-
 // getAccessToken allocates a new access token using the given machine name as
 // the intended audience and the subject as the target service.
 func (c *Client) getAccessToken(machine, subject string) string {

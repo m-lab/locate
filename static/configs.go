@@ -3,15 +3,18 @@ package static
 
 import (
 	"net/url"
+	"time"
 )
 
 // Constants used by the locate service, clients, and target servers accepting
 // access tokens issued by the locate service.
 const (
-	IssuerLocate      = "locate"
-	AudienceLocate    = "locate"
-	IssuerMonitoring  = "monitoring"
-	SubjectMonitoring = "monitoring"
+	IssuerLocate                 = "locate"
+	AudienceLocate               = "locate"
+	IssuerMonitoring             = "monitoring"
+	SubjectMonitoring            = "monitoring"
+	DefaultWebsocketBufferSize   = 1 << 10 // 1024 bytes.
+	DefaultWebsocketReadDeadline = 30 * time.Second
 )
 
 // URL creates inline url.URLs.
