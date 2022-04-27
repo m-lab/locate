@@ -22,7 +22,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "Failed to read args from env")
+	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "failed to read args from env")
 
 	conn := connection.NewConn()
 	conn.Dial(locate, http.Header{})
