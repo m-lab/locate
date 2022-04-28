@@ -9,20 +9,20 @@ import (
 // Constants used by the locate service, clients, and target servers accepting
 // access tokens issued by the locate service.
 const (
-	IssuerLocate                   = "locate"
-	AudienceLocate                 = "locate"
-	IssuerMonitoring               = "monitoring"
-	SubjectMonitoring              = "monitoring"
-	WebsocketBufferSize            = 1 << 10 // 1024 bytes.
-	WebsocketReadDeadline          = 30 * time.Second
-	BackoffInitialInterval         = 5 * time.Second
-	BackoffRandomizationFactor     = 0.5
-	BackoffMultiplier              = 1.5
-	BackoffMaxInterval             = time.Hour
-	BackoffMaxElapsedTime          = 0
-	MaxReconnectionsTotal      int = 10
-	MaxReconnectionsTime           = time.Hour
-	HeartbeatPeriod                = 10 * time.Second
+	IssuerLocate               = "locate"
+	AudienceLocate             = "locate"
+	IssuerMonitoring           = "monitoring"
+	SubjectMonitoring          = "monitoring"
+	WebsocketBufferSize        = 1 << 10 // 1024 bytes.
+	WebsocketReadDeadline      = 30 * time.Second
+	BackoffInitialInterval     = 5 * time.Second
+	BackoffRandomizationFactor = 0.5
+	BackoffMultiplier          = 1.5
+	BackoffMaxInterval         = time.Hour
+	BackoffMaxElapsedTime      = 0
+	MaxReconnectionsTotal      = 10
+	MaxReconnectionsTime       = time.Hour
+	HeartbeatPeriod            = 10 * time.Second
 )
 
 // URL creates inline url.URLs.
