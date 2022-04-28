@@ -66,9 +66,7 @@ func (c *Conn) Dial(url string, header http.Header) error {
 		defer c.ticker.Stop()
 		for {
 			<-c.ticker.C
-			c.mu.Lock()
 			c.resetReconnections()
-			c.mu.Unlock()
 		}
 	}(c)
 
@@ -110,12 +108,16 @@ func (c *Conn) IsConnected() bool {
 // resetReconnections sets the number of disconnects followed
 // by reconnects.
 func (c *Conn) resetReconnections() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.reconnections = 0
 }
 
 // canConnect checks whether it is possible to reconnect
 // given the recent number of attempts.
 func (c *Conn) canConnect() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.reconnections < static.MaxReconnectionsTotal
 }
 
