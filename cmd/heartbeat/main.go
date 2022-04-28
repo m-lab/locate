@@ -13,7 +13,10 @@ import (
 	"github.com/m-lab/locate/static"
 )
 
-var locate string
+var (
+	locate string
+	done   = make(chan bool, 1)
+)
 
 func init() {
 	flag.StringVar(&locate, "locate-url", "ws://localhost:8080/v2/platform/heartbeat/",
@@ -25,7 +28,9 @@ func main() {
 	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "failed to read args from env")
 
 	conn := connection.NewConn()
-	conn.Dial(locate, http.Header{})
+	err := conn.Dial(locate, http.Header{})
+	rtx.Must(err, "failed to establish a websocket connection with %s", locate)
+
 	write(conn)
 }
 
@@ -33,14 +38,18 @@ func main() {
 // HeartbeatPeriod.
 func write(ws *connection.Conn) {
 	defer ws.Close()
-	ticker := time.NewTicker(static.HeartbeatPeriod)
+	ticker := *time.NewTicker(static.HeartbeatPeriod)
 	defer ticker.Stop()
 
 	for {
-		<-ticker.C
-		err := ws.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-		if err != nil {
-			log.Printf("failed to write, err: %v", err)
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			err := ws.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+			if err != nil {
+				log.Printf("failed to write, err: %v", err)
+			}
 		}
 	}
 }

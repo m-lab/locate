@@ -3,17 +3,17 @@ package connection
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/m-lab/locate/connection/testdata"
 	"github.com/m-lab/locate/static"
 )
 
 func Test_Dial(t *testing.T) {
 	c := NewConn()
-	s := fakeServer()
+	s := testdata.FakeServer()
 	defer close(c, s)
 
 	err := c.Dial(s.URL, http.Header{})
@@ -34,7 +34,7 @@ func Test_Dial(t *testing.T) {
 func Test_Dial_ServerDown(t *testing.T) {
 	c := NewConn()
 	defer c.Close()
-	s := fakeServer()
+	s := testdata.FakeServer()
 	// Shut down server for testing.
 	s.Close()
 
@@ -66,36 +66,38 @@ func Test_WriteMessage(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		c := NewConn()
-		s := fakeServer()
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewConn()
+			s := testdata.FakeServer()
 
-		c.Dial(s.URL, http.Header{})
+			c.Dial(s.URL, http.Header{})
 
-		if tt.disconnect {
-			c.Close()
-		}
+			if tt.disconnect {
+				c.Close()
+			}
 
-		// Write new message. If connection was closed, it should reconnect
-		// and return a write error.
-		err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+			// Write new message. If connection was closed, it should reconnect
+			// and return a write error.
+			err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 
-		if err != tt.wantErr {
-			t.Errorf("WriteMessage() error; got: %v, want: %v", err, tt.wantErr)
-		}
+			if err != tt.wantErr {
+				t.Errorf("WriteMessage() error; got: %v, want: %v", err, tt.wantErr)
+			}
 
-		// Connection should be alive and write should succeed.
-		err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-		if err != nil {
-			t.Errorf("WriteMessage() should have succeeded; err: %v", err)
-		}
+			// Connection should be alive and write should succeed.
+			err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+			if err != nil {
+				t.Errorf("WriteMessage() should have succeeded; err: %v", err)
+			}
 
-		close(c, s)
+			close(c, s)
+		})
 	}
 }
 
 func Test_CloseAndReconnect(t *testing.T) {
 	c := NewConn()
-	s := fakeServer()
+	s := testdata.FakeServer()
 	defer close(c, s)
 	// For testing, make this time window smaller.
 	c.MaxReconnectionsTime = 2 * time.Second
@@ -104,12 +106,12 @@ func Test_CloseAndReconnect(t *testing.T) {
 	for i := 0; i < static.MaxReconnectionsTotal; i++ {
 		c.Close()
 		if c.IsConnected() {
-			t.Errorf("Close() failed to close connection")
+			t.Error("Close() failed to close connection")
 		}
 
 		c.reconnect()
 		if !c.IsConnected() {
-			t.Errorf("reconnect() failed to reconnect")
+			t.Error("reconnect() failed to reconnect")
 		}
 
 		err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
@@ -141,30 +143,6 @@ func Test_CloseAndReconnect(t *testing.T) {
 		t.Errorf("WriteMessage() should succeed after resetReconnections(); err: %v",
 			err)
 	}
-}
-
-func fakeHandler(w http.ResponseWriter, r *http.Request) {
-	upgrader := websocket.Upgrader{}
-	c, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		return
-	}
-	defer c.Close()
-
-	for {
-		_, _, err := c.ReadMessage()
-		if err != nil {
-			return
-		}
-	}
-}
-
-func fakeServer() *httptest.Server {
-	mux := http.NewServeMux()
-	mux.Handle("/v2/heartbeat/", http.HandlerFunc(fakeHandler))
-	s := httptest.NewServer(mux)
-	s.URL = strings.Replace(s.URL, "http", "ws", 1) + "/v2/heartbeat/"
-	return s
 }
 
 func close(c *Conn, s *httptest.Server) {

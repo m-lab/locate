@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -30,7 +31,7 @@ type Conn struct {
 	Factor               float64
 	Dialer               websocket.Dialer
 	ws                   *websocket.Conn
-	url                  string
+	url                  url.URL
 	header               http.Header
 	ticker               time.Ticker
 	mu                   sync.Mutex
@@ -57,10 +58,14 @@ func NewConn() *Conn {
 // Dial creates a new persistent client connection and sets
 // the necessary state for future reconnections. It also
 // starts a goroutine to reset the number of reconnections.
-func (c *Conn) Dial(url string, header http.Header) error {
-	c.url = url
-	c.header = header
+func (c *Conn) Dial(address string, header http.Header) error {
+	u, err := url.ParseRequestURI(address)
+	if err != nil || (u.Scheme != "ws" && u.Scheme != "wss") {
+		return errors.New("malformed ws or wss URL")
+	}
+	c.url = *u
 
+	c.header = header
 	c.ticker = *time.NewTicker(c.MaxReconnectionsTime)
 	go func(c *Conn) {
 		defer c.ticker.Stop()
@@ -148,15 +153,15 @@ func (c *Conn) connect() error {
 	var err error
 	var ws *websocket.Conn
 	for range ticker.C {
-		ws, _, err = c.Dialer.Dial(c.url, c.header)
+		ws, _, err = c.Dialer.Dial(c.url.String(), c.header)
 		if err != nil {
 			log.Printf("could not establish a connection with %s (will retry), err: %v",
-				c.url, err)
+				c.url.String(), err)
 		} else {
 			c.ws = ws
 			c.isConnected = true
 			ticker.Stop()
-			log.Printf("successfully established a connection with %s", c.url)
+			log.Printf("successfully established a connection with %s", c.url.String())
 			return nil
 		}
 	}
