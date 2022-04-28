@@ -18,7 +18,8 @@ func Test_main(t *testing.T) {
 	go func() {
 		<-timer.C
 		if locate != s.URL {
-			t.Error("main() incorrect locate URL")
+			t.Errorf("main() incorrect locate URL; got: %s, want: %s",
+				locate, s.URL)
 		}
 		done <- true
 	}()

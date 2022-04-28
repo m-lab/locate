@@ -124,11 +124,11 @@ func Test_CloseAndReconnect(t *testing.T) {
 	c.Close()
 	c.reconnect()
 	if c.IsConnected() {
-		t.Errorf("reconnect() should fail after maximum reconnections reached")
+		t.Error("reconnect() should fail after maximum reconnections reached")
 	}
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 	if err == nil {
-		t.Errorf("WriteMessage() should fail while disconnected")
+		t.Error("WriteMessage() should fail while disconnected")
 	}
 
 	// It should reconnect again once the number of reconnections is reset.
@@ -136,7 +136,7 @@ func Test_CloseAndReconnect(t *testing.T) {
 	<-timer.C
 	c.reconnect()
 	if !c.IsConnected() {
-		t.Errorf("reconnect() failed to reconnect after resetReconnections()")
+		t.Error("reconnect() failed to reconnect after resetReconnections()")
 	}
 	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 	if err != nil {
