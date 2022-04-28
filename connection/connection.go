@@ -51,6 +51,16 @@ func NewConn() *Conn {
 		MaxReconnectionsTime: static.MaxReconnectionsTime,
 		Dialer:               websocket.Dialer{},
 	}
+	return c
+}
+
+// Dial creates a new persistent client connection and sets
+// the necessary state for future reconnections. It also
+// starts a goroutine to reset the number of reconnections.
+func (c *Conn) Dial(url string, header http.Header) error {
+	c.url = url
+	c.header = header
+
 	c.ticker = *time.NewTicker(c.MaxReconnectionsTime)
 	go func(c *Conn) {
 		defer c.ticker.Stop()
@@ -61,15 +71,8 @@ func NewConn() *Conn {
 			c.mu.Unlock()
 		}
 	}(c)
-	return c
-}
 
-// Dial creates a new persistent client connection and sets
-// the necessary state for future reconnections.
-func (c *Conn) Dial(url string, header http.Header) {
-	c.url = url
-	c.header = header
-	c.connect()
+	return c.connect()
 }
 
 // WriteMessage is a helper method for getting a writer using
@@ -136,12 +139,14 @@ func (c *Conn) reconnect() {
 // connect creates a new client connection. In case of failure,
 // it uses an exponential backoff to increase the duration of
 // retry attempts.
-func (c *Conn) connect() {
+func (c *Conn) connect() error {
 	b := c.getBackoff()
 	ticker := backoff.NewTicker(b)
 
+	var err error
+	var ws *websocket.Conn
 	for range ticker.C {
-		ws, _, err := c.Dialer.Dial(c.url, c.header)
+		ws, _, err = c.Dialer.Dial(c.url, c.header)
 		if err != nil {
 			log.Printf("could not establish a connection with %s (will retry), err: %v",
 				c.url, err)
@@ -150,8 +155,10 @@ func (c *Conn) connect() {
 			c.isConnected = true
 			ticker.Stop()
 			log.Printf("successfully established a connection with %s", c.url)
+			return nil
 		}
 	}
+	return err
 }
 
 // getBackoff returns a backoff implementation that increases the

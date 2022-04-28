@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/locate/static"
@@ -15,7 +16,11 @@ func Test_Dial(t *testing.T) {
 	s := fakeServer()
 	defer close(c, s)
 
-	c.Dial(s.URL, http.Header{})
+	err := c.Dial(s.URL, http.Header{})
+
+	if err != nil {
+		t.Errorf("Dial() should have returned nil error, err: %v", err)
+	}
 
 	if c.ws == nil {
 		t.Error("Dial() error, websocket is nil")
@@ -23,6 +28,22 @@ func Test_Dial(t *testing.T) {
 
 	if !c.IsConnected() {
 		t.Error("Dial() error, not connected")
+	}
+}
+
+func Test_Dial_ServerDown(t *testing.T) {
+	c := NewConn()
+	defer c.Close()
+	s := fakeServer()
+	// Shut down server for testing.
+	s.Close()
+
+	c.InitialInterval = 500 * time.Millisecond
+	c.MaxElapsedTime = time.Second
+
+	err := c.Dial(s.URL, http.Header{})
+	if err == nil {
+		t.Error("Dial() should return an error once backoff ticker stops")
 	}
 }
 
@@ -76,6 +97,8 @@ func Test_CloseAndReconnect(t *testing.T) {
 	c := NewConn()
 	s := fakeServer()
 	defer close(c, s)
+	// For testing, make this time window smaller.
+	c.MaxReconnectionsTime = 2 * time.Second
 	c.Dial(s.URL, http.Header{})
 
 	for i := 0; i < static.MaxReconnectionsTotal; i++ {
@@ -95,6 +118,7 @@ func Test_CloseAndReconnect(t *testing.T) {
 		}
 	}
 
+	// It should not reconnect once it reaches the maximum number of attempts.
 	c.Close()
 	c.reconnect()
 	if c.IsConnected() {
@@ -103,6 +127,19 @@ func Test_CloseAndReconnect(t *testing.T) {
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 	if err == nil {
 		t.Errorf("WriteMessage() should fail while disconnected")
+	}
+
+	// It should reconnect again once the number of reconnections is reset.
+	timer := time.NewTimer(2 * c.MaxReconnectionsTime)
+	<-timer.C
+	c.reconnect()
+	if !c.IsConnected() {
+		t.Errorf("reconnect() failed to reconnect after resetReconnections()")
+	}
+	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+	if err != nil {
+		t.Errorf("WriteMessage() should succeed after resetReconnections(); err: %v",
+			err)
 	}
 }
 
