@@ -53,6 +53,7 @@ func NewConn() *Conn {
 	}
 	c.ticker = *time.NewTicker(c.MaxReconnectionsTime)
 	go func(c *Conn) {
+		defer c.ticker.Stop()
 		for {
 			<-c.ticker.C
 			c.mu.Lock()
@@ -79,32 +80,23 @@ func (c *Conn) WriteMessage(messageType int, data []byte) error {
 	if c.IsConnected() {
 		err := c.ws.WriteMessage(messageType, data)
 		if err != nil {
-			c.CloseAndReconnect()
+			c.closeAndReconnect()
 		}
 		return err
 	}
 	if c.canConnect() {
-		c.CloseAndReconnect()
+		c.closeAndReconnect()
 	}
 	return ErrNotConnected
-}
-
-// CloseAndReconnect calls Close and tries to reconnect.
-func (c *Conn) CloseAndReconnect() {
-	c.Close()
-	if c.canConnect() {
-		c.mu.Lock()
-		c.reconnections++
-		c.mu.Unlock()
-		c.connect()
-	}
 }
 
 // Close closes the underlying network connection without
 // sending or waiting for a close frame.
 func (c *Conn) Close() {
 	c.isConnected = false
-	c.ws.Close()
+	if c.ws != nil {
+		c.ws.Close()
+	}
 }
 
 // IsConnected returns the WebSocket connection state.
@@ -122,6 +114,23 @@ func (c *Conn) resetReconnections() {
 // given the recent number of attempts.
 func (c *Conn) canConnect() bool {
 	return c.reconnections < static.MaxReconnectionsTotal
+}
+
+// closeAndReconnect calls Close and reconnect.
+func (c *Conn) closeAndReconnect() {
+	c.Close()
+	c.reconnect()
+}
+
+// reconnect updates the number of reconnections and
+// re-establishes the connection.
+func (c *Conn) reconnect() {
+	if c.canConnect() {
+		c.mu.Lock()
+		c.reconnections++
+		c.mu.Unlock()
+		c.connect()
+	}
 }
 
 // connect creates a new client connection. In case of failure,
