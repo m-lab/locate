@@ -23,10 +23,6 @@ func Test_Dial(t *testing.T) {
 		t.Errorf("Dial() should have returned nil error, err: %v", err)
 	}
 
-	if c.ws == nil {
-		t.Error("Dial() error, websocket is nil")
-	}
-
 	if !c.IsConnected() {
 		t.Error("Dial() error, not connected")
 	}
