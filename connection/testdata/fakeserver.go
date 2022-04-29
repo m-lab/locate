@@ -29,13 +29,6 @@ func (fh *FakeHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
 	fh.conn, _ = upgrader.Upgrade(w, r, nil)
 }
 
-func (fh *FakeHandler) Read() ([]byte, error) {
-	fh.mu.Lock()
-	defer fh.mu.Unlock()
-	_, msg, err := fh.conn.ReadMessage()
-	return msg, err
-}
-
 func (fh *FakeHandler) Close() {
 	fh.mu.Lock()
 	defer fh.mu.Unlock()
