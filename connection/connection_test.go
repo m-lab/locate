@@ -31,6 +31,33 @@ func Test_Dial(t *testing.T) {
 	}
 }
 
+func Test_Dial_InvalidUrl(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{
+			name: "malformed",
+			url:  "foo",
+		},
+		{
+			name: "https",
+			url:  "https://127.0.0.1:46311/v2/heartbeat/",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewConn()
+			err := c.Dial(tt.url, http.Header{})
+
+			if err == nil {
+				t.Error("Dial() should return an error when given an invalid URL")
+			}
+		})
+	}
+}
+
 func Test_Dial_ServerDown(t *testing.T) {
 	c := NewConn()
 	defer c.Close()
