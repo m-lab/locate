@@ -16,6 +16,7 @@ import (
 
 var (
 	locate              string
+	heartbeatPeriod     = static.HeartbeatPeriod
 	mainCtx, mainCancel = context.WithCancel(context.Background())
 )
 
@@ -39,7 +40,7 @@ func main() {
 // HeartbeatPeriod.
 func write(ws *connection.Conn) {
 	defer ws.Close()
-	ticker := *time.NewTicker(static.HeartbeatPeriod)
+	ticker := *time.NewTicker(heartbeatPeriod)
 	defer ticker.Stop()
 
 	for {
