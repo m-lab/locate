@@ -25,7 +25,9 @@ func Test_main(t *testing.T) {
 			t.Errorf("main() incorrect locate URL; got: %s, want: %s",
 				locate, s.URL)
 		}
-		if fh.ReadError() != nil {
+
+		msg, err := fh.Read()
+		if msg == nil || err != nil {
 			t.Errorf("main() failed to write heartbeat message")
 		}
 

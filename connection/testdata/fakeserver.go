@@ -25,9 +25,9 @@ func (fh *FakeHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
 	fh.conn, _ = upgrader.Upgrade(w, r, nil)
 }
 
-func (fh *FakeHandler) ReadError() error {
-	_, _, err := fh.conn.ReadMessage()
-	return err
+func (fh *FakeHandler) Read() ([]byte, error) {
+	_, msg, err := fh.conn.ReadMessage()
+	return msg, err
 }
 
 func (fh *FakeHandler) Close() {
