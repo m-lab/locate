@@ -18,4 +18,9 @@ script:
 - go vet ./...
 - go test ./... -cover=1 -coverprofile=_c.cov
 - go test ./... -race
+
+after_success:
+# Note: Do this in the after_success stage so that
+# a broken coveralls won't cause the build to fail.
+# (details: https://github.com/lemurheavy/coveralls-public/issues/1264)
 - $GOPATH/bin/goveralls -service=travis-ci -coverprofile=_c.cov
