@@ -17,20 +17,13 @@ func Test_main(t *testing.T) {
 
 	flag.Set("locate-url", s.URL)
 
-	heartbeatPeriod = 2 * time.Second
-	timer := time.NewTimer(2 * heartbeatPeriod)
+	timer := time.NewTimer(time.Second)
 	go func() {
 		<-timer.C
 		if locate != s.URL {
 			t.Errorf("main() incorrect locate URL; got: %s, want: %s",
 				locate, s.URL)
 		}
-
-		msg, err := fh.Read()
-		if msg == nil || err != nil {
-			t.Errorf("main() failed to write heartbeat message")
-		}
-
 		mainCancel()
 	}()
 
