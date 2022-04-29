@@ -143,7 +143,7 @@ func Test_CloseAndReconnect(t *testing.T) {
 		}
 
 		if !c.IsConnected() {
-			t.Error("CloseAndReconnect() failed to reconnect")
+			t.Error("WriteMessage() failed to reconnect")
 		}
 
 		err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
