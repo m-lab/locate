@@ -80,17 +80,17 @@ func Test_WriteMessage(t *testing.T) {
 	tests := []struct {
 		name       string
 		disconnect bool
-		wantErr    error
+		wantErr    bool
 	}{
 		{
 			name:       "success",
 			disconnect: false,
-			wantErr:    nil,
+			wantErr:    false,
 		},
 		{
 			name:       "disconnect-reconnect",
 			disconnect: true,
-			wantErr:    ErrNotConnected,
+			wantErr:    true,
 		},
 	}
 
@@ -103,15 +103,15 @@ func Test_WriteMessage(t *testing.T) {
 			c.Dial(s.URL, http.Header{})
 
 			if tt.disconnect {
-				c.Close()
+				fh.Close()
 			}
 
 			// Write new message. If connection was closed, it should reconnect
 			// and return a write error.
 			err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 
-			if err != tt.wantErr {
-				t.Errorf("WriteMessage() error; got: %v, want: %v", err, tt.wantErr)
+			if err == nil && tt.wantErr {
+				t.Error("Writing after a disconnect should return an error, close, and reconnect")
 			}
 
 			// Connection should be alive and write should succeed.

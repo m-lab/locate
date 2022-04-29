@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -17,19 +18,26 @@ func FakeServer(handler func(http.ResponseWriter, *http.Request)) *httptest.Serv
 }
 
 type FakeHandler struct {
+	mu   sync.Mutex
 	conn *websocket.Conn
 }
 
 func (fh *FakeHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
+	fh.mu.Lock()
+	defer fh.mu.Unlock()
 	upgrader := websocket.Upgrader{}
 	fh.conn, _ = upgrader.Upgrade(w, r, nil)
 }
 
 func (fh *FakeHandler) Read() ([]byte, error) {
+	fh.mu.Lock()
+	defer fh.mu.Unlock()
 	_, msg, err := fh.conn.ReadMessage()
 	return msg, err
 }
 
 func (fh *FakeHandler) Close() {
+	fh.mu.Lock()
+	defer fh.mu.Unlock()
 	fh.conn.Close()
 }
