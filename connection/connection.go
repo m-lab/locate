@@ -84,7 +84,14 @@ func (c *Conn) Dial(address string, header http.Header) error {
 // close and reconnect.
 func (c *Conn) WriteMessage(messageType int, data []byte) error {
 	if c.IsConnected() {
-		err := c.ws.WriteMessage(messageType, data)
+		// It is the call to NextWriter that detects the connection
+		// has been closed by updating writeErr. Calling WriteMessage
+		// by itself has a delay of one call to detect a disconnect.
+		w, err := c.ws.NextWriter(messageType)
+		if err == nil {
+			err = c.ws.WriteMessage(messageType, data)
+			w.Close()
+		}
 		if err != nil {
 			c.closeAndReconnect()
 		}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
@@ -14,8 +15,9 @@ import (
 )
 
 var (
-	locate string
-	done   = make(chan bool, 1)
+	locate              string
+	heartbeatPeriod = static.HeartbeatPeriod
+	mainCtx, mainCancel = context.WithCancel(context.Background())
 )
 
 func init() {
@@ -38,12 +40,12 @@ func main() {
 // HeartbeatPeriod.
 func write(ws *connection.Conn) {
 	defer ws.Close()
-	ticker := *time.NewTicker(static.HeartbeatPeriod)
+	ticker := *time.NewTicker(heartbeatPeriod)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-done:
+		case <-mainCtx.Done():
 			return
 		case <-ticker.C:
 			err := ws.WriteMessage(websocket.TextMessage, []byte("Health message!"))
