@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -118,6 +119,64 @@ func Test_WriteMessage(t *testing.T) {
 
 			close(c, s)
 		})
+	}
+}
+
+func Test_WriteMessage_ErrNotDailed(t *testing.T) {
+	c := NewConn()
+	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+	if !errors.Is(err, ErrNotDailed) {
+		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrNotDailed", err)
+	}
+}
+
+func Test_WriteMessage_ErrNotConnected(t *testing.T) {
+	c := NewConn()
+	c.MaxElapsedTime = time.Millisecond
+	defer c.Close()
+	fh := testdata.FakeHandler{}
+	s := testdata.FakeServer(fh.Upgrade)
+	c.Dial(s.URL, http.Header{})
+	// Close connection so writes fail.
+	fh.Close()
+	// Shut server down so reconnection fails.
+	s.Close()
+
+	// We detect the connection has been disconnected through WriteMessage.
+	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+	if err == nil {
+		t.Error("Writing after a disconnect should return an error, close, and try to reconnect")
+	}
+
+	// This should return ErrNotConnected because IsConnected is false
+	// and it's impossible to reconnect.
+	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+	if !errors.Is(err, ErrNotConnected) {
+		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrNotConnected", err)
+	}
+}
+
+func Test_WriteMessage_ErrCannotReconnect(t *testing.T) {
+	c := NewConn()
+	c.MaxReconnectionsTotal = 0
+	defer c.Close()
+	fh := testdata.FakeHandler{}
+	s := testdata.FakeServer(fh.Upgrade)
+	c.Dial(s.URL, http.Header{})
+	// Close connection so writes fail.
+	fh.Close()
+
+	// We detect the connection has been disconnected through WriteMessage.
+	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+	if err == nil {
+		t.Error("Writing after a disconnect should return an error, close, and try to reconnect")
+	}
+
+	// This should return ErrCannotReconnect because IsConnected is false
+	// and MaxReconnectionsTotal = 0
+	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+	if !errors.Is(err, ErrCannotReconnect) {
+		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrCannotReconnect", err)
 	}
 }
 

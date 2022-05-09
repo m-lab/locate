@@ -15,7 +15,7 @@ const (
 	SubjectMonitoring          = "monitoring"
 	WebsocketBufferSize        = 1 << 10 // 1024 bytes.
 	WebsocketReadDeadline      = 30 * time.Second
-	BackoffInitialInterval     = 5 * time.Second
+	BackoffInitialInterval     = time.Second
 	BackoffRandomizationFactor = 0.5
 	BackoffMultiplier          = 2
 	BackoffMaxInterval         = time.Hour

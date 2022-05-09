@@ -49,6 +49,9 @@ type Conn struct {
 	// MaxElapsedTime is the amount of time after which the ExponentialBackOff
 	// returns Stop. It never stops if MaxElapsedTime == 0.
 	MaxElapsedTime time.Duration
+	// MaxReconnectionsTotal is the maximum number of reconnections that can
+	// happen within MaxReconnectionsTime.
+	MaxReconnectionsTotal int
 	// MaxReconnectionsTime is the time period during which the number of
 	// reconnections must be less than MaxReconnectionsTotal to allow a
 	// reconnection atttempt.
@@ -69,13 +72,14 @@ type Conn struct {
 // by reconnects per hour.
 func NewConn() *Conn {
 	c := &Conn{
-		InitialInterval:      static.BackoffInitialInterval,
-		RandomizationFactor:  static.BackoffRandomizationFactor,
-		Multiplier:           static.BackoffMultiplier,
-		MaxInterval:          static.BackoffMaxInterval,
-		MaxElapsedTime:       static.BackoffMaxElapsedTime,
-		MaxReconnectionsTime: static.MaxReconnectionsTime,
-		dialer:               websocket.Dialer{},
+		InitialInterval:       static.BackoffInitialInterval,
+		RandomizationFactor:   static.BackoffRandomizationFactor,
+		Multiplier:            static.BackoffMultiplier,
+		MaxInterval:           static.BackoffMaxInterval,
+		MaxElapsedTime:        static.BackoffMaxElapsedTime,
+		MaxReconnectionsTotal: static.MaxReconnectionsTotal,
+		MaxReconnectionsTime:  static.MaxReconnectionsTime,
+		dialer:                websocket.Dialer{},
 	}
 	return c
 }
@@ -118,24 +122,26 @@ func (c *Conn) WriteMessage(messageType int, data []byte) error {
 		if !c.canConnect() {
 			return ErrCannotReconnect
 		}
+		// If not connected, try to reconnect.
+		// If unsuccessful, return an error.
+		c.closeAndReconnect()
+		if !c.IsConnected() {
+			return ErrNotConnected
+		}
+	}
+	// It is the call to NextWriter that detects the connection
+	// has been closed by reading the last update to writeErr:
+	// https://github.com/gorilla/websocket/blob/78cf1bc733a927f673fd1988a25256b425552a8a/conn.go#L489.
+	// Calling WriteMessage by itself has a delay of one call to detect a disconnect.
+	w, err := c.ws.NextWriter(messageType)
+	if err == nil {
+		err = c.ws.WriteMessage(messageType, data)
+		w.Close()
+	}
+	if err != nil {
 		c.closeAndReconnect()
 	}
-	if c.IsConnected() {
-		// It is the call to NextWriter that detects the connection
-		// has been closed by reading the last update to writeErr:
-		// https://github.com/gorilla/websocket/blob/78cf1bc733a927f673fd1988a25256b425552a8a/conn.go#L489.
-		// Calling WriteMessage by itself has a delay of one call to detect a disconnect.
-		w, err := c.ws.NextWriter(messageType)
-		if err == nil {
-			err = c.ws.WriteMessage(messageType, data)
-			w.Close()
-		}
-		if err != nil {
-			c.closeAndReconnect()
-		}
-		return err
-	}
-	return ErrNotConnected
+	return err
 }
 
 // IsConnected returns the WebSocket connection state.
@@ -164,7 +170,7 @@ func (c *Conn) resetReconnections() {
 func (c *Conn) canConnect() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.reconnections < static.MaxReconnectionsTotal
+	return c.reconnections < c.MaxReconnectionsTotal
 }
 
 // closeAndReconnect calls close and reconnect.
