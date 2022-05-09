@@ -73,6 +73,18 @@ func Test_Dial_ServerDown(t *testing.T) {
 	}
 }
 
+func Test_Dial_BadRequest(t *testing.T) {
+	c := NewConn()
+	fh := testdata.FakeHandler{}
+	// This handler returns a 400 status code.
+	s := testdata.FakeServer(fh.BadUpgrade)
+	err := c.Dial(s.URL, http.Header{})
+
+	if err == nil {
+		t.Error("Dial() should fail when a 400 response status code is received")
+	}
+}
+
 func Test_WriteMessage(t *testing.T) {
 	tests := []struct {
 		name       string

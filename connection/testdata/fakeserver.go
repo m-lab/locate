@@ -29,6 +29,10 @@ func (fh *FakeHandler) Upgrade(w http.ResponseWriter, r *http.Request) {
 	fh.conn, _ = upgrader.Upgrade(w, r, nil)
 }
 
+func (fh *FakeHandler) BadUpgrade(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(400)
+}
+
 func (fh *FakeHandler) Read() ([]byte, error) {
 	fh.mu.Lock()
 	defer fh.mu.Unlock()
