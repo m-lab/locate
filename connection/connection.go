@@ -15,27 +15,52 @@ import (
 	"github.com/m-lab/locate/static"
 )
 
-// ErrNotConnected is returned when the application tries to
-// read/write a message and the connection is closed.
-var ErrNotConnected = errors.New("websocket not connected")
+var (
+	// ErrNotConnected is returned when the application tries to
+	// read/write a message and the connection is closed.
+	ErrNotConnected = errors.New("websocket not connected")
+	// ErrCannotReconnect is returned when the number of reconnections
+	// has reached MaxReconnectionsTotal within MaxElapsedTime.
+	ErrCannotReconnect = errors.New("websocket cannot reconnect right now (too many attemps)")
+	// ErrNotConnected is returned when WriteMessage is called, but
+	// the websocket has not been created yet.
+	ErrNotDailed = errors.New("websocket not created yet, please call Dial()")
+	// retryClientErrors contains the list of client (4XX) errors that may be
+	// successful if retried.
+	retryClientErrors = map[int]bool{404: true, 408: true, 425: true}
+)
 
 // Conn contains state needed to connect, reconnect, and send
 // messages.
 type Conn struct {
-	InitialInterval      time.Duration
-	RandomizationFactor  float64
-	Multiplier           float64
-	MaxInterval          time.Duration
-	MaxElapsedTime       time.Duration
+	// InitialInterval is the first interval at which the backoff starts
+	// running.
+	InitialInterval time.Duration
+	// RandomizationFactor is used to create the range of values:
+	// [currentInterval - randomizationFactor * currentInterval,
+	// currentInterval + randomizationFactor * currentInterval] and picking
+	// a random value from the range.
+	RandomizationFactor float64
+	// Multiplier is used to increment the backoff interval by multiplying it.
+	Multiplier float64
+	// MaxInterval is an interval such that, once reached, the backoff will
+	// retry with a constant delay of MaxInterval.
+	MaxInterval time.Duration
+	// MaxElapsedTime is the amount of time after which the ExponentialBackOff
+	// returns Stop. It never stops if MaxElapsedTime == 0.
+	MaxElapsedTime time.Duration
+	// MaxReconnectionsTime is the time period during which the number of
+	// reconnections must be less than MaxReconnectionsTotal to allow a
+	// reconnection atttempt.
 	MaxReconnectionsTime time.Duration
-	Factor               float64
-	Dialer               websocket.Dialer
+	dialer               websocket.Dialer
 	ws                   *websocket.Conn
 	url                  url.URL
 	header               http.Header
 	ticker               time.Ticker
 	mu                   sync.Mutex
 	reconnections        int
+	dialed               bool
 	isConnected          bool
 }
 
@@ -50,7 +75,7 @@ func NewConn() *Conn {
 		MaxInterval:          static.BackoffMaxInterval,
 		MaxElapsedTime:       static.BackoffMaxElapsedTime,
 		MaxReconnectionsTime: static.MaxReconnectionsTime,
-		Dialer:               websocket.Dialer{},
+		dialer:               websocket.Dialer{},
 	}
 	return c
 }
@@ -66,9 +91,9 @@ func (c *Conn) Dial(address string, header http.Header) error {
 	c.url = *u
 
 	c.header = header
+	c.dialed = true
 	c.ticker = *time.NewTicker(c.MaxReconnectionsTime)
 	go func(c *Conn) {
-		defer c.ticker.Stop()
 		for {
 			<-c.ticker.C
 			c.resetReconnections()
@@ -82,11 +107,24 @@ func (c *Conn) Dial(address string, header http.Header) error {
 // NextWriter, writing the message and closing the writer.
 // If the write fails or a disconnect has been detected, it will
 // close and reconnect.
+// Dail only needs to be called once at start to create the connection.
+// Alternatively, if Close is called, Dial will have to be called
+// again if the connection needs to be recreated.
 func (c *Conn) WriteMessage(messageType int, data []byte) error {
+	if !c.dialed {
+		return ErrNotDailed
+	}
+	if !c.IsConnected() {
+		if !c.canConnect() {
+			return ErrCannotReconnect
+		}
+		c.closeAndReconnect()
+	}
 	if c.IsConnected() {
 		// It is the call to NextWriter that detects the connection
-		// has been closed by updating writeErr. Calling WriteMessage
-		// by itself has a delay of one call to detect a disconnect.
+		// has been closed by reading the last update to writeErr:
+		// https://github.com/gorilla/websocket/blob/78cf1bc733a927f673fd1988a25256b425552a8a/conn.go#L489.
+		// Calling WriteMessage by itself has a delay of one call to detect a disconnect.
 		w, err := c.ws.NextWriter(messageType)
 		if err == nil {
 			err = c.ws.WriteMessage(messageType, data)
@@ -97,24 +135,20 @@ func (c *Conn) WriteMessage(messageType int, data []byte) error {
 		}
 		return err
 	}
-	if c.canConnect() {
-		c.closeAndReconnect()
-	}
 	return ErrNotConnected
-}
-
-// Close closes the underlying network connection without
-// sending or waiting for a close frame.
-func (c *Conn) Close() {
-	c.isConnected = false
-	if c.ws != nil {
-		c.ws.Close()
-	}
 }
 
 // IsConnected returns the WebSocket connection state.
 func (c *Conn) IsConnected() bool {
 	return c.isConnected
+}
+
+// Close stops the reconnection ticker and closes the
+// underlying network connection.
+func (c *Conn) Close() error {
+	c.dialed = false
+	c.ticker.Stop()
+	return c.close()
 }
 
 // resetReconnections sets the number of disconnects followed
@@ -133,10 +167,20 @@ func (c *Conn) canConnect() bool {
 	return c.reconnections < static.MaxReconnectionsTotal
 }
 
-// closeAndReconnect calls Close and reconnect.
+// closeAndReconnect calls close and reconnect.
 func (c *Conn) closeAndReconnect() {
-	c.Close()
+	c.close()
 	c.reconnect()
+}
+
+// close closes the underlying network connection without
+// sending or waiting for a close frame.
+func (c *Conn) close() error {
+	c.isConnected = false
+	if c.ws != nil {
+		return c.ws.Close()
+	}
+	return nil
 }
 
 // reconnect updates the number of reconnections and
@@ -157,20 +201,30 @@ func (c *Conn) connect() error {
 	b := c.getBackoff()
 	ticker := backoff.NewTicker(b)
 
-	var err error
 	var ws *websocket.Conn
+	var resp *http.Response
+	var err error
 	for range ticker.C {
-		ws, _, err = c.Dialer.Dial(c.url.String(), c.header)
+		ws, resp, err = c.dialer.Dial(c.url.String(), c.header)
 		if err != nil {
+			// Check for fatal responses.
+			if resp != nil {
+				_, retry := retryClientErrors[resp.StatusCode]
+				if resp.StatusCode >= 400 && resp.StatusCode <= 451 && !retry {
+					log.Printf("fatal client error trying to establish a connection with %s, err: %v",
+						c.url.String(), err)
+					return err
+				}
+			}
 			log.Printf("could not establish a connection with %s (will retry), err: %v",
 				c.url.String(), err)
-		} else {
-			c.ws = ws
-			c.isConnected = true
-			ticker.Stop()
-			log.Printf("successfully established a connection with %s", c.url.String())
-			return nil
+			continue
 		}
+		c.ws = ws
+		c.isConnected = true
+		ticker.Stop()
+		log.Printf("successfully established a connection with %s", c.url.String())
+		return nil
 	}
 	return err
 }

@@ -15,13 +15,13 @@ import (
 )
 
 var (
-	locate              string
+	heartbeatURL        string
 	heartbeatPeriod     = static.HeartbeatPeriod
 	mainCtx, mainCancel = context.WithCancel(context.Background())
 )
 
 func init() {
-	flag.StringVar(&locate, "locate-url", "ws://localhost:8080/v2/platform/heartbeat/",
+	flag.StringVar(&heartbeatURL, "heartbeat-url", "ws://localhost:8080/v2/platform/heartbeat/",
 		"URL for locate service")
 }
 
@@ -30,8 +30,8 @@ func main() {
 	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "failed to read args from env")
 
 	conn := connection.NewConn()
-	err := conn.Dial(locate, http.Header{})
-	rtx.Must(err, "failed to establish a websocket connection with %s", locate)
+	err := conn.Dial(heartbeatURL, http.Header{})
+	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
 	write(conn)
 }

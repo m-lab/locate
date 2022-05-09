@@ -17,7 +17,7 @@ const (
 	WebsocketReadDeadline      = 30 * time.Second
 	BackoffInitialInterval     = 5 * time.Second
 	BackoffRandomizationFactor = 0.5
-	BackoffMultiplier          = 1.5
+	BackoffMultiplier          = 2
 	BackoffMaxInterval         = time.Hour
 	BackoffMaxElapsedTime      = 0
 	MaxReconnectionsTotal      = 10
