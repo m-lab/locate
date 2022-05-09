@@ -25,12 +25,12 @@ var (
 	// ErrNotConnected is returned when WriteMessage is called, but
 	// the websocket has not been created yet.
 	ErrNotDailed = errors.New("websocket not created yet, please call Dial()")
-	// retryClientErrors contains the list of client (4XX) errors that may be
-	// successful if retried.
+	// retryClientErrors contains the list of client (4XX) errors that may
+	// become successful if the request is retried.
 	retryClientErrors = map[int]bool{404: true, 408: true, 425: true}
 )
 
-// Conn contains state needed to connect, reconnect, and send
+// Conn contains the state needed to connect, reconnect, and send
 // messages.
 type Conn struct {
 	// InitialInterval is the first interval at which the backoff starts
@@ -87,6 +87,10 @@ func NewConn() *Conn {
 // Dial creates a new persistent client connection and sets
 // the necessary state for future reconnections. It also
 // starts a goroutine to reset the number of reconnections.
+// Dail only needs to be called once at start to create the connection.
+// Alternatively, if Close is called, Dial will have to be called
+// again if the connection needs to be recreated.
+// It returns an error if the url is invalid.
 func (c *Conn) Dial(address string, header http.Header) error {
 	u, err := url.ParseRequestURI(address)
 	if err != nil || (u.Scheme != "ws" && u.Scheme != "wss") {
@@ -111,9 +115,6 @@ func (c *Conn) Dial(address string, header http.Header) error {
 // NextWriter, writing the message and closing the writer.
 // If the write fails or a disconnect has been detected, it will
 // close and reconnect.
-// Dail only needs to be called once at start to create the connection.
-// Alternatively, if Close is called, Dial will have to be called
-// again if the connection needs to be recreated.
 func (c *Conn) WriteMessage(messageType int, data []byte) error {
 	if !c.dialed {
 		return ErrNotDailed
@@ -123,7 +124,7 @@ func (c *Conn) WriteMessage(messageType int, data []byte) error {
 			return ErrCannotReconnect
 		}
 		// If not connected, try to reconnect.
-		// If unsuccessful, return an error.
+		// If unsuccessful, return an ErrNorConnected error.
 		c.closeAndReconnect()
 		if !c.IsConnected() {
 			return ErrNotConnected
@@ -213,19 +214,21 @@ func (c *Conn) connect() error {
 	for range ticker.C {
 		ws, resp, err = c.dialer.Dial(c.url.String(), c.header)
 		if err != nil {
-			// Check for fatal responses.
+			// Check for client errors indicating we should not retry.
 			if resp != nil {
 				_, retry := retryClientErrors[resp.StatusCode]
 				if resp.StatusCode >= 400 && resp.StatusCode <= 451 && !retry {
-					log.Printf("fatal client error trying to establish a connection with %s, err: %v",
+					log.Printf("client error trying to establish a connection with %s, err: %v",
 						c.url.String(), err)
 					return err
 				}
 			}
+
 			log.Printf("could not establish a connection with %s (will retry), err: %v",
 				c.url.String(), err)
 			continue
 		}
+
 		c.ws = ws
 		c.isConnected = true
 		ticker.Stop()

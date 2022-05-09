@@ -154,7 +154,7 @@ func Test_WriteMessage_ErrNotConnected(t *testing.T) {
 	// Shut server down so reconnection fails.
 	s.Close()
 
-	// We detect the connection has been disconnected through WriteMessage.
+	// Detect the connection has been disconnected through WriteMessage.
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 	if err == nil {
 		t.Error("Writing after a disconnect should return an error, close, and try to reconnect")
@@ -174,11 +174,12 @@ func Test_WriteMessage_ErrCannotReconnect(t *testing.T) {
 	defer c.Close()
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
+	defer s.Close()
 	c.Dial(s.URL, http.Header{})
 	// Close connection so writes fail.
 	fh.Close()
 
-	// We detect the connection has been disconnected through WriteMessage.
+	// Detect the connection has been disconnected through WriteMessage.
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 	if err == nil {
 		t.Error("Writing after a disconnect should return an error, close, and try to reconnect")
