@@ -145,7 +145,7 @@ paths:
       - api_key: []
 
 # Heartbeat requests WITH an API key.
-"/v2/platform/heartbeat":
+"/v2/platform/heartbeat/":
   get:
     description: |-
       Report the health of an experiment instance.
