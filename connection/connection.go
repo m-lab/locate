@@ -32,11 +32,17 @@ var (
 // read/write a message, but the connection is closed and
 // a reconnection attempt has failed.
 type ErrCannotReconnect struct {
-	Reason error
+	reason error
 }
 
+// Error returns the error message as a string.
 func (e *ErrCannotReconnect) Error() string {
-	return fmt.Sprintf("websocket failed to reconnect, err: %v", e.Reason)
+	return fmt.Sprintf("websocket failed to reconnect, err: %s", e.reason.Error())
+}
+
+// Unwrap unpacks wrapped errors.
+func (e *ErrCannotReconnect) Unwrap() error {
+	return e.reason
 }
 
 // Conn contains the state needed to connect, reconnect, and send
@@ -131,7 +137,7 @@ func (c *Conn) Dial(address string, header http.Header) error {
 // message.
 //
 // The write will fail under the following conditions:
-// 		1. The client has not called Dial (ErrNotDialed).
+//		1. The client has not called Dial (ErrNotDialed).
 //		2. The connection is disconnected and it was not able to
 //		   reconnect (ErrCannotReconnect/ErrTooManyReconnects).
 //		3. The write call in the websocket package failed
@@ -141,6 +147,7 @@ func (c *Conn) WriteMessage(messageType int, data []byte) error {
 		return ErrNotDailed
 	}
 
+	// If a disconnect has already been detected, try to reconnect.
 	if !c.IsConnected() {
 		if err := c.closeAndReconnect(); err != nil {
 			return &ErrCannotReconnect{err}

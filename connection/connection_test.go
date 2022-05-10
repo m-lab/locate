@@ -169,8 +169,19 @@ func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
 	// This should return ErrTooManyReconnects because IsConnected is false
 	// and MaxReconnectionsTotal = 0.
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-	if !errors.As(err, &ErrTooManyReconnects) {
+	if !errors.Is(err, ErrTooManyReconnects) {
 		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrTooManyReconnects", err)
+	}
+
+	// Shut server down so reconnection fails.
+	s.Close()
+	// Allow reconnections again.
+	c.MaxReconnectionsTotal = 1
+	c.MaxElapsedTime = 1 * time.Second
+	// Should still get an error, but it should not be ErrTooManyReconnects.
+	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+	if err == nil || errors.Is(err, ErrTooManyReconnects) {
+		t.Errorf("WriteMessage() incorrect error; got: %v, want: !ErrTooManyReconnects", err)
 	}
 }
 
@@ -216,6 +227,39 @@ func Test_CloseAndReconnect(t *testing.T) {
 	}
 	if !c.IsConnected() {
 		t.Error("WriteMessage() failed to reconnect after MaxReconnectionsTime")
+	}
+}
+
+func Test_ErrCannotReconnect(t *testing.T) {
+	tests := []struct {
+		name   string
+		reason error
+		want   string
+	}{
+		{
+			name:   "wrapped",
+			reason: ErrTooManyReconnects,
+			want:   "websocket failed to reconnect, err: websocket cannot reconnect right now (too many attemps)",
+		},
+		{
+			name:   "foo",
+			reason: errors.New("foo"),
+			want:   "websocket failed to reconnect, err: foo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ErrCannotReconnect{tt.reason}
+
+			if err.Error() != tt.want {
+				t.Errorf("ErrCannotReconnect.Error() wrong message; got: %s, want: %s", err.Error(), tt.want)
+			}
+
+			if err.Unwrap() != tt.reason {
+				t.Errorf("ErrCannotReconnect.Unwrap() wrong reason; got: %v, want: %v", err.Unwrap(), tt.reason)
+			}
+		})
 	}
 }
 
