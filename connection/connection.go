@@ -20,8 +20,8 @@ var (
 	// ErrTooManyReconnects is returned when the number of reconnections
 	// has reached MaxReconnectionsTotal within MaxElapsedTime.
 	ErrTooManyReconnects = errors.New("websocket cannot reconnect right now (too many attemps)")
-	// ErrNotConnected is returned when WriteMessage is called, but
-	// the websocket has not been created yet.
+	// ErrNotDialed is returned when WriteMessage is called, but
+	// the websocket has not been created yet (call Dial).
 	ErrNotDailed = errors.New("websocket not created yet, please call Dial()")
 	// retryClientErrors contains the list of client (4XX) errors that may
 	// become successful if the request is retried.
@@ -137,11 +137,11 @@ func (c *Conn) Dial(address string, header http.Header) error {
 // message.
 //
 // The write will fail under the following conditions:
-//		1. The client has not called Dial (ErrNotDialed).
-//		2. The connection is disconnected and it was not able to
-//		   reconnect (ErrCannotReconnect/ErrTooManyReconnects).
-//		3. The write call in the websocket package failed
-//		   (gorilla/websocket error).
+//	1. The client has not called Dial (ErrNotDialed).
+//	2. The connection is disconnected and it was not able to
+//	   reconnect (ErrCannotReconnect/ErrTooManyReconnects).
+//	3. The write call in the websocket package failed
+//	   (gorilla/websocket error).
 func (c *Conn) WriteMessage(messageType int, data []byte) error {
 	if !c.dialed {
 		return ErrNotDailed
@@ -169,6 +169,14 @@ func (c *Conn) IsConnected() bool {
 	return c.isConnected
 }
 
+// CanConnect checks whether it is possible to reconnect
+// given the recent number of attempts.
+func (c *Conn) CanConnect() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.reconnections < c.MaxReconnectionsTotal
+}
+
 // Close stops the reconnection ticker and closes the
 // underlying network connection.
 func (c *Conn) Close() error {
@@ -183,14 +191,6 @@ func (c *Conn) resetReconnections() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.reconnections = 0
-}
-
-// canConnect checks whether it is possible to reconnect
-// given the recent number of attempts.
-func (c *Conn) canConnect() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.reconnections < c.MaxReconnectionsTotal
 }
 
 // closeAndReconnect calls close and reconnect.
@@ -217,7 +217,7 @@ func (c *Conn) close() error {
 // reconnect updates the number of reconnections and
 // re-establishes the connection.
 func (c *Conn) reconnect() error {
-	if !c.canConnect() {
+	if !c.CanConnect() {
 		return ErrTooManyReconnects
 	}
 	c.mu.Lock()
