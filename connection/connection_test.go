@@ -116,15 +116,9 @@ func Test_WriteMessage(t *testing.T) {
 			}
 
 			// Write new message. If connection was closed, it should reconnect
-			// and return a write error.
+			// and retry to send the message.
 			err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 
-			if err == nil && tt.wantErr {
-				t.Error("Writing after a disconnect should return an error, close, and reconnect")
-			}
-
-			// Connection should be alive and write should succeed.
-			err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 			if err != nil {
 				t.Errorf("WriteMessage() should have succeeded; err: %v", err)
 			}
@@ -142,9 +136,9 @@ func Test_WriteMessage_ErrNotDailed(t *testing.T) {
 	}
 }
 
-func Test_WriteMessage_ErrNotConnected(t *testing.T) {
+func Test_WriteMessage_ErrCannotReconnect(t *testing.T) {
 	c := NewConn()
-	c.MaxElapsedTime = time.Millisecond
+	c.MaxElapsedTime = 1 * time.Second
 	defer c.Close()
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
@@ -154,21 +148,14 @@ func Test_WriteMessage_ErrNotConnected(t *testing.T) {
 	// Shut server down so reconnection fails.
 	s.Close()
 
-	// Detect the connection has been disconnected through WriteMessage.
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-	if err == nil {
-		t.Error("Writing after a disconnect should return an error, close, and try to reconnect")
-	}
-
-	// This should return ErrNotConnected because IsConnected is false
-	// and it's impossible to reconnect.
-	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-	if !errors.Is(err, ErrNotConnected) {
-		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrNotConnected", err)
+	var reconnectErr *ErrCannotReconnect
+	if !errors.As(err, &reconnectErr) {
+		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrCannotReconnect", err)
 	}
 }
 
-func Test_WriteMessage_ErrCannotReconnect(t *testing.T) {
+func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
 	c := NewConn()
 	c.MaxReconnectionsTotal = 0
 	defer c.Close()
@@ -179,17 +166,11 @@ func Test_WriteMessage_ErrCannotReconnect(t *testing.T) {
 	// Close connection so writes fail.
 	fh.Close()
 
-	// Detect the connection has been disconnected through WriteMessage.
+	// This should return ErrTooManyReconnects because IsConnected is false
+	// and MaxReconnectionsTotal = 0.
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-	if err == nil {
-		t.Error("Writing after a disconnect should return an error, close, and try to reconnect")
-	}
-
-	// This should return ErrCannotReconnect because IsConnected is false
-	// and MaxReconnectionsTotal = 0
-	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-	if !errors.Is(err, ErrCannotReconnect) {
-		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrCannotReconnect", err)
+	if !errors.As(err, &ErrTooManyReconnects) {
+		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrTooManyReconnects", err)
 	}
 }
 
@@ -206,17 +187,12 @@ func Test_CloseAndReconnect(t *testing.T) {
 		fh.Close()
 
 		err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-		if err == nil {
-			t.Error("Writing after a disconnect should return an error, close, and reconnect")
+		if err != nil {
+			t.Errorf("WriteMessage() should succeed after reconnection; err: %v", err)
 		}
 
 		if !c.IsConnected() {
 			t.Error("WriteMessage() failed to reconnect")
-		}
-
-		err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-		if err != nil {
-			t.Errorf("WriteMessage() should succeed after reconnection; err: %v", err)
 		}
 	}
 
@@ -234,14 +210,12 @@ func Test_CloseAndReconnect(t *testing.T) {
 	// is reset.
 	timer := time.NewTimer(2 * c.MaxReconnectionsTime)
 	<-timer.C
-	c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-	if !c.IsConnected() {
-		t.Error("WriteMessage() failed to reconnect after MaxReconnectionsTime")
-	}
 	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 	if err != nil {
-		t.Errorf("WriteMessage() should succeed after reconnection; err: %v",
-			err)
+		t.Errorf("WriteMessage() should succeed after MaxReconnectionsTime; err: %v", err)
+	}
+	if !c.IsConnected() {
+		t.Error("WriteMessage() failed to reconnect after MaxReconnectionsTime")
 	}
 }
 

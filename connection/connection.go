@@ -4,6 +4,7 @@ package connection
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -16,12 +17,9 @@ import (
 )
 
 var (
-	// ErrNotConnected is returned when the application tries to
-	// read/write a message and the connection is closed.
-	ErrNotConnected = errors.New("websocket not connected")
-	// ErrCannotReconnect is returned when the number of reconnections
+	// ErrTooManyReconnects is returned when the number of reconnections
 	// has reached MaxReconnectionsTotal within MaxElapsedTime.
-	ErrCannotReconnect = errors.New("websocket cannot reconnect right now (too many attemps)")
+	ErrTooManyReconnects = errors.New("websocket cannot reconnect right now (too many attemps)")
 	// ErrNotConnected is returned when WriteMessage is called, but
 	// the websocket has not been created yet.
 	ErrNotDailed = errors.New("websocket not created yet, please call Dial()")
@@ -29,6 +27,17 @@ var (
 	// become successful if the request is retried.
 	retryClientErrors = map[int]bool{404: true, 408: true, 425: true}
 )
+
+// ErrCannotReconnect is returned when the application tries to
+// read/write a message, but the connection is closed and
+// a reconnection attempt has failed.
+type ErrCannotReconnect struct {
+	Reason error
+}
+
+func (e *ErrCannotReconnect) Error() string {
+	return fmt.Sprintf("websocket failed to reconnect, err: %v", e.Reason)
+}
 
 // Conn contains the state needed to connect, reconnect, and send
 // messages.
@@ -87,10 +96,15 @@ func NewConn() *Conn {
 // Dial creates a new persistent client connection and sets
 // the necessary state for future reconnections. It also
 // starts a goroutine to reset the number of reconnections.
-// Dail only needs to be called once at start to create the connection.
-// Alternatively, if Close is called, Dial will have to be called
-// again if the connection needs to be recreated.
-// It returns an error if the url is invalid.
+//
+// A call to Dial is a prerequisite to writing any messages.
+// The function only needs to be called once on start to create the
+// connection. Alternatively, if Close is called, Dial will have to
+// be called again if the connection needs to be recreated.
+//
+// The function returns an error if the url is invalid or if
+// a 4XX error (except 404, 408, 425) is received in the HTTP
+// response.
 func (c *Conn) Dial(address string, header http.Header) error {
 	u, err := url.ParseRequestURI(address)
 	if err != nil || (u.Scheme != "ws" && u.Scheme != "wss") {
@@ -111,38 +125,36 @@ func (c *Conn) Dial(address string, header http.Header) error {
 	return c.connect()
 }
 
-// WriteMessage is a helper method for getting a writer using
-// NextWriter, writing the message and closing the writer.
+// WriteMessage sends a message as a slice of bytes.
 // If the write fails or a disconnect has been detected, it will
-// close and reconnect.
+// close the connection and try to reconnect and resend the
+// message.
+//
+// The write will fail under the following conditions:
+// 		1. The client has not called Dial (ErrNotDialed).
+//		2. The connection is disconnected and it was not able to
+//		   reconnect (ErrCannotReconnect/ErrTooManyReconnects).
+//		3. The write call in the websocket package failed
+//		   (gorilla/websocket error).
 func (c *Conn) WriteMessage(messageType int, data []byte) error {
 	if !c.dialed {
 		return ErrNotDailed
 	}
+
 	if !c.IsConnected() {
-		if !c.canConnect() {
-			return ErrCannotReconnect
-		}
-		// If not connected, try to reconnect.
-		// If unsuccessful, return an ErrNorConnected error.
-		c.closeAndReconnect()
-		if !c.IsConnected() {
-			return ErrNotConnected
+		if err := c.closeAndReconnect(); err != nil {
+			return &ErrCannotReconnect{err}
 		}
 	}
-	// It is the call to NextWriter that detects the connection
-	// has been closed by reading the last update to writeErr:
-	// https://github.com/gorilla/websocket/blob/78cf1bc733a927f673fd1988a25256b425552a8a/conn.go#L489.
-	// Calling WriteMessage by itself has a delay of one call to detect a disconnect.
-	w, err := c.ws.NextWriter(messageType)
-	if err == nil {
-		err = c.ws.WriteMessage(messageType, data)
-		w.Close()
+
+	// If the write fails, reconnect and send the message again.
+	if err := c.write(messageType, data); err != nil {
+		if err := c.closeAndReconnect(); err != nil {
+			return &ErrCannotReconnect{err}
+		}
+		return c.write(messageType, data)
 	}
-	if err != nil {
-		c.closeAndReconnect()
-	}
-	return err
+	return nil
 }
 
 // IsConnected returns the WebSocket connection state.
@@ -175,30 +187,36 @@ func (c *Conn) canConnect() bool {
 }
 
 // closeAndReconnect calls close and reconnect.
-func (c *Conn) closeAndReconnect() {
-	c.close()
-	c.reconnect()
+func (c *Conn) closeAndReconnect() error {
+	err := c.close()
+	if err != nil {
+		return err
+	}
+	return c.reconnect()
 }
 
 // close closes the underlying network connection without
 // sending or waiting for a close frame.
 func (c *Conn) close() error {
-	c.isConnected = false
-	if c.ws != nil {
-		return c.ws.Close()
+	if c.IsConnected() {
+		c.isConnected = false
+		if c.ws != nil {
+			return c.ws.Close()
+		}
 	}
 	return nil
 }
 
 // reconnect updates the number of reconnections and
 // re-establishes the connection.
-func (c *Conn) reconnect() {
-	if c.canConnect() {
-		c.mu.Lock()
-		c.reconnections++
-		c.mu.Unlock()
-		c.connect()
+func (c *Conn) reconnect() error {
+	if !c.canConnect() {
+		return ErrTooManyReconnects
 	}
+	c.mu.Lock()
+	c.reconnections++
+	c.mu.Unlock()
+	return c.connect()
 }
 
 // connect creates a new client connection. In case of failure,
@@ -234,6 +252,23 @@ func (c *Conn) connect() error {
 		ticker.Stop()
 		log.Printf("successfully established a connection with %s", c.url.String())
 		return nil
+	}
+	return err
+}
+
+// write is a helper function that gets a writer using NextWriter,
+// writes the message and closes the writer.
+// It returns an error if the calls to NextWriter or WriteMessage
+// return errors.
+func (c *Conn) write(messageType int, data []byte) error {
+	// It is the call to NextWriter that detects the connection
+	// has been closed by reading the last update to writeErr:
+	// https://github.com/gorilla/websocket/blob/78cf1bc733a927f673fd1988a25256b425552a8a/conn.go#L489.
+	// Calling WriteMessage by itself has a delay of one call to detect a disconnect.
+	w, err := c.ws.NextWriter(messageType)
+	if err == nil {
+		err = c.ws.WriteMessage(messageType, data)
+		w.Close()
 	}
 	return err
 }
