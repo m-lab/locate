@@ -144,15 +144,15 @@ paths:
       security:
       - api_key: []
 
-# Heartbeat requests WITH an API key.
-"/v2/platform/heartbeat/":
-  get:
-    description: |-
-      Report the health of an experiment instance.
+  # Heartbeat requests WITH an API key.
+  "/v2/platform/heartbeat/":
+    get:
+      description: |-
+        Report the health of an experiment instance.
 
-      This resource requires an API key.
-    operationId: "v2-heartbeat"
-    security:
+        This resource requires an API key.
+      operationId: "v2-heartbeat"
+      security:
       - api_key: []
 
 definitions:
