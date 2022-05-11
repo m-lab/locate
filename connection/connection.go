@@ -257,11 +257,10 @@ func (c *Conn) connect() error {
 // It returns an error if the calls to NextWriter or WriteMessage
 // return errors.
 func (c *Conn) write(messageType int, data []byte) error {
-	// It is the call to NextWriter that updates writeErr internally:
-	// https://github.com/gorilla/websocket/blob/78cf1bc733a927f673fd1988a25256b425552a8a/conn.go#L489.
-	// Then, the error is returned in the call to WriteMessage.
-	// Calling NextWriter/WriteMessage by itself has a delay of
-	// one call to detect a disconnect.
+	// We want to identify and return write errors as soon as they occur.
+	// The supported interface for WriteMessage does not do that.
+	// Therefore, we are using NextWriter explicitly with Close
+	// to update the error.
 	w, err := c.ws.NextWriter(messageType)
 	if err == nil {
 		err = c.ws.WriteMessage(messageType, data)
