@@ -78,7 +78,7 @@ func Test_Dial_InvalidUrl(t *testing.T) {
 			url:  "foo",
 		},
 		{
-			name: "https",
+			name: "https-invalid-scheme",
 			url:  "https://127.0.0.2:1234/v2/heartbeat/",
 		},
 	}
