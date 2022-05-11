@@ -152,6 +152,9 @@ paths:
 
         This resource requires an API key.
       operationId: "v2-heartbeat"
+      responses:
+        200:
+          description: OK
       security:
       - api_key: []
 
