@@ -79,7 +79,7 @@ func Test_Dial_InvalidUrl(t *testing.T) {
 		},
 		{
 			name: "https",
-			url:  "https://127.0.0.1:46311/v2/heartbeat/",
+			url:  "https://127.0.0.2:1234/v2/heartbeat/",
 		},
 	}
 
@@ -133,12 +133,10 @@ func Test_WriteMessage(t *testing.T) {
 		{
 			name:       "success",
 			disconnect: false,
-			wantErr:    false,
 		},
 		{
 			name:       "disconnect-reconnect",
 			disconnect: true,
-			wantErr:    true,
 		},
 	}
 
@@ -211,7 +209,7 @@ func Test_CloseAndReconnect(t *testing.T) {
 	s := testdata.FakeServer(fh.Upgrade)
 	defer close(c, s)
 	// For testing, make this time window smaller.
-	c.MaxReconnectionsTime = 2 * time.Second
+	c.MaxReconnectionsTime = time.Second
 	c.Dial(s.URL, http.Header{})
 
 	for i := 0; i < static.MaxReconnectionsTotal; i++ {

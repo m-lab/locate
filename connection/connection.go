@@ -24,11 +24,12 @@ var (
 	ErrNotDailed = errors.New("websocket not created yet, please call Dial()")
 	// retryClientErrors contains the list of client (4XX) errors that may
 	// become successful if the request is retried.
-	retryClientErrors = map[int]bool{404: true, 408: true, 425: true}
+	retryClientErrors = map[int]bool{408: true, 425: true}
 )
 
 // Conn contains the state needed to connect, reconnect, and send
 // messages.
+// Default values must be updated before calling `Dial`.
 type Conn struct {
 	// InitialInterval is the first interval at which the backoff starts
 	// running.
@@ -89,7 +90,7 @@ func NewConn() *Conn {
 // be called again if the connection needs to be recreated.
 //
 // The function returns an error if the url is invalid or if
-// a 4XX error (except 404, 408, 425) is received in the HTTP
+// a 4XX error (except 408 and 425) is received in the HTTP
 // response.
 func (c *Conn) Dial(address string, header http.Header) error {
 	u, err := url.ParseRequestURI(address)
@@ -165,8 +166,8 @@ func (c *Conn) CanConnect() bool {
 	return c.reconnections < c.MaxReconnectionsTotal
 }
 
-// Close closes the "stop" channel and the underlying
-// network connection.
+// Close closes the network connection and cleans up private
+// resources after the connection is done.
 func (c *Conn) Close() error {
 	c.isDialed = false
 	c.stop <- true
