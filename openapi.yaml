@@ -150,11 +150,11 @@ paths:
         Report the health of an experiment instance.
         This resource requires an API key.
       operationId: "v2-heartbeat"
+      security:
+        - api_key: []
       responses:
         200:
           description: OK
-      security:
-      - api_key: []
 
 definitions:
   # Define the query reply without being specific about the structure.
