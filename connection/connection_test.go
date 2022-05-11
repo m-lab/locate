@@ -29,6 +29,45 @@ func Test_Dial(t *testing.T) {
 	}
 }
 
+func Test_Dial_ThenClose(t *testing.T) {
+	c := NewConn()
+	fh := testdata.FakeHandler{}
+	s := testdata.FakeServer(fh.Upgrade)
+	defer s.Close()
+
+	if err := c.Dial(s.URL, http.Header{}); err != nil {
+		t.Errorf("Dial() should have returned nil error, err: %v", err)
+	}
+
+	if !c.IsConnected() {
+		t.Error("Dial() error, not connected")
+	}
+
+	if err := c.Close(); err != nil {
+		t.Errorf("Close() should have returned nil error, err: %v", err)
+	}
+
+	if c.IsConnected() {
+		t.Error("Close() error, still connected")
+	}
+
+	if err := c.Dial(s.URL, http.Header{}); err != nil {
+		t.Errorf("Dial() should have returned nil error, err: %v", err)
+	}
+
+	if !c.IsConnected() {
+		t.Error("Dial() error, not connected")
+	}
+
+	if err := c.Close(); err != nil {
+		t.Errorf("Close() should have returned nil error, err: %v", err)
+	}
+
+	if c.IsConnected() {
+		t.Error("Close() error, still connected")
+	}
+}
+
 func Test_Dial_InvalidUrl(t *testing.T) {
 	tests := []struct {
 		name string

@@ -78,13 +78,12 @@ type Conn struct {
 	ticker               time.Ticker
 	mu                   sync.Mutex
 	reconnections        int
-	dialed               bool
+	isDialed             bool
 	isConnected          bool
+	stop                 chan bool
 }
 
-// NewConn creates a new Conn with default values and starts
-// a new goroutine to reset the number of disconnects followed
-// by reconnects per hour.
+// NewConn creates a new Conn with default values.
 func NewConn() *Conn {
 	c := &Conn{
 		InitialInterval:       static.BackoffInitialInterval,
@@ -94,7 +93,6 @@ func NewConn() *Conn {
 		MaxElapsedTime:        static.BackoffMaxElapsedTime,
 		MaxReconnectionsTotal: static.MaxReconnectionsTotal,
 		MaxReconnectionsTime:  static.MaxReconnectionsTime,
-		dialer:                websocket.Dialer{},
 	}
 	return c
 }
@@ -118,13 +116,20 @@ func (c *Conn) Dial(address string, header http.Header) error {
 	}
 	c.url = *u
 
+	c.stop = make(chan bool)
 	c.header = header
-	c.dialed = true
+	c.dialer = websocket.Dialer{}
+	c.isDialed = true
 	c.ticker = *time.NewTicker(c.MaxReconnectionsTime)
 	go func(c *Conn) {
 		for {
-			<-c.ticker.C
-			c.resetReconnections()
+			select {
+			case <-c.stop:
+				c.ticker.Stop()
+				return
+			case <-c.ticker.C:
+				c.resetReconnections()
+			}
 		}
 	}(c)
 
@@ -143,7 +148,7 @@ func (c *Conn) Dial(address string, header http.Header) error {
 //	3. The write call in the websocket package failed
 //	   (gorilla/websocket error).
 func (c *Conn) WriteMessage(messageType int, data []byte) error {
-	if !c.dialed {
+	if !c.isDialed {
 		return ErrNotDailed
 	}
 
@@ -177,11 +182,11 @@ func (c *Conn) CanConnect() bool {
 	return c.reconnections < c.MaxReconnectionsTotal
 }
 
-// Close stops the reconnection ticker and closes the
-// underlying network connection.
+// Close closes the "stop" channel and the underlying
+// network connection.
 func (c *Conn) Close() error {
-	c.dialed = false
-	c.ticker.Stop()
+	c.isDialed = false
+	c.stop <- true
 	return c.close()
 }
 
@@ -268,10 +273,11 @@ func (c *Conn) connect() error {
 // It returns an error if the calls to NextWriter or WriteMessage
 // return errors.
 func (c *Conn) write(messageType int, data []byte) error {
-	// It is the call to NextWriter that detects the connection
-	// has been closed by reading the last update to writeErr:
+	// It is the call to NextWriter that updates writeErr internally:
 	// https://github.com/gorilla/websocket/blob/78cf1bc733a927f673fd1988a25256b425552a8a/conn.go#L489.
-	// Calling WriteMessage by itself has a delay of one call to detect a disconnect.
+	// Then, the error is returned in the call to WriteMessage.
+	// Calling NextWriter/WriteMessage by itself has a delay of
+	// one call to detect a disconnect.
 	w, err := c.ws.NextWriter(messageType)
 	if err == nil {
 		err = c.ws.WriteMessage(messageType, data)
