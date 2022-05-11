@@ -4,7 +4,6 @@ package connection
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -27,23 +26,6 @@ var (
 	// become successful if the request is retried.
 	retryClientErrors = map[int]bool{404: true, 408: true, 425: true}
 )
-
-// ErrCannotReconnect is returned when the application tries to
-// read/write a message, but the connection is closed and
-// a reconnection attempt has failed.
-type ErrCannotReconnect struct {
-	reason error
-}
-
-// Error returns the error message as a string.
-func (e *ErrCannotReconnect) Error() string {
-	return fmt.Sprintf("websocket failed to reconnect, err: %s", e.reason.Error())
-}
-
-// Unwrap unpacks wrapped errors.
-func (e *ErrCannotReconnect) Unwrap() error {
-	return e.reason
-}
 
 // Conn contains the state needed to connect, reconnect, and send
 // messages.
@@ -144,7 +126,8 @@ func (c *Conn) Dial(address string, header http.Header) error {
 // The write will fail under the following conditions:
 //	1. The client has not called Dial (ErrNotDialed).
 //	2. The connection is disconnected and it was not able to
-//	   reconnect (ErrCannotReconnect/ErrTooManyReconnects).
+//	   reconnect (ErrTooManyReconnects or an internal connection
+//	   error).
 //	3. The write call in the websocket package failed
 //	   (gorilla/websocket error).
 func (c *Conn) WriteMessage(messageType int, data []byte) error {
@@ -155,14 +138,14 @@ func (c *Conn) WriteMessage(messageType int, data []byte) error {
 	// If a disconnect has already been detected, try to reconnect.
 	if !c.IsConnected() {
 		if err := c.closeAndReconnect(); err != nil {
-			return &ErrCannotReconnect{err}
+			return err
 		}
 	}
 
 	// If the write fails, reconnect and send the message again.
 	if err := c.write(messageType, data); err != nil {
 		if err := c.closeAndReconnect(); err != nil {
-			return &ErrCannotReconnect{err}
+			return err
 		}
 		return c.write(messageType, data)
 	}

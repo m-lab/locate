@@ -175,25 +175,6 @@ func Test_WriteMessage_ErrNotDailed(t *testing.T) {
 	}
 }
 
-func Test_WriteMessage_ErrCannotReconnect(t *testing.T) {
-	c := NewConn()
-	c.MaxElapsedTime = 1 * time.Second
-	defer c.Close()
-	fh := testdata.FakeHandler{}
-	s := testdata.FakeServer(fh.Upgrade)
-	c.Dial(s.URL, http.Header{})
-	// Close connection so writes fail.
-	fh.Close()
-	// Shut server down so reconnection fails.
-	s.Close()
-
-	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-	var reconnectErr *ErrCannotReconnect
-	if !errors.As(err, &reconnectErr) {
-		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrCannotReconnect", err)
-	}
-}
-
 func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
 	c := NewConn()
 	c.MaxReconnectionsTotal = 0
@@ -266,39 +247,6 @@ func Test_CloseAndReconnect(t *testing.T) {
 	}
 	if !c.IsConnected() {
 		t.Error("WriteMessage() failed to reconnect after MaxReconnectionsTime")
-	}
-}
-
-func Test_ErrCannotReconnect(t *testing.T) {
-	tests := []struct {
-		name   string
-		reason error
-		want   string
-	}{
-		{
-			name:   "wrapped",
-			reason: ErrTooManyReconnects,
-			want:   "websocket failed to reconnect, err: websocket cannot reconnect right now (too many attemps)",
-		},
-		{
-			name:   "foo",
-			reason: errors.New("foo"),
-			want:   "websocket failed to reconnect, err: foo",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ErrCannotReconnect{tt.reason}
-
-			if err.Error() != tt.want {
-				t.Errorf("ErrCannotReconnect.Error() wrong message; got: %s, want: %s", err.Error(), tt.want)
-			}
-
-			if err.Unwrap() != tt.reason {
-				t.Errorf("ErrCannotReconnect.Unwrap() wrong reason; got: %v, want: %v", err.Unwrap(), tt.reason)
-			}
-		})
 	}
 }
 
