@@ -22,9 +22,9 @@ var (
 	// ErrNotDialed is returned when WriteMessage is called, but
 	// the websocket has not been created yet (call Dial).
 	ErrNotDailed = errors.New("websocket not created yet, please call Dial()")
-	// retryClientErrors contains the list of client (4XX) errors that may
-	// become successful if the request is retried.
-	retryClientErrors = map[int]bool{408: true, 425: true}
+	// retryErrors contains the list of errors that may become successful
+	// if the request is retried.
+	retryErrors = map[int]bool{408: true, 425: true, 500: true, 502: true, 503: true, 504: true}
 )
 
 // Conn contains the state needed to connect, reconnect, and send
@@ -228,11 +228,11 @@ func (c *Conn) connect() error {
 	for range ticker.C {
 		ws, resp, err = c.dialer.Dial(c.url.String(), c.header)
 		if err != nil {
-			// Check for client errors indicating we should not retry.
+			// Check for errors indicating we should not retry.
 			if resp != nil {
-				_, retry := retryClientErrors[resp.StatusCode]
-				if resp.StatusCode >= 400 && resp.StatusCode <= 451 && !retry {
-					log.Printf("client error trying to establish a connection with %s, err: %v",
+				_, retry := retryErrors[resp.StatusCode]
+				if !retry {
+					log.Printf("error trying to establish a connection with %s, err: %v",
 						c.url.String(), err)
 					return err
 				}

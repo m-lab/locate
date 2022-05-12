@@ -128,7 +128,6 @@ func Test_WriteMessage(t *testing.T) {
 	tests := []struct {
 		name       string
 		disconnect bool
-		wantErr    bool
 	}{
 		{
 			name:       "success",
