@@ -9,15 +9,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var readDeadline = static.DefaultWebsocketReadDeadline
+var readDeadline = static.WebsocketReadDeadline
 
 // Heartbeat implements /v2/heartbeat requests.
 // It starts a new persistent connection and a new goroutine
 // to read incoming messages.
 func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 	upgrader := websocket.Upgrader{
-		ReadBufferSize:  static.DefaultWebsocketBufferSize,
-		WriteBufferSize: static.DefaultWebsocketBufferSize,
+		ReadBufferSize:  static.WebsocketBufferSize,
+		WriteBufferSize: static.WebsocketBufferSize,
 	}
 	ws, err := upgrader.Upgrade(rw, req, nil)
 	if err != nil {
@@ -40,11 +40,6 @@ func read(ws *websocket.Conn) {
 		}
 		if message != nil {
 			setReadDeadline(ws)
-
-			// When a new message (ping) is received, send a pong
-			// back to let the peer know that the connection is
-			// still alive.
-			ws.WriteControl(websocket.PongMessage, nil, time.Now().Add(time.Second))
 
 			// Save message in Redis.
 		}
