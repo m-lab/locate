@@ -28,8 +28,7 @@ consumes:
 produces:
 - "application/json"
 schemes:
-- "ws"
-- "wss"
+- "https"
 
 paths:
   # DEPRECATED: original v2beta1 query for "nearest" servers.
@@ -143,19 +142,6 @@ paths:
       security:
       - api_key: []
 
-  # Heartbeat requests WITH an API key.
-  "/v2/platform/heartbeat":
-    get:
-      description: |-
-        Report the health of an experiment instance.
-        This resource requires an API key.
-      operationId: "v2-heartbeat"
-      security:
-        - api_key: []
-      responses:
-        200:
-          description: OK
-
 definitions:
   # Define the query reply without being specific about the structure.
   ErrorResult:
@@ -232,7 +218,7 @@ securityDefinitions:
     type: "apiKey"
     description: |-
       An API key for your client integration restricted to the Locate API and
-      allocated using a self-service [signup](https://docs.google.com/forms/d/e/1FAIpQLSeWMiPSRWHIcg5GVRG-oc5kkefLpR4Nqk4aNYBFK6Wr8jAAdw/viewform)
-      or allocated by M-Lab for your client integration (TODO: link).
+      allocated using a self-service signup (TODO: link) or allocated by M-Lab
+      for your client integration (TODO: link).
     name: "key"
     in: "query"
