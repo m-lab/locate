@@ -6,46 +6,46 @@ options:
   - WORKSPACE_LINK=/go/src/github.com/m-lab/locate
 
 steps:
-# Run unit tests for environment.
-- name: gcr.io/$PROJECT_ID/golang-cbif
-  env:
-  - GONOPROXY=github.com/m-lab/go/*
-  args:
-  - go version
-  - go get -v -t ./...
-  - go vet ./...
-  - go test ./... -race
-  - go test -v ./...
+# # Run unit tests for environment.
+# - name: gcr.io/$PROJECT_ID/golang-cbif
+#   env:
+#   - GONOPROXY=github.com/m-lab/go/*
+#   args:
+#   - go version
+#   - go get -v -t ./...
+#   - go vet ./...
+#   - go test ./... -race
+#   - go test -v ./...
 
-# Deployment of platform specific APIs in sandbox & staging & mlab-ns.
-# NOTE: these services are not meant for the public, e.g. /v2/platform/*
-- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif
-  env:
-  # Use cbif condition: only run these steps in one of these projects.
-  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-ns
-  args:
-  - cp cloudbuild/app-platform.yaml.template app-platform.yaml
-  - >
-    sed -i
-    -e 's/{{PROJECT}}/$PROJECT_ID/g'
-    -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
-    app-platform.yaml
-  - gcloud config set app/cloud_build_timeout 900
-  - gcloud --project $PROJECT_ID app deploy --promote app-platform.yaml
-
-# # Deployment of public APIs in sandbox & staging & mlab-ns. e.g. /v2/nearest/*
+# # Deployment of platform specific APIs in sandbox & staging & mlab-ns.
+# # NOTE: these services are not meant for the public, e.g. /v2/platform/*
 # - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif
 #   env:
 #   # Use cbif condition: only run these steps in one of these projects.
 #   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-ns
 #   args:
-#   - cp cloudbuild/app.yaml.template app.yaml
+#   - cp cloudbuild/app-platform.yaml.template app-platform.yaml
 #   - >
 #     sed -i
 #     -e 's/{{PROJECT}}/$PROJECT_ID/g'
 #     -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
-#     app.yaml
-#   - gcloud --project $PROJECT_ID app deploy --promote app.yaml
-#   # After deploying the new service, deploy the openapi spec.
-#   - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' openapi.yaml
-#   - gcloud endpoints services deploy openapi.yaml
+#     app-platform.yaml
+#   - gcloud config set app/cloud_build_timeout 900
+#   - gcloud --project $PROJECT_ID app deploy --promote app-platform.yaml
+
+# Deployment of public APIs in sandbox & staging & mlab-ns. e.g. /v2/nearest/*
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif
+  env:
+  # Use cbif condition: only run these steps in one of these projects.
+  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-ns
+  args:
+  - cp cloudbuild/app.yaml.template app.yaml
+  - >
+    sed -i
+    -e 's/{{PROJECT}}/$PROJECT_ID/g'
+    -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
+    app.yaml
+  - gcloud --project $PROJECT_ID app deploy --promote app.yaml
+  # After deploying the new service, deploy the openapi spec.
+  - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' openapi.yaml
+  - gcloud endpoints services deploy openapi.yaml

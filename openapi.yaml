@@ -20,7 +20,7 @@ info:
     clients.
   title: "M-Lab Locate API"
   version: "2.0.0"
-host: "locate-dot-{{PROJECT}}.appspot.com"
+host: "locate-dot-mlab-sandbox.appspot.com"
 # [END swagger]
 
 consumes:
@@ -28,7 +28,7 @@ consumes:
 produces:
 - "application/json"
 schemes:
-  - ws
+  - https
 
 paths:
   # DEPRECATED: original v2beta1 query for "nearest" servers.
@@ -139,6 +139,8 @@ paths:
             request in the event of error.
           schema:
             $ref: "#/definitions/ErrorResult"
+      security:
+      - api_key: []
 
   # Heartbeat requests WITH an API key.
   "/v2/platform/heartbeat":
@@ -147,6 +149,18 @@ paths:
         Report the health of an experiment instance.
         This resource requires an API key.
       operationId: "v2-heartbeat"
+      security:
+      - api_key: []
+      responses:
+        200:
+          description: OK
+
+  # Test.
+  "/v2/platform/test":
+    get:
+      description: |-
+        Test.
+      operationId: "test"
       security:
       - api_key: []
       responses:
