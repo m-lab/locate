@@ -141,8 +141,6 @@ func main() {
 	mux.HandleFunc("/v2/platform/heartbeat", http.HandlerFunc(c.Heartbeat))
 	// End to end monitoring requests access tokens for specific targets.
 	mux.Handle("/v2/platform/monitoring/", monitoringChain)
-	// Test
-	mux.HandleFunc("/v2/test/", http.HandlerFunc(c.TranslatedQuery))
 
 	// USER APIs
 	// Clients request access tokens for specific services.

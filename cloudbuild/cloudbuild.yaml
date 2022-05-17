@@ -24,6 +24,8 @@ steps:
   # Use cbif condition: only run these steps in one of these projects.
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-ns
   args:
+  - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' openapi-platform.yaml
+  - gcloud endpoints services deploy openapi-platform.yam
   - cp cloudbuild/app-platform.yaml.template app-platform.yaml
   - >
     sed -i
@@ -39,8 +41,6 @@ steps:
   # Use cbif condition: only run these steps in one of these projects.
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-ns
   args:
-  - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' openapi.yaml
-  - gcloud endpoints services deploy openapi.yaml
   - cp cloudbuild/app.yaml.template app.yaml
   - >
     sed -i
@@ -48,3 +48,6 @@ steps:
     -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
     app.yaml
   - gcloud --project $PROJECT_ID app deploy --promote app.yaml
+  # After deploying the new service, deploy the openapi spec.
+  - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' openapi.yaml
+  - gcloud endpoints services deploy openapi.yaml

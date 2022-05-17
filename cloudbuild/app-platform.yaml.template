@@ -2,6 +2,11 @@ runtime: custom
 env: flex
 service: locate-platform
 
+endpoints_api_service:
+  # NOTE: "name" MUST match the "host" name from openapi.yaml
+  name: locate-dot-{{PROJECT}}.appspot.com
+  rollout_strategy: managed
+
 resources:
   cpu: 1
   memory_gb: 4

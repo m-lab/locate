@@ -143,10 +143,6 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	writeResult(rw, http.StatusOK, &result)
 }
 
-func (c *Client) Test(rw http.ResponseWriter, req *http.Request) {
-	writeResult(rw, http.StatusOK, "hello, world")
-}
-
 // getAccessToken allocates a new access token using the given machine name as
 // the intended audience and the subject as the target service.
 func (c *Client) getAccessToken(machine, subject string) string {
