@@ -152,7 +152,7 @@ paths:
       security:
       - api_key: []
       responses:
-        200:
+        '200':
           description: OK
 
   # Test.
@@ -164,8 +164,14 @@ paths:
       security:
       - api_key: []
       responses:
-        200:
+        '200':
           description: OK
+        '500':
+          description: An error occurred while looking for the service.
+            Clients should use the next request fields to schedule the next
+            request in the event of error.
+          schema:
+            $ref: "#/definitions/ErrorResult"
 
 definitions:
   # Define the query reply without being specific about the structure.
