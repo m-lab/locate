@@ -20,7 +20,7 @@ info:
     clients.
   title: "M-Lab Locate API"
   version: "2.0.0"
-host: "locate-dot-mlab-sandbox.appspot.com"
+host: "locate-dot-{{PROJECT}}.appspot.com"
 # [END swagger]
 
 consumes:
@@ -147,6 +147,7 @@ paths:
     get:
       description: |-
         Platform-specific path.
+      operationId: "v2-platform-heartbeat"
       responses:
         '200':
           description: OK.
@@ -157,6 +158,7 @@ paths:
     get:
       description: |-
         Platform-specific path.
+      operationId: "v2-platform-monitoring"
       parameters:
         - name: name
           in: path
