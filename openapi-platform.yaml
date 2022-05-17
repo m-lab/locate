@@ -6,7 +6,7 @@ info:
     (e.g., for monitoring and heartbeats).
   title: "M-Lab Locate Platform API"
   version: "2.0.0"
-host: "locate-dot-{{PROJECT}}.appspot.com"
+host: "locate-platform-dot-{{PROJECT}}.appspot.com"
 # [END swagger]
 
 consumes:
