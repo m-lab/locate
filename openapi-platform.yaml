@@ -22,7 +22,7 @@ paths:
   "/v2/platform/heartbeat":
     get:
       description: |-
-        Report the health of an experiment instance..
+        Report the health of an experiment instance.
       operationId: "v2-platform-heartbeat"
       responses:
         '200':
