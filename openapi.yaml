@@ -29,6 +29,8 @@ produces:
 - "application/json"
 schemes:
 - "https"
+- "ws"
+- "wss"
 
 paths:
   # DEPRECATED: original v2beta1 query for "nearest" servers.
