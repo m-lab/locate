@@ -15,5 +15,6 @@ in the `-heartbeat-url` flag.
 
 ```sh
 $ go build
-$ ./heartbeat -heartbeat-url=ws://locate-dot-mlab-sandbox.appspot.com/v2/platform/heartbeat/
+$ ./heartbeat \
+    -heartbeat-url=ws://locate-dot-mlab-sandbox.appspot.com/v2/platform/heartbeat?key=${API_KEY}
 ```

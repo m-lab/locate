@@ -29,7 +29,6 @@ produces:
 - "application/json"
 schemes:
 - "https"
-- "ws"
 - "wss"
 
 paths:
