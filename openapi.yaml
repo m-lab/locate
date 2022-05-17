@@ -20,7 +20,7 @@ info:
     clients.
   title: "M-Lab Locate API"
   version: "2.0.0"
-host: "locate-dot-{{PROJECT}}.appspot.com"
+host: "locate-dot-mlab-sandbox.appspot.com"
 # [END swagger]
 
 consumes:
@@ -56,6 +56,7 @@ paths:
           description: Nearest results.
           schema:
             $ref: "#/definitions/NearestResult"
+      deprecated: true
 
   # Shared "nearest" requests without an API key.
   "/v2/nearest/{name}/{type}":
@@ -142,6 +143,35 @@ paths:
       security:
       - api_key: []
 
+  "/v2/platform/heartbeat":
+    get:
+      description: |-
+        Platform-specific path.
+      responses:
+        '200':
+          description: OK.
+      security:
+      - api_key: []
+
+  "/v2/platform/monitoring/{name}/{type}":
+    get:
+      description: |-
+        Platform-specific path.
+      parameters:
+        - name: name
+          in: path
+          description: service
+          type: string
+          required: true
+        - name: type
+          in: path
+          description: datatype
+          type: string
+          required: true
+      responses:
+        '200':
+          description: OK.
+
 definitions:
   # Define the query reply without being specific about the structure.
   ErrorResult:
@@ -218,7 +248,7 @@ securityDefinitions:
     type: "apiKey"
     description: |-
       An API key for your client integration restricted to the Locate API and
-      allocated using a self-service signup (TODO: link) or allocated by M-Lab
-      for your client integration (TODO: link).
+      allocated using a self-service [signup](https://docs.google.com/forms/d/e/1FAIpQLSeWMiPSRWHIcg5GVRG-oc5kkefLpR4Nqk4aNYBFK6Wr8jAAdw/viewform)
+      or allocated by M-Lab for your client integration.
     name: "key"
     in: "query"
