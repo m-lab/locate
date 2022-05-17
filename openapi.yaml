@@ -30,6 +30,8 @@ produces:
 schemes:
 - "https"
 
+security:
+  - api_key: []
 paths:
   # DEPRECATED: original v2beta1 query for "nearest" servers.
   # TODO: remove once clients have migrated.
@@ -143,7 +145,7 @@ paths:
       - api_key: []
 
   # Test.
-  "/v2/platform/test/{name}/{type}":
+  "/v2/test/{name}/{type}":
     get:
       description: |-
         Find the nearest healthy service.
