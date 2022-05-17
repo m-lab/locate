@@ -142,36 +142,45 @@ paths:
       security:
       - api_key: []
 
-  # Heartbeat requests WITH an API key.
-  "/v2/platform/heartbeat":
-    get:
-      description: |-
-        Report the health of an experiment instance.
-        This resource requires an API key.
-      operationId: "v2-heartbeat"
-      security:
-      - api_key: []
-      responses:
-        '200':
-          description: OK
-
   # Test.
-  "/v2/platform/test":
+  "/v2/platform/test/{name}/{type}":
     get:
       description: |-
-        Test.
-      operationId: "test"
-      security:
-      - api_key: []
+        Find the nearest healthy service.
+
+        This resource requires an API key. When the system is under sufficient
+        load that the locate API must choose which requests to allow and which
+        to reject, these requests are prioritized over "shared" requests.
+
+      operationId: "v2-priority-nearest"
+      produces:
+      - "application/json"
+      parameters:
+        - name: name
+          in: path
+          description: service
+          type: string
+          required: true
+        - name: type
+          in: path
+          description: datatype
+          type: string
+          required: true
       responses:
         '200':
-          description: OK
+          description: The result of the nearest request. Clients should use the
+            next request fields to schedule the next request for batch
+            scheduling.
+          schema:
+            $ref: "#/definitions/NearestResult"
         '500':
           description: An error occurred while looking for the service.
             Clients should use the next request fields to schedule the next
             request in the event of error.
           schema:
             $ref: "#/definitions/ErrorResult"
+      security:
+      - api_key: []
 
 definitions:
   # Define the query reply without being specific about the structure.
