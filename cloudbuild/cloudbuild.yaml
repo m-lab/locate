@@ -25,7 +25,7 @@ steps:
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-ns
   args:
   - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' openapi-platform.yaml
-  - gcloud endpoints services deploy openapi-platform.yam
+  - gcloud endpoints services deploy openapi-platform.yaml
   - cp cloudbuild/app-platform.yaml.template app-platform.yaml
   - >
     sed -i
