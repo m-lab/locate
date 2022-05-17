@@ -37,7 +37,7 @@ paths:
   "/v2beta1/query/{name}/{type}":
     get:
       description: |-
-        DEPRECATED, use /v2/nearest/ instead.
+        Use /v2/nearest/ instead.
       operationId: "v2beta1-query"
       produces:
       - "application/json"
@@ -58,6 +58,8 @@ paths:
           schema:
             $ref: "#/definitions/NearestResult"
       deprecated: true
+      tags:
+        - public
 
   # Shared "nearest" requests without an API key.
   "/v2/nearest/{name}/{type}":
@@ -103,6 +105,8 @@ paths:
             request in the event of error.
           schema:
             $ref: "#/definitions/ErrorResult"
+      tags:
+        - public
 
   # Priority "nearest" requests WITH an API key.
   "/v2/priority/nearest/{name}/{type}":
@@ -143,6 +147,8 @@ paths:
             $ref: "#/definitions/ErrorResult"
       security:
       - api_key: []
+      tags:
+        - public
 
   "/v2/platform/heartbeat":
     get:
@@ -154,6 +160,8 @@ paths:
           description: OK.
       security:
       - api_key: []
+      tags:
+        - platform
 
   "/v2/platform/monitoring/{name}/{type}":
     get:
@@ -174,6 +182,8 @@ paths:
       responses:
         '200':
           description: OK.
+      tags:
+        - platform
 
 definitions:
   # Define the query reply without being specific about the structure.
@@ -255,3 +265,9 @@ securityDefinitions:
       or allocated by M-Lab for your client integration.
     name: "key"
     in: "query"
+
+tags:
+  - name: public
+    description: Public endpoints.
+  - name: platform
+    description: Platform endpoints.
