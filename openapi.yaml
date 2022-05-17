@@ -268,6 +268,6 @@ securityDefinitions:
 
 tags:
   - name: public
-    description: Public endpoints.
+    description: Public API.
   - name: platform
-    description: Platform endpoints.
+    description: Platform API.
