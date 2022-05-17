@@ -152,7 +152,7 @@ paths:
         load that the locate API must choose which requests to allow and which
         to reject, these requests are prioritized over "shared" requests.
 
-      operationId: "v2-priority-nearest"
+      operationId: "test"
       produces:
       - "application/json"
       parameters:
