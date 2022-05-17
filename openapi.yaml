@@ -28,7 +28,7 @@ consumes:
 produces:
 - "application/json"
 schemes:
-  - https
+- "https"
 
 paths:
   # DEPRECATED: original v2beta1 query for "nearest" servers.
