@@ -3,7 +3,7 @@ env: flex
 service: locate-platform
 
 endpoints_api_service:
-  # NOTE: "name" MUST match the "host" name from openapi.yaml
+  # NOTE: "name" MUST match the "host" name from openapi-platform.yaml
   name: locate-dot-{{PROJECT}}.appspot.com
   rollout_strategy: managed
 
