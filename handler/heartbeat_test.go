@@ -17,7 +17,7 @@ func TestClient_Heartbeat_Error(t *testing.T) {
 	rw := httptest.NewRecorder()
 	// The header from this request will not contain the
 	// necessary "upgrade" tokens.
-	req := httptest.NewRequest(http.MethodGet, "/v2/heartbeat/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v2/heartbeat", nil)
 	c := fakeClient()
 	c.Heartbeat(rw, req)
 

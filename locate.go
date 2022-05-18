@@ -138,7 +138,7 @@ func main() {
 	mux := http.NewServeMux()
 	// PLATFORM APIs
 	// Services report their health to the heartbeat service.
-	mux.HandleFunc("/v2/platform/heartbeat/", http.HandlerFunc(c.Heartbeat))
+	mux.HandleFunc("/v2/platform/heartbeat", http.HandlerFunc(c.Heartbeat))
 	// End to end monitoring requests access tokens for specific targets.
 	mux.Handle("/v2/platform/monitoring/", monitoringChain)
 

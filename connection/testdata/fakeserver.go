@@ -11,9 +11,9 @@ import (
 
 func FakeServer(handler func(http.ResponseWriter, *http.Request)) *httptest.Server {
 	mux := http.NewServeMux()
-	mux.Handle("/v2/heartbeat/", http.HandlerFunc(handler))
+	mux.Handle("/v2/heartbeat", http.HandlerFunc(handler))
 	s := httptest.NewServer(mux)
-	s.URL = strings.Replace(s.URL, "http", "ws", 1) + "/v2/heartbeat/"
+	s.URL = strings.Replace(s.URL, "http", "ws", 1) + "/v2/heartbeat"
 	return s
 }
 

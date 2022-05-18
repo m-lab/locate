@@ -21,7 +21,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&heartbeatURL, "heartbeat-url", "ws://localhost:8080/v2/platform/heartbeat/",
+	flag.StringVar(&heartbeatURL, "heartbeat-url", "ws://localhost:8080/v2/platform/heartbeat",
 		"URL for locate service")
 }
 

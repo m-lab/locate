@@ -29,6 +29,7 @@ produces:
 - "application/json"
 schemes:
 - "https"
+- "wss"
 
 paths:
   # DEPRECATED: original v2beta1 query for "nearest" servers.
@@ -36,7 +37,7 @@ paths:
   "/v2beta1/query/{name}/{type}":
     get:
       description: |-
-        DEPRECATED, use /v2/nearest/ instead.
+        Use /v2/nearest/ instead.
       operationId: "v2beta1-query"
       produces:
       - "application/json"
@@ -56,6 +57,9 @@ paths:
           description: Nearest results.
           schema:
             $ref: "#/definitions/NearestResult"
+      deprecated: true
+      tags:
+        - public
 
   # Shared "nearest" requests without an API key.
   "/v2/nearest/{name}/{type}":
@@ -101,6 +105,8 @@ paths:
             request in the event of error.
           schema:
             $ref: "#/definitions/ErrorResult"
+      tags:
+        - public
 
   # Priority "nearest" requests WITH an API key.
   "/v2/priority/nearest/{name}/{type}":
@@ -141,6 +147,43 @@ paths:
             $ref: "#/definitions/ErrorResult"
       security:
       - api_key: []
+      tags:
+        - public
+
+  "/v2/platform/heartbeat":
+    get:
+      description: |-
+        Platform-specific path.
+      operationId: "v2-platform-heartbeat"
+      responses:
+        '200':
+          description: OK.
+      security:
+      - api_key: []
+      tags:
+        - platform
+
+  "/v2/platform/monitoring/{name}/{type}":
+    get:
+      description: |-
+        Platform-specific path.
+      operationId: "v2-platform-monitoring"
+      parameters:
+        - name: name
+          in: path
+          description: service
+          type: string
+          required: true
+        - name: type
+          in: path
+          description: datatype
+          type: string
+          required: true
+      responses:
+        '200':
+          description: OK.
+      tags:
+        - platform
 
 definitions:
   # Define the query reply without being specific about the structure.
@@ -218,7 +261,13 @@ securityDefinitions:
     type: "apiKey"
     description: |-
       An API key for your client integration restricted to the Locate API and
-      allocated using a self-service signup (TODO: link) or allocated by M-Lab
-      for your client integration (TODO: link).
+      allocated using a self-service [signup](https://docs.google.com/forms/d/e/1FAIpQLSeWMiPSRWHIcg5GVRG-oc5kkefLpR4Nqk4aNYBFK6Wr8jAAdw/viewform)
+      or allocated by M-Lab for your client integration.
     name: "key"
     in: "query"
+
+tags:
+  - name: public
+    description: Public API.
+  - name: platform
+    description: Platform API.

@@ -232,8 +232,8 @@ func (c *Conn) connect() error {
 			if resp != nil {
 				_, retry := retryErrors[resp.StatusCode]
 				if !retry {
-					log.Printf("error trying to establish a connection with %s, err: %v",
-						c.url.String(), err)
+					log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
+						c.url.String(), err, resp.StatusCode)
 					return err
 				}
 			}
