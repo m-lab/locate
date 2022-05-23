@@ -12,8 +12,7 @@ resources:
   memory_gb: 8
 
 network:
-  name: default
-  subnetwork_name: default
+  name: locate
 
 automatic_scaling:
   max_num_instances: 20
