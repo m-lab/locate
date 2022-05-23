@@ -11,6 +11,10 @@ resources:
   cpu: 2
   memory_gb: 8
 
+network:
+  name: default
+  subnetwork_name: default
+
 automatic_scaling:
   max_num_instances: 20
   # Anecdotally, it seems to take roughly 5m for an instance to initialize
