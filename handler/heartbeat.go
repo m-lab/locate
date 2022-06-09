@@ -1,15 +1,36 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/m-lab/locate/cmd/heartbeat/registration"
 	"github.com/m-lab/locate/static"
 	log "github.com/sirupsen/logrus"
 )
 
-var readDeadline = static.WebsocketReadDeadline
+var (
+	readDeadline = static.WebsocketReadDeadline
+	instances    = make(map[string]*healthData)
+)
+
+type HeartbeatMessage struct {
+	MsgType string           `json:"msgType"`
+	Msg     *json.RawMessage `json:"msg"`
+}
+
+type healthData struct {
+	instance registration.RegistrationMessage
+	health   float64
+}
+
+type HealthMessage struct {
+	Hostname string
+	Score    float64
+}
 
 // Heartbeat implements /v2/heartbeat requests.
 // It starts a new persistent connection and a new goroutine
@@ -41,7 +62,42 @@ func read(ws *websocket.Conn) {
 		if message != nil {
 			setReadDeadline(ws)
 
-			// Save message in Redis.
+			var hbm HeartbeatMessage
+			if err := json.Unmarshal(message, &hbm); err != nil {
+				log.Errorf("failed to unmarshal message: %s, err: %v", string(message), err)
+				continue
+			}
+
+			switch hbm.MsgType {
+			case "registration":
+				rm := new(registration.RegistrationMessage)
+				if err := json.Unmarshal(*hbm.Msg, rm); err != nil {
+					log.Errorf("failed to unmarshal registration message: %v, err: %v",
+						hbm.Msg, err)
+					return
+				}
+				instances[rm.Hostname] = &healthData{instance: *rm}
+
+				fmt.Printf("rm: %+v\n", rm)
+			case "health":
+				hm := new(HealthMessage)
+				if err := json.Unmarshal(*hbm.Msg, hm); err != nil {
+					log.Errorf("failed to unmarshal health message: %v, err: %v",
+						hbm.Msg, err)
+					continue
+				}
+				instance, found := instances[hm.Hostname]
+				if !found {
+					log.Errorf("unavailable instance data for %s", hm.Hostname)
+					continue
+				}
+				instance.health = hm.Score
+
+				fmt.Printf("hm: %+v\n", hm)
+
+			case "default":
+				log.Errorf("unknown message type, type: %s", hbm.MsgType)
+			}
 		}
 	}
 }

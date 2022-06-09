@@ -58,6 +58,7 @@ type Conn struct {
 	ws                   *websocket.Conn
 	url                  url.URL
 	header               http.Header
+	registration         []byte
 	ticker               time.Ticker
 	mu                   sync.Mutex
 	reconnections        int
@@ -67,7 +68,7 @@ type Conn struct {
 }
 
 // NewConn creates a new Conn with default values.
-func NewConn() *Conn {
+func NewConn(r []byte) *Conn {
 	c := &Conn{
 		InitialInterval:       static.BackoffInitialInterval,
 		RandomizationFactor:   static.BackoffRandomizationFactor,
@@ -76,6 +77,7 @@ func NewConn() *Conn {
 		MaxElapsedTime:        static.BackoffMaxElapsedTime,
 		MaxReconnectionsTotal: static.MaxReconnectionsTotal,
 		MaxReconnectionsTime:  static.MaxReconnectionsTime,
+		registration:          r,
 	}
 	return c
 }
@@ -215,9 +217,10 @@ func (c *Conn) reconnect() error {
 	return c.connect()
 }
 
-// connect creates a new client connection. In case of failure,
-// it uses an exponential backoff to increase the duration of
-// retry attempts.
+// connect creates a new client connection and sends the
+// registration message.
+// In case of failure, it uses an exponential backoff to
+// increase the duration of retry attempts.
 func (c *Conn) connect() error {
 	b := c.getBackoff()
 	ticker := backoff.NewTicker(b)
@@ -226,27 +229,36 @@ func (c *Conn) connect() error {
 	var resp *http.Response
 	var err error
 	for range ticker.C {
-		ws, resp, err = c.dialer.Dial(c.url.String(), c.header)
-		if err != nil {
-			// Check for errors indicating we should not retry.
-			if resp != nil {
-				_, retry := retryErrors[resp.StatusCode]
-				if !retry {
-					log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
-						c.url.String(), err, resp.StatusCode)
-					return err
+		if !c.isConnected {
+			ws, resp, err = c.dialer.Dial(c.url.String(), c.header)
+			if err != nil {
+				// Check for errors indicating we should not retry.
+				if resp != nil {
+					_, retry := retryErrors[resp.StatusCode]
+					if !retry {
+						log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
+							c.url.String(), err, resp.StatusCode)
+						return err
+					}
 				}
-			}
 
-			log.Printf("could not establish a connection with %s (will retry), err: %v",
-				c.url.String(), err)
+				log.Printf("could not establish a connection with %s (will retry), err: %v",
+					c.url.String(), err)
+				continue
+			}
+			c.ws = ws
+			c.isConnected = true
+			log.Printf("successfully established a connection with %s", c.url.String())
+		}
+
+		err = c.write(websocket.TextMessage, c.registration)
+		if err != nil {
+			log.Printf("failed to send registration message")
 			continue
 		}
 
-		c.ws = ws
-		c.isConnected = true
+		log.Print("successfully sent registration message")
 		ticker.Stop()
-		log.Printf("successfully established a connection with %s", c.url.String())
 		return nil
 	}
 	return err
@@ -261,7 +273,10 @@ func (c *Conn) write(messageType int, data []byte) error {
 	// The supported interface for WriteMessage does not do that.
 	// Therefore, we are using NextWriter explicitly with Close
 	// to update the error.
-	w, err := c.ws.NextWriter(messageType)
+	// NextWriter is called with a PingMessage type because it is
+	// effectively a no-op, while using other message types can
+	// cause side-effects (e.g, loading an empty msg to the buffer).
+	w, err := c.ws.NextWriter(websocket.PingMessage)
 	if err == nil {
 		err = c.ws.WriteMessage(messageType, data)
 		w.Close()

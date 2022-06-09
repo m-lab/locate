@@ -13,7 +13,7 @@ import (
 )
 
 func Test_Dial(t *testing.T) {
-	c := NewConn()
+	c := NewConn([]byte{})
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer close(c, s)
@@ -30,7 +30,7 @@ func Test_Dial(t *testing.T) {
 }
 
 func Test_Dial_ThenClose(t *testing.T) {
-	c := NewConn()
+	c := NewConn([]byte{})
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer s.Close()
@@ -85,7 +85,7 @@ func Test_Dial_InvalidUrl(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewConn()
+			c := NewConn([]byte{})
 			err := c.Dial(tt.url, http.Header{})
 
 			if err == nil {
@@ -96,7 +96,7 @@ func Test_Dial_InvalidUrl(t *testing.T) {
 }
 
 func Test_Dial_ServerDown(t *testing.T) {
-	c := NewConn()
+	c := NewConn([]byte{})
 	defer c.Close()
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
@@ -113,7 +113,7 @@ func Test_Dial_ServerDown(t *testing.T) {
 }
 
 func Test_Dial_BadRequest(t *testing.T) {
-	c := NewConn()
+	c := NewConn([]byte{})
 	fh := testdata.FakeHandler{}
 	// This handler returns a 400 status code.
 	s := testdata.FakeServer(fh.BadUpgrade)
@@ -141,7 +141,7 @@ func Test_WriteMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewConn()
+			c := NewConn([]byte{})
 			fh := testdata.FakeHandler{}
 			s := testdata.FakeServer(fh.Upgrade)
 
@@ -165,7 +165,7 @@ func Test_WriteMessage(t *testing.T) {
 }
 
 func Test_WriteMessage_ErrNotDailed(t *testing.T) {
-	c := NewConn()
+	c := NewConn([]byte{})
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 	if !errors.Is(err, ErrNotDailed) {
 		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrNotDailed", err)
@@ -173,7 +173,7 @@ func Test_WriteMessage_ErrNotDailed(t *testing.T) {
 }
 
 func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
-	c := NewConn()
+	c := NewConn([]byte{})
 	c.MaxReconnectionsTotal = 0
 	defer c.Close()
 	fh := testdata.FakeHandler{}
@@ -203,7 +203,7 @@ func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
 }
 
 func Test_CloseAndReconnect(t *testing.T) {
-	c := NewConn()
+	c := NewConn([]byte{})
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer close(c, s)
