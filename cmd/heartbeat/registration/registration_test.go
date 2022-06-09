@@ -81,7 +81,11 @@ func Test_Load(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u, _ := url.Parse(tt.url)
+			var u *url.URL
+			if tt.url != "" {
+				u, _ = url.Parse(tt.url)
+			}
+
 			gotMsg, gotErr := Load(context.Background(), tt.hostname, u)
 
 			if (gotErr != nil) != tt.wantErr {

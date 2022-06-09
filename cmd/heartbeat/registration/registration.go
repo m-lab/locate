@@ -10,6 +10,8 @@ import (
 	"github.com/m-lab/go/host"
 )
 
+// RegistrationMessage contains a set of identifying fields
+// for a server instance.
 type RegistrationMessage struct {
 	City          string
 	CountryCode   string
@@ -27,6 +29,8 @@ type RegistrationMessage struct {
 	Services      map[string][]string
 }
 
+// Load downloads the registration data from the registration
+// URL and matches it with the provided hostname.
 func Load(ctx context.Context, hostname string, url *url.URL) (*RegistrationMessage, error) {
 	h, err := host.Parse(hostname)
 	if err != nil {
