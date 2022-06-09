@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -77,8 +76,6 @@ func read(ws *websocket.Conn) {
 					return
 				}
 				instances[rm.Hostname] = &healthData{instance: *rm}
-
-				fmt.Printf("rm: %+v\n", rm)
 			case "health":
 				hm := new(HealthMessage)
 				if err := json.Unmarshal(*hbm.Msg, hm); err != nil {
@@ -92,9 +89,6 @@ func read(ws *websocket.Conn) {
 					continue
 				}
 				instance.health = hm.Score
-
-				fmt.Printf("hm: %+v\n", hm)
-
 			case "default":
 				log.Errorf("unknown message type, type: %s", hbm.MsgType)
 			}
