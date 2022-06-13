@@ -6,29 +6,19 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/m-lab/locate/cmd/heartbeat/registration"
+	"github.com/m-lab/locate/cmd/heartbeat/messaging"
 	"github.com/m-lab/locate/static"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
 	readDeadline = static.WebsocketReadDeadline
-	instances    = make(map[string]*healthData)
+	instances    = make(map[string]*instanceData)
 )
 
-type HeartbeatMessage struct {
-	MsgType string           `json:"msgType"`
-	Msg     *json.RawMessage `json:"msg"`
-}
-
-type healthData struct {
-	instance registration.RegistrationMessage
+type instanceData struct {
+	instance messaging.Registration
 	health   float64
-}
-
-type HealthMessage struct {
-	Hostname string
-	Score    float64
 }
 
 // Heartbeat implements /v2/heartbeat requests.
@@ -51,6 +41,7 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 func read(ws *websocket.Conn) {
 	defer ws.Close()
 	setReadDeadline(ws)
+	registered := false
 
 	for {
 		_, message, err := ws.ReadMessage()
@@ -61,36 +52,24 @@ func read(ws *websocket.Conn) {
 		if message != nil {
 			setReadDeadline(ws)
 
-			var hbm HeartbeatMessage
-			if err := json.Unmarshal(message, &hbm); err != nil {
-				log.Errorf("failed to unmarshal message: %s, err: %v", string(message), err)
-				continue
-			}
-
-			switch hbm.MsgType {
-			case "registration":
-				rm := new(registration.RegistrationMessage)
-				if err := json.Unmarshal(*hbm.Msg, rm); err != nil {
-					log.Errorf("failed to unmarshal registration message: %v, err: %v",
-						hbm.Msg, err)
+			if !registered {
+				var rm messaging.Registration
+				if err := json.Unmarshal(message, &rm); err != nil {
+					log.Errorf("failed to unmarshal registration message, err: %v", err)
 					return
 				}
-				instances[rm.Hostname] = &healthData{instance: *rm}
-			case "health":
-				hm := new(HealthMessage)
-				if err := json.Unmarshal(*hbm.Msg, hm); err != nil {
-					log.Errorf("failed to unmarshal health message: %v, err: %v",
-						hbm.Msg, err)
+				instances[rm.Hostname] = &instanceData{instance: rm}
+				registered = true
+			} else {
+				var hm messaging.HealthMessage
+				if err := json.Unmarshal(message, &hm); err != nil {
+					log.Errorf("failed to unmarshal health message, err: %v", err)
 					continue
 				}
-				instance, found := instances[hm.Hostname]
-				if !found {
-					log.Errorf("unavailable instance data for %s", hm.Hostname)
-					continue
+
+				if instance, found := instances[hm.Hostname]; found {
+					instance.health = hm.Score
 				}
-				instance.health = hm.Score
-			default:
-				log.Errorf("unknown message type, type: %s", hbm.MsgType)
 			}
 		}
 	}

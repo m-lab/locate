@@ -67,7 +67,8 @@ type Conn struct {
 	stop                 chan bool
 }
 
-// NewConn creates a new Conn with default values.
+// NewConn creates a new Conn with default values and a given registration
+// message.
 func NewConn(r []byte) *Conn {
 	c := &Conn{
 		InitialInterval:       static.BackoffInitialInterval,
@@ -235,12 +236,12 @@ func (c *Conn) connect() error {
 				log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
 					c.url.String(), err, resp.StatusCode)
 				ticker.Stop()
-				return err
 			}
 			log.Printf("could not establish a connection with %s (will retry), err: %v",
 				c.url.String(), err)
 			continue
 		}
+
 		c.ws = ws
 		c.isConnected = true
 		log.Printf("successfully established a connection with %s", c.url.String())

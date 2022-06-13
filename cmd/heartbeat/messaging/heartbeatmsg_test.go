@@ -1,4 +1,4 @@
-package registration
+package messaging
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 var (
 	validHostname = "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org"
 	validURL      = "file:./testdata/registration.json"
-	validMsg      = &RegistrationMessage{
+	validMsg      = &Registration{
 		City:          "New York",
 		CountryCode:   "US",
 		ContinentCode: "NA",
@@ -28,13 +28,13 @@ var (
 	}
 )
 
-func Test_Load(t *testing.T) {
+func Test_LoadRegistration(t *testing.T) {
 	tests := []struct {
 		name     string
 		hostname string
 		url      string
 		wantErr  bool
-		wantMsg  *RegistrationMessage
+		wantMsg  *Registration
 	}{
 		{
 			name:     "valid-data",
@@ -93,14 +93,14 @@ func Test_Load(t *testing.T) {
 				u, _ = url.Parse(tt.url)
 			}
 
-			gotMsg, gotErr := Load(context.Background(), tt.hostname, u)
+			gotMsg, gotErr := LoadRegistration(context.Background(), tt.hostname, u)
 
 			if (gotErr != nil) != tt.wantErr {
-				t.Errorf("Load() error: %v, want: %v", gotErr, tt.wantErr)
+				t.Errorf("LoadRegistration() error: %v, want: %v", gotErr, tt.wantErr)
 			}
 
 			if diff := deep.Equal(gotMsg, tt.wantMsg); diff != nil {
-				t.Errorf("Load() message did not match; got: %+v, want: %+v", gotMsg, tt.wantMsg)
+				t.Errorf("LoadRegistration() message did not match; got: %+v, want: %+v", gotMsg, tt.wantMsg)
 			}
 		})
 	}
