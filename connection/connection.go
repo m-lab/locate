@@ -224,7 +224,6 @@ func (c *Conn) reconnect() error {
 func (c *Conn) connect() error {
 	b := c.getBackoff()
 	ticker := backoff.NewTicker(b)
-	defer ticker.Stop()
 
 	var ws *websocket.Conn
 	var resp *http.Response
@@ -235,6 +234,7 @@ func (c *Conn) connect() error {
 			if resp != nil && !retryErrors[resp.StatusCode] {
 				log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
 					c.url.String(), err, resp.StatusCode)
+				ticker.Stop()
 				return err
 			}
 			log.Printf("could not establish a connection with %s (will retry), err: %v",
@@ -244,7 +244,7 @@ func (c *Conn) connect() error {
 		c.ws = ws
 		c.isConnected = true
 		log.Printf("successfully established a connection with %s", c.url.String())
-		return nil
+		ticker.Stop()
 	}
 
 	if c.isConnected {
