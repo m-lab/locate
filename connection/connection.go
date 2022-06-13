@@ -230,31 +230,25 @@ func (c *Conn) connect() error {
 	var resp *http.Response
 	var err error
 	for range ticker.C {
-		if !c.isConnected {
-			ws, resp, err = c.dialer.Dial(c.url.String(), c.header)
-			if err == nil {
-				c.ws = ws
-				c.isConnected = true
-				log.Printf("successfully established a connection with %s", c.url.String())
-			} else if resp != nil && !retryErrors[resp.StatusCode] {
+		ws, resp, err = c.dialer.Dial(c.url.String(), c.header)
+		if err != nil {
+			if resp != nil && !retryErrors[resp.StatusCode] {
 				log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
 					c.url.String(), err, resp.StatusCode)
 				return err
-			} else {
-				log.Printf("could not establish a connection with %s (will retry), err: %v",
-					c.url.String(), err)
-				continue
 			}
-		}
-
-		err = c.write(websocket.TextMessage, c.registration)
-		if err != nil {
-			log.Print("failed to send registration message")
+			log.Printf("could not establish a connection with %s (will retry), err: %v",
+				c.url.String(), err)
 			continue
 		}
-
-		log.Print("successfully sent registration message")
+		c.ws = ws
+		c.isConnected = true
+		log.Printf("successfully established a connection with %s", c.url.String())
 		return nil
+	}
+
+	if c.isConnected {
+		err = c.write(websocket.TextMessage, c.registration)
 	}
 	return err
 }

@@ -71,11 +71,13 @@ func write(ws *connection.Conn) {
 			}`)
 
 			b, err := constructHeartbeatMsg("health", healthMsg)
-			if err == nil {
-				err = ws.WriteMessage(websocket.TextMessage, b)
-				if err != nil {
-					log.Printf("failed to write health message, err: %v", err)
-				}
+			if err != nil {
+				continue
+			}
+
+			err = ws.WriteMessage(websocket.TextMessage, b)
+			if err != nil {
+				log.Printf("failed to write health message, err: %v", err)
 			}
 		}
 	}
