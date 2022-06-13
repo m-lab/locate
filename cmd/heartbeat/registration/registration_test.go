@@ -71,6 +71,13 @@ func Test_Load(t *testing.T) {
 			wantMsg:  nil,
 		},
 		{
+			name:     "non-existent-file",
+			hostname: validHostname,
+			url:      "file:./testdata/non-existent.json",
+			wantErr:  true,
+			wantMsg:  nil,
+		},
+		{
 			name:     "hostname-not-found",
 			hostname: "ndt-mlab1-pdx0t.mlab-sandbox.measurement-lab.org",
 			url:      validURL,
