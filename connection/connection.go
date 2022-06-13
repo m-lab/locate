@@ -224,6 +224,7 @@ func (c *Conn) reconnect() error {
 func (c *Conn) connect() error {
 	b := c.getBackoff()
 	ticker := backoff.NewTicker(b)
+	defer ticker.Stop()
 
 	var ws *websocket.Conn
 	var resp *http.Response
@@ -231,34 +232,28 @@ func (c *Conn) connect() error {
 	for range ticker.C {
 		if !c.isConnected {
 			ws, resp, err = c.dialer.Dial(c.url.String(), c.header)
-			if err != nil {
-				// Check for errors indicating we should not retry.
-				if resp != nil {
-					_, retry := retryErrors[resp.StatusCode]
-					if !retry {
-						log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
-							c.url.String(), err, resp.StatusCode)
-						return err
-					}
-				}
-
+			if err == nil {
+				c.ws = ws
+				c.isConnected = true
+				log.Printf("successfully established a connection with %s", c.url.String())
+			} else if resp != nil && !retryErrors[resp.StatusCode] {
+				log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
+					c.url.String(), err, resp.StatusCode)
+				return err
+			} else {
 				log.Printf("could not establish a connection with %s (will retry), err: %v",
 					c.url.String(), err)
 				continue
 			}
-			c.ws = ws
-			c.isConnected = true
-			log.Printf("successfully established a connection with %s", c.url.String())
 		}
 
 		err = c.write(websocket.TextMessage, c.registration)
 		if err != nil {
-			log.Printf("failed to send registration message")
+			log.Print("failed to send registration message")
 			continue
 		}
 
 		log.Print("successfully sent registration message")
-		ticker.Stop()
 		return nil
 	}
 	return err

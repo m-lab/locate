@@ -50,18 +50,15 @@ func Load(ctx context.Context, hostname string, url *url.URL) (*RegistrationMess
 		return nil, err
 	}
 
-	var registrations []RegistrationMessage
+	var registrations map[string]RegistrationMessage
 	err = json.Unmarshal(exp, &registrations)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, r := range registrations {
-		if r.Site == h.Site && r.Machine == h.Machine {
-			r.Hostname = hostname
-			// TODO(cristinaleon): populate experiment and services.
-			return &r, nil
-		}
+	if v, ok := registrations[h.String()]; ok {
+		v.Hostname = hostname
+		return &v, nil
 	}
 
 	return nil, fmt.Errorf("hostname %s not found", hostname)

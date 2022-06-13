@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -72,13 +71,11 @@ func write(ws *connection.Conn) {
 			}`)
 
 			b, err := constructHeartbeatMsg("health", healthMsg)
-			if err != nil {
-				log.Printf("failed to construct health message, err: %v", err)
-			}
-
-			err = ws.WriteMessage(websocket.TextMessage, b)
-			if err != nil {
-				log.Printf("failed to write health message, err: %v", err)
+			if err == nil {
+				err = ws.WriteMessage(websocket.TextMessage, b)
+				if err != nil {
+					log.Printf("failed to write health message, err: %v", err)
+				}
 			}
 		}
 	}
@@ -93,8 +90,9 @@ func constructHeartbeatMsg(msgType string, msg json.RawMessage) ([]byte, error) 
 	}
 	b, err := json.Marshal(hbm)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal heartbeat message, msgType: %s, err: %v",
+		log.Printf("failed to marshal heartbeat message, msgType: %s, err: %v",
 			msgType, err)
+		return nil, err
 	}
 	return b, nil
 }

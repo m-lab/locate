@@ -89,7 +89,7 @@ func read(ws *websocket.Conn) {
 					continue
 				}
 				instance.health = hm.Score
-			case "default":
+			default:
 				log.Errorf("unknown message type, type: %s", hbm.MsgType)
 			}
 		}
