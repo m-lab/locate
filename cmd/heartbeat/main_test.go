@@ -17,7 +17,9 @@ func Test_main(t *testing.T) {
 
 	flag.Set("heartbeat-url", s.URL)
 	flag.Set("hostname", "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org")
-	flag.Set("registration-url", "file:./messaging/testdata/registration.json")
+	flag.Set("experiment", "ndt")
+	flag.Set("registration-url", "file:./testdata/registration.json")
+	flag.Set("services", "ndt/ndt7=ws:///ndt/v7/download,ws:///ndt/v7/upload")
 
 	heartbeatPeriod = 2 * time.Second
 	timer := time.NewTimer(2 * heartbeatPeriod)

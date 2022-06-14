@@ -1,4 +1,4 @@
-package messaging
+package main
 
 import (
 	"context"
@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/go-test/deep"
+	v2 "github.com/m-lab/locate/api/v2"
 )
 
 var (
 	validHostname = "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org"
 	validURL      = "file:./testdata/registration.json"
-	validMsg      = &Registration{
+	validMsg      = &v2.Registration{
 		City:          "New York",
 		CountryCode:   "US",
 		ContinentCode: "NA",
@@ -34,7 +35,7 @@ func Test_LoadRegistration(t *testing.T) {
 		hostname string
 		url      string
 		wantErr  bool
-		wantMsg  *Registration
+		wantMsg  *v2.Registration
 	}{
 		{
 			name:     "valid-data",

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/m-lab/locate/cmd/heartbeat/messaging"
+	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
 	log "github.com/sirupsen/logrus"
 )
@@ -19,7 +19,7 @@ var (
 )
 
 type instanceData struct {
-	instance messaging.Registration
+	instance v2.Registration
 	health   float64
 }
 
@@ -55,7 +55,7 @@ func read(ws *websocket.Conn) {
 			setReadDeadline(ws)
 
 			if !registered {
-				var rm messaging.Registration
+				var rm v2.Registration
 				if err := json.Unmarshal(message, &rm); err != nil {
 					log.Errorf("failed to unmarshal registration message, err: %v", err)
 					return
@@ -63,7 +63,7 @@ func read(ws *websocket.Conn) {
 				registerInstance(rm)
 				registered = true
 			} else {
-				var hm messaging.Health
+				var hm v2.Health
 				if err := json.Unmarshal(message, &hm); err != nil {
 					log.Errorf("failed to unmarshal health message, err: %v", err)
 					continue
@@ -74,13 +74,13 @@ func read(ws *websocket.Conn) {
 	}
 }
 
-func registerInstance(rm messaging.Registration) {
+func registerInstance(rm v2.Registration) {
 	mu.Lock()
 	defer mu.Unlock()
 	instances[rm.Hostname] = &instanceData{instance: rm}
 }
 
-func updateScore(hm messaging.Health) {
+func updateScore(hm v2.Health) {
 	mu.Lock()
 	defer mu.Unlock()
 	if instance, found := instances[hm.Hostname]; found {
