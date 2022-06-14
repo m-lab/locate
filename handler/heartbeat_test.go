@@ -18,19 +18,9 @@ func init() {
 	readDeadline = 50 * time.Millisecond
 }
 
-func TestMain(m *testing.M) {
-	readDeadline = 50 * time.Millisecond
-	m.Run()
-	instances = make(map[string]*instanceData)
-}
-
 func setupTest(t testing.TB) (*websocket.Conn, error, func(tb testing.TB)) {
-	readDeadline = 50 * time.Millisecond
-
 	c := fakeClient()
 	s := httptest.NewServer(http.HandlerFunc(c.Heartbeat))
-	defer s.Close()
-
 	u, _ := url.Parse(s.URL)
 	u.Scheme = "ws"
 	dialer := websocket.Dialer{}
@@ -84,6 +74,8 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
+	mu.RLock()
+	defer mu.RUnlock()
 	val, _ := instances[testdata.FakeHostname]
 	if diff := deep.Equal(testdata.FakeRegistration, val.instance); diff != nil {
 		t.Errorf("Heartbeat() did not save instance information; got: %v, want: %v",
@@ -103,6 +95,8 @@ func TestClient_Heartbeat_InvalidRegistration(t *testing.T) {
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
+	mu.RLock()
+	defer mu.RUnlock()
 	if len(instances) > 0 {
 		t.Errorf("Heartbeat() expected instances to be empty")
 	}
@@ -117,6 +111,8 @@ func TestClient_Heartbeat_InvalidHealth(t *testing.T) {
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
+	mu.RLock()
+	defer mu.RUnlock()
 	val, _ := instances[testdata.FakeHostname]
 	if val.health != 0 {
 		t.Errorf("Heartbeat() should not have updated the health score; got: %f, want: 0",

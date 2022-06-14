@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -14,6 +15,7 @@ import (
 var (
 	readDeadline = static.WebsocketReadDeadline
 	instances    = make(map[string]*instanceData)
+	mu           sync.RWMutex
 )
 
 type instanceData struct {
@@ -58,7 +60,7 @@ func read(ws *websocket.Conn) {
 					log.Errorf("failed to unmarshal registration message, err: %v", err)
 					return
 				}
-				instances[rm.Hostname] = &instanceData{instance: rm}
+				registerInstance(rm)
 				registered = true
 			} else {
 				var hm messaging.Health
@@ -66,12 +68,23 @@ func read(ws *websocket.Conn) {
 					log.Errorf("failed to unmarshal health message, err: %v", err)
 					continue
 				}
-
-				if instance, found := instances[hm.Hostname]; found {
-					instance.health = hm.Score
-				}
+				updateScore(hm)
 			}
 		}
+	}
+}
+
+func registerInstance(rm messaging.Registration) {
+	mu.Lock()
+	defer mu.Unlock()
+	instances[rm.Hostname] = &instanceData{instance: rm}
+}
+
+func updateScore(hm messaging.Health) {
+	mu.Lock()
+	defer mu.Unlock()
+	if instance, found := instances[hm.Hostname]; found {
+		instance.health = hm.Score
 	}
 }
 
