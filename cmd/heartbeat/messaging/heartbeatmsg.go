@@ -29,9 +29,9 @@ type Registration struct {
 	Services      map[string][]string // Mapping of service names.
 }
 
-// HealthMessage is the structure used by the heartbeat service
+// Health is the structure used by the heartbeat service
 // to report health updates.
-type HealthMessage struct {
+type Health struct {
 	Hostname string  // Fully qualified service hostname.
 	Score    float64 // Health score.
 }

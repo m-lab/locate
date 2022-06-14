@@ -61,7 +61,7 @@ func write(ws *connection.Conn) {
 		case <-mainCtx.Done():
 			return
 		case <-ticker.C:
-			healthMsg := messaging.HealthMessage{
+			healthMsg := messaging.Health{
 				Hostname: hostname,
 				Score:    1.0,
 			}

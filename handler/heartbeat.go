@@ -61,7 +61,7 @@ func read(ws *websocket.Conn) {
 				instances[rm.Hostname] = &instanceData{instance: rm}
 				registered = true
 			} else {
-				var hm messaging.HealthMessage
+				var hm messaging.Health
 				if err := json.Unmarshal(message, &hm); err != nil {
 					log.Errorf("failed to unmarshal health message, err: %v", err)
 					continue

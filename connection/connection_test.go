@@ -1,7 +1,6 @@
 package connection
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -9,13 +8,12 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/m-lab/locate/cmd/heartbeat/messaging"
 	"github.com/m-lab/locate/connection/testdata"
 	"github.com/m-lab/locate/static"
 )
 
 func Test_Dial(t *testing.T) {
-	c := NewConn(fakeRegistration())
+	c := NewConn(testdata.EncodedRegistration)
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer close(c, s)
@@ -32,7 +30,7 @@ func Test_Dial(t *testing.T) {
 }
 
 func Test_Dial_ThenClose(t *testing.T) {
-	c := NewConn(fakeRegistration())
+	c := NewConn(testdata.EncodedRegistration)
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer s.Close()
@@ -87,7 +85,7 @@ func Test_Dial_InvalidUrl(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewConn(fakeRegistration())
+			c := NewConn(testdata.EncodedRegistration)
 			err := c.Dial(tt.url, http.Header{})
 
 			if err == nil {
@@ -98,7 +96,7 @@ func Test_Dial_InvalidUrl(t *testing.T) {
 }
 
 func Test_Dial_ServerDown(t *testing.T) {
-	c := NewConn(fakeRegistration())
+	c := NewConn(testdata.EncodedRegistration)
 	defer c.Close()
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
@@ -115,7 +113,7 @@ func Test_Dial_ServerDown(t *testing.T) {
 }
 
 func Test_Dial_BadRequest(t *testing.T) {
-	c := NewConn(fakeRegistration())
+	c := NewConn(testdata.EncodedRegistration)
 	fh := testdata.FakeHandler{}
 	// This handler returns a 400 status code.
 	s := testdata.FakeServer(fh.BadUpgrade)
@@ -143,7 +141,7 @@ func Test_WriteMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewConn(fakeRegistration())
+			c := NewConn(testdata.EncodedRegistration)
 			fh := testdata.FakeHandler{}
 			s := testdata.FakeServer(fh.Upgrade)
 
@@ -167,7 +165,7 @@ func Test_WriteMessage(t *testing.T) {
 }
 
 func Test_WriteMessage_ErrNotDailed(t *testing.T) {
-	c := NewConn(fakeRegistration())
+	c := NewConn(testdata.EncodedRegistration)
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 	if !errors.Is(err, ErrNotDailed) {
 		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrNotDailed", err)
@@ -175,7 +173,7 @@ func Test_WriteMessage_ErrNotDailed(t *testing.T) {
 }
 
 func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
-	c := NewConn(fakeRegistration())
+	c := NewConn(testdata.EncodedRegistration)
 	c.MaxReconnectionsTotal = 0
 	defer c.Close()
 	fh := testdata.FakeHandler{}
@@ -205,7 +203,7 @@ func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
 }
 
 func Test_CloseAndReconnect(t *testing.T) {
-	c := NewConn(fakeRegistration())
+	c := NewConn(testdata.EncodedRegistration)
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer close(c, s)
@@ -247,26 +245,6 @@ func Test_CloseAndReconnect(t *testing.T) {
 	if !c.IsConnected() {
 		t.Error("WriteMessage() failed to reconnect after MaxReconnectionsTime")
 	}
-}
-
-func fakeRegistration() []byte {
-	r := &messaging.Registration{
-		City:          "New York",
-		CountryCode:   "US",
-		ContinentCode: "NA",
-		Experiment:    "",
-		Hostname:      "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org",
-		Latitude:      40.7667,
-		Longitude:     -73.8667,
-		Machine:       "mlab1",
-		Metro:         "lga",
-		Project:       "mlab-sandbox",
-		Site:          "lga0t",
-		Type:          "physical",
-		Uplink:        "10g",
-	}
-	b, _ := json.Marshal(r)
-	return b
 }
 
 func close(c *Conn, s *httptest.Server) {
