@@ -65,6 +65,7 @@ func LoadRegistration(ctx context.Context, hostname string, url *url.URL) (*Regi
 
 	if v, ok := registrations[h.String()]; ok {
 		v.Hostname = hostname
+		// TODO(cristinaleon): Populate services.
 		return &v, nil
 	}
 
