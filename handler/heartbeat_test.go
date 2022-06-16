@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/go-test/deep"
 	"github.com/gorilla/websocket"
+	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/connection/testdata"
 )
@@ -69,8 +71,8 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 	c, ws, _, teardown := setupTest(t)
 	defer teardown(t)
 
-	ws.WriteMessage(1, testdata.EncodedRegistration)
-	ws.WriteMessage(1, testdata.EncodedHealth)
+	ws.WriteJSON(testdata.FakeRegistration)
+	ws.WriteJSON(testdata.FakeHealth)
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
@@ -91,7 +93,7 @@ func TestClient_Heartbeat_InvalidRegistration(t *testing.T) {
 	c, ws, _, teardown := setupTest(t)
 	defer teardown(t)
 
-	ws.WriteMessage(1, []byte("foo"))
+	ws.WriteJSON(v2.Registration{Latitude: math.Inf(1)})
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
@@ -106,8 +108,8 @@ func TestClient_Heartbeat_InvalidHealth(t *testing.T) {
 	c, ws, _, teardown := setupTest(t)
 	defer teardown(t)
 
-	ws.WriteMessage(1, testdata.EncodedRegistration)
-	ws.WriteMessage(1, []byte("foo"))
+	ws.WriteJSON(testdata.FakeRegistration)
+	ws.WriteJSON(v2.Health{Score: math.Inf(1)})
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C

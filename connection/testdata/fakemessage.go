@@ -1,8 +1,6 @@
 package testdata
 
 import (
-	"encoding/json"
-
 	v2 "github.com/m-lab/locate/api/v2"
 )
 
@@ -31,16 +29,8 @@ var (
 			},
 		},
 	}
-	EncodedRegistration = encodeMsg(FakeRegistration)
-
 	FakeHealth = v2.Health{
 		Hostname: FakeHostname,
 		Score:    1.0,
 	}
-	EncodedHealth = encodeMsg(FakeHealth)
 )
-
-func encodeMsg(msg interface{}) []byte {
-	b, _ := json.Marshal(msg)
-	return b
-}
