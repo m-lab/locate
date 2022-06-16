@@ -46,11 +46,11 @@ func main() {
 	r.Services = services.Get()
 
 	// Establish a connection.
-	c := connection.NewConn()
-	err = c.Dial(heartbeatURL, http.Header{}, r)
+	conn := connection.NewConn()
+	err = conn.Dial(heartbeatURL, http.Header{}, r)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
-	write(c)
+	write(conn)
 }
 
 // write starts a write loop to send health messages every

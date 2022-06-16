@@ -11,9 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	readDeadline = static.WebsocketReadDeadline
-)
+var readDeadline = static.WebsocketReadDeadline
 
 type instanceData struct {
 	instance v2.Registration
