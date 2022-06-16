@@ -58,7 +58,7 @@ type Conn struct {
 	ws                   *websocket.Conn
 	url                  url.URL
 	header               http.Header
-	dialMessage          []byte
+	dialMessage          interface{}
 	ticker               time.Ticker
 	mu                   sync.Mutex
 	reconnections        int
@@ -93,7 +93,7 @@ func NewConn() *Conn {
 // The function returns an error if the url is invalid or if
 // a 4XX error (except 408 and 425) is received in the HTTP
 // response.
-func (c *Conn) Dial(address string, header http.Header, dialMsg []byte) error {
+func (c *Conn) Dial(address string, header http.Header, dialMsg interface{}) error {
 	u, err := url.ParseRequestURI(address)
 	if err != nil || (u.Scheme != "ws" && u.Scheme != "wss") {
 		return errors.New("malformed ws or wss URL")
@@ -132,7 +132,7 @@ func (c *Conn) Dial(address string, header http.Header, dialMsg []byte) error {
 //	   error).
 //	3. The write call in the websocket package failed
 //	   (gorilla/websocket error).
-func (c *Conn) WriteMessage(messageType int, data []byte) error {
+func (c *Conn) WriteMessage(messageType int, data interface{}) error {
 	if !c.isDialed {
 		return ErrNotDailed
 	}
@@ -258,7 +258,7 @@ func (c *Conn) connect() error {
 // writes the message and closes the writer.
 // It returns an error if the calls to NextWriter or WriteMessage
 // return errors.
-func (c *Conn) write(messageType int, data []byte) error {
+func (c *Conn) write(messageType int, data interface{}) error {
 	// We want to identify and return write errors as soon as they occur.
 	// The supported interface for WriteMessage does not do that.
 	// Therefore, we are using NextWriter explicitly with Close
@@ -268,7 +268,7 @@ func (c *Conn) write(messageType int, data []byte) error {
 	// cause side-effects (e.g, loading an empty msg to the buffer).
 	w, err := c.ws.NextWriter(websocket.PingMessage)
 	if err == nil {
-		err = c.ws.WriteMessage(messageType, data)
+		err = c.ws.WriteJSON(data)
 		w.Close()
 	}
 	return err

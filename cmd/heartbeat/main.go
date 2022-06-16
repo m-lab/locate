@@ -46,16 +46,16 @@ func main() {
 	r.Services = services.Get()
 
 	// Establish a connection.
-	hbc := connection.NewHeartbeatConn()
-	err = hbc.Dial(heartbeatURL, http.Header{}, *r)
+	c := connection.NewConn()
+	err = c.Dial(heartbeatURL, http.Header{}, r)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
-	write(hbc)
+	write(c)
 }
 
 // write starts a write loop to send health messages every
 // HeartbeatPeriod.
-func write(ws *connection.HeartbeatConn) {
+func write(ws *connection.Conn) {
 	defer ws.Close()
 	ticker := *time.NewTicker(heartbeatPeriod)
 	defer ticker.Stop()
