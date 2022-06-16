@@ -120,7 +120,7 @@ func (c *Conn) Dial(address string, header http.Header, dialMsg interface{}) err
 	return c.connect()
 }
 
-// WriteMessage sends a message as a slice of bytes.
+// WriteMessage sends the JSON encoding of `data` as a message.
 // If the write fails or a disconnect has been detected, it will
 // close the connection and try to reconnect and resend the
 // message.
@@ -256,7 +256,7 @@ func (c *Conn) connect() error {
 
 // write is a helper function that gets a writer using NextWriter,
 // writes the message and closes the writer.
-// It returns an error if the calls to NextWriter or WriteMessage
+// It returns an error if the calls to NextWriter or WriteJSON
 // return errors.
 func (c *Conn) write(messageType int, data interface{}) error {
 	// We want to identify and return write errors as soon as they occur.
