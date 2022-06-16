@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -14,8 +13,6 @@ import (
 
 var (
 	readDeadline = static.WebsocketReadDeadline
-	instances    = make(map[string]*instanceData)
-	mu           sync.RWMutex
 )
 
 type instanceData struct {
@@ -36,11 +33,11 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 		log.Errorf("failed to establish a connection: %v", err)
 		return
 	}
-	go read(ws)
+	go c.handleHeartbeats(ws)
 }
 
-// read handles incoming messages from the connection.
-func read(ws *websocket.Conn) {
+// handleHeartbeats handles incoming messages from the connection.
+func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 	defer ws.Close()
 	setReadDeadline(ws)
 	registered := false
@@ -60,7 +57,7 @@ func read(ws *websocket.Conn) {
 					log.Errorf("failed to unmarshal registration message, err: %v", err)
 					return
 				}
-				registerInstance(rm)
+				c.registerInstance(rm)
 				registered = true
 			} else {
 				var hm v2.Health
@@ -68,22 +65,22 @@ func read(ws *websocket.Conn) {
 					log.Errorf("failed to unmarshal health message, err: %v", err)
 					continue
 				}
-				updateScore(hm)
+				c.updateScore(hm)
 			}
 		}
 	}
 }
 
-func registerInstance(rm v2.Registration) {
-	mu.Lock()
-	defer mu.Unlock()
-	instances[rm.Hostname] = &instanceData{instance: rm}
+func (c *Client) registerInstance(rm v2.Registration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.instances[rm.Hostname] = &instanceData{instance: rm}
 }
 
-func updateScore(hm v2.Health) {
-	mu.Lock()
-	defer mu.Unlock()
-	if instance, found := instances[hm.Hostname]; found {
+func (c *Client) updateScore(hm v2.Health) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if instance, found := c.instances[hm.Hostname]; found {
 		instance.health = hm.Score
 	}
 }

@@ -58,7 +58,7 @@ type Conn struct {
 	ws                   *websocket.Conn
 	url                  url.URL
 	header               http.Header
-	registration         []byte
+	dialMessage          []byte
 	ticker               time.Ticker
 	mu                   sync.Mutex
 	reconnections        int
@@ -67,9 +67,8 @@ type Conn struct {
 	stop                 chan bool
 }
 
-// NewConn creates a new Conn with default values and a given registration
-// message.
-func NewConn(r []byte) *Conn {
+// NewConn creates a new Conn with default values.
+func NewConn() *Conn {
 	c := &Conn{
 		InitialInterval:       static.BackoffInitialInterval,
 		RandomizationFactor:   static.BackoffRandomizationFactor,
@@ -78,7 +77,6 @@ func NewConn(r []byte) *Conn {
 		MaxElapsedTime:        static.BackoffMaxElapsedTime,
 		MaxReconnectionsTotal: static.MaxReconnectionsTotal,
 		MaxReconnectionsTime:  static.MaxReconnectionsTime,
-		registration:          r,
 	}
 	return c
 }
@@ -95,13 +93,13 @@ func NewConn(r []byte) *Conn {
 // The function returns an error if the url is invalid or if
 // a 4XX error (except 408 and 425) is received in the HTTP
 // response.
-func (c *Conn) Dial(address string, header http.Header) error {
+func (c *Conn) Dial(address string, header http.Header, dialMsg []byte) error {
 	u, err := url.ParseRequestURI(address)
 	if err != nil || (u.Scheme != "ws" && u.Scheme != "wss") {
 		return errors.New("malformed ws or wss URL")
 	}
 	c.url = *u
-
+	c.dialMessage = dialMsg
 	c.stop = make(chan bool)
 	c.header = header
 	c.dialer = websocket.Dialer{}
@@ -172,8 +170,10 @@ func (c *Conn) CanConnect() bool {
 // Close closes the network connection and cleans up private
 // resources after the connection is done.
 func (c *Conn) Close() error {
-	c.isDialed = false
-	c.stop <- true
+	if c.isDialed {
+		c.isDialed = false
+		c.stop <- true
+	}
 	return c.close()
 }
 
@@ -249,7 +249,7 @@ func (c *Conn) connect() error {
 	}
 
 	if c.isConnected {
-		err = c.write(websocket.TextMessage, c.registration)
+		err = c.write(websocket.TextMessage, c.dialMessage)
 	}
 	return err
 }

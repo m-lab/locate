@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -34,6 +35,8 @@ type Client struct {
 	Locator
 	ClientLocator
 	targetTmpl *template.Template
+	instances  map[string]*instanceData
+	mu         sync.RWMutex
 }
 
 // Locator defines how the TranslatedQuery handler requests machines nearest to
@@ -60,6 +63,7 @@ func NewClient(project string, private Signer, locator Locator, client ClientLoc
 		Locator:       locator,
 		ClientLocator: client,
 		targetTmpl:    template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
+		instances:     make(map[string]*instanceData),
 	}
 }
 
@@ -72,6 +76,7 @@ func NewClientDirect(project string, private Signer, locator Locator, client Cli
 		ClientLocator: client,
 		// Useful for the locatetest package when running a local server.
 		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
+		instances:  make(map[string]*instanceData),
 	}
 }
 

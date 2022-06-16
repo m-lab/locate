@@ -13,12 +13,12 @@ import (
 )
 
 func Test_Dial(t *testing.T) {
-	c := NewConn(testdata.EncodedRegistration)
+	c := NewConn()
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer close(c, s)
 
-	err := c.Dial(s.URL, http.Header{})
+	err := c.Dial(s.URL, http.Header{}, testdata.EncodedRegistration)
 
 	if err != nil {
 		t.Errorf("Dial() should have returned nil error, err: %v", err)
@@ -30,12 +30,12 @@ func Test_Dial(t *testing.T) {
 }
 
 func Test_Dial_ThenClose(t *testing.T) {
-	c := NewConn(testdata.EncodedRegistration)
+	c := NewConn()
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer s.Close()
 
-	if err := c.Dial(s.URL, http.Header{}); err != nil {
+	if err := c.Dial(s.URL, http.Header{}, testdata.EncodedRegistration); err != nil {
 		t.Errorf("Dial() should have returned nil error, err: %v", err)
 	}
 
@@ -51,7 +51,7 @@ func Test_Dial_ThenClose(t *testing.T) {
 		t.Error("Close() error, still connected")
 	}
 
-	if err := c.Dial(s.URL, http.Header{}); err != nil {
+	if err := c.Dial(s.URL, http.Header{}, testdata.EncodedRegistration); err != nil {
 		t.Errorf("Dial() should have returned nil error, err: %v", err)
 	}
 
@@ -85,8 +85,8 @@ func Test_Dial_InvalidUrl(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewConn(testdata.EncodedRegistration)
-			err := c.Dial(tt.url, http.Header{})
+			c := NewConn()
+			err := c.Dial(tt.url, http.Header{}, testdata.EncodedRegistration)
 
 			if err == nil {
 				t.Error("Dial() should return an error when given an invalid URL")
@@ -96,7 +96,7 @@ func Test_Dial_InvalidUrl(t *testing.T) {
 }
 
 func Test_Dial_ServerDown(t *testing.T) {
-	c := NewConn(testdata.EncodedRegistration)
+	c := NewConn()
 	defer c.Close()
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
@@ -106,18 +106,18 @@ func Test_Dial_ServerDown(t *testing.T) {
 	c.InitialInterval = 500 * time.Millisecond
 	c.MaxElapsedTime = time.Second
 
-	err := c.Dial(s.URL, http.Header{})
+	err := c.Dial(s.URL, http.Header{}, testdata.EncodedRegistration)
 	if err == nil {
 		t.Error("Dial() should return an error once backoff ticker stops")
 	}
 }
 
 func Test_Dial_BadRequest(t *testing.T) {
-	c := NewConn(testdata.EncodedRegistration)
+	c := NewConn()
 	fh := testdata.FakeHandler{}
 	// This handler returns a 400 status code.
 	s := testdata.FakeServer(fh.BadUpgrade)
-	err := c.Dial(s.URL, http.Header{})
+	err := c.Dial(s.URL, http.Header{}, testdata.EncodedRegistration)
 
 	if err == nil {
 		t.Error("Dial() should fail when a 400 response status code is received")
@@ -141,11 +141,11 @@ func Test_WriteMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewConn(testdata.EncodedRegistration)
+			c := NewConn()
 			fh := testdata.FakeHandler{}
 			s := testdata.FakeServer(fh.Upgrade)
 
-			c.Dial(s.URL, http.Header{})
+			c.Dial(s.URL, http.Header{}, testdata.EncodedRegistration)
 
 			if tt.disconnect {
 				fh.Close()
@@ -165,7 +165,7 @@ func Test_WriteMessage(t *testing.T) {
 }
 
 func Test_WriteMessage_ErrNotDailed(t *testing.T) {
-	c := NewConn(testdata.EncodedRegistration)
+	c := NewConn()
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 	if !errors.Is(err, ErrNotDailed) {
 		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrNotDailed", err)
@@ -173,13 +173,13 @@ func Test_WriteMessage_ErrNotDailed(t *testing.T) {
 }
 
 func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
-	c := NewConn(testdata.EncodedRegistration)
+	c := NewConn()
 	c.MaxReconnectionsTotal = 0
 	defer c.Close()
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer s.Close()
-	c.Dial(s.URL, http.Header{})
+	c.Dial(s.URL, http.Header{}, testdata.EncodedRegistration)
 	// Close connection so writes fail.
 	fh.Close()
 
@@ -203,13 +203,13 @@ func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
 }
 
 func Test_CloseAndReconnect(t *testing.T) {
-	c := NewConn(testdata.EncodedRegistration)
+	c := NewConn()
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer close(c, s)
 	// For testing, make this time window smaller.
 	c.MaxReconnectionsTime = time.Second
-	c.Dial(s.URL, http.Header{})
+	c.Dial(s.URL, http.Header{}, testdata.EncodedRegistration)
 
 	for i := 0; i < static.MaxReconnectionsTotal; i++ {
 		fh.Close()

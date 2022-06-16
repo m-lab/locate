@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"log"
 	"net/http"
@@ -45,20 +44,18 @@ func main() {
 	// Populate flag values.
 	r.Experiment = experiment
 	r.Services = services.Get()
-	b, err := json.Marshal(r)
-	rtx.Must(err, "failed to marshal registration message, msg: %v", r)
 
 	// Establish a connection.
-	conn := connection.NewConn(b)
-	err = conn.Dial(heartbeatURL, http.Header{})
+	hbc := connection.NewHeartbeatConn()
+	err = hbc.Dial(heartbeatURL, http.Header{}, *r)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
-	write(conn)
+	write(hbc)
 }
 
 // write starts a write loop to send health messages every
 // HeartbeatPeriod.
-func write(ws *connection.Conn) {
+func write(ws *connection.HeartbeatConn) {
 	defer ws.Close()
 	ticker := *time.NewTicker(heartbeatPeriod)
 	defer ticker.Stop()
@@ -72,10 +69,7 @@ func write(ws *connection.Conn) {
 				Hostname: hostname,
 				Score:    1.0,
 			}
-			b, err := json.Marshal(healthMsg)
-			if err == nil {
-				err = ws.WriteMessage(websocket.TextMessage, b)
-			}
+			err := ws.WriteMessage(websocket.TextMessage, healthMsg)
 			if err != nil {
 				log.Printf("failed to write health message, err: %v", err)
 			}

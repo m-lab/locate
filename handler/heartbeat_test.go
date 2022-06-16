@@ -18,7 +18,7 @@ func init() {
 	readDeadline = 50 * time.Millisecond
 }
 
-func setupTest(t testing.TB) (*websocket.Conn, error, func(tb testing.TB)) {
+func setupTest(t testing.TB) (*Client, *websocket.Conn, error, func(tb testing.TB)) {
 	c := fakeClient()
 	s := httptest.NewServer(http.HandlerFunc(c.Heartbeat))
 	u, _ := url.Parse(s.URL)
@@ -26,10 +26,10 @@ func setupTest(t testing.TB) (*websocket.Conn, error, func(tb testing.TB)) {
 	dialer := websocket.Dialer{}
 	ws, _, err := dialer.Dial(u.String(), http.Header{})
 
-	return ws, err, func(t testing.TB) {
+	return c, ws, err, func(t testing.TB) {
 		s.Close()
 		ws.Close()
-		instances = make(map[string]*instanceData)
+		c.instances = make(map[string]*instanceData)
 	}
 }
 
@@ -47,7 +47,7 @@ func TestClient_Heartbeat_Error(t *testing.T) {
 }
 
 func TestClient_Heartbeat_Timeout(t *testing.T) {
-	_, err, teardown := setupTest(t)
+	_, _, err, teardown := setupTest(t)
 	defer teardown(t)
 
 	if err != nil {
@@ -66,7 +66,7 @@ func TestClient_Heartbeat_Timeout(t *testing.T) {
 }
 
 func TestClient_Heartbeat_Success(t *testing.T) {
-	ws, _, teardown := setupTest(t)
+	c, ws, _, teardown := setupTest(t)
 	defer teardown(t)
 
 	ws.WriteMessage(1, testdata.EncodedRegistration)
@@ -74,9 +74,9 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
-	mu.RLock()
-	defer mu.RUnlock()
-	val, _ := instances[testdata.FakeHostname]
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	val, _ := c.instances[testdata.FakeHostname]
 	if diff := deep.Equal(testdata.FakeRegistration, val.instance); diff != nil {
 		t.Errorf("Heartbeat() did not save instance information; got: %v, want: %v",
 			val.instance, testdata.FakeRegistration)
@@ -88,22 +88,22 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 }
 
 func TestClient_Heartbeat_InvalidRegistration(t *testing.T) {
-	ws, _, teardown := setupTest(t)
+	c, ws, _, teardown := setupTest(t)
 	defer teardown(t)
 
 	ws.WriteMessage(1, []byte("foo"))
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
-	mu.RLock()
-	defer mu.RUnlock()
-	if len(instances) > 0 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if len(c.instances) > 0 {
 		t.Errorf("Heartbeat() expected instances to be empty")
 	}
 }
 
 func TestClient_Heartbeat_InvalidHealth(t *testing.T) {
-	ws, _, teardown := setupTest(t)
+	c, ws, _, teardown := setupTest(t)
 	defer teardown(t)
 
 	ws.WriteMessage(1, testdata.EncodedRegistration)
@@ -111,9 +111,9 @@ func TestClient_Heartbeat_InvalidHealth(t *testing.T) {
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
-	mu.RLock()
-	defer mu.RUnlock()
-	val, _ := instances[testdata.FakeHostname]
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	val, _ := c.instances[testdata.FakeHostname]
 	if val.health != 0 {
 		t.Errorf("Heartbeat() should not have updated the health score; got: %f, want: 0",
 			val.health)
