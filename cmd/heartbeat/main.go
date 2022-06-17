@@ -44,10 +44,11 @@ func main() {
 	// Populate flag values.
 	r.Experiment = experiment
 	r.Services = services.Get()
+	hbm := v2.HeartbeatMessage{Registration: r}
 
 	// Establish a connection.
 	conn := connection.NewConn()
-	err = conn.Dial(heartbeatURL, http.Header{}, r)
+	err = conn.Dial(heartbeatURL, http.Header{}, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
 	write(conn)
@@ -65,11 +66,10 @@ func write(ws *connection.Conn) {
 		case <-mainCtx.Done():
 			return
 		case <-ticker.C:
-			healthMsg := v2.Health{
-				Hostname: hostname,
-				Score:    1.0,
-			}
-			err := ws.WriteMessage(websocket.TextMessage, healthMsg)
+			healthMsg := v2.Health{Hostname: hostname, Score: 1.0}
+			hbm := v2.HeartbeatMessage{Health: &healthMsg}
+
+			err := ws.WriteMessage(websocket.TextMessage, hbm)
 			if err != nil {
 				log.Printf("failed to write health message, err: %v", err)
 			}

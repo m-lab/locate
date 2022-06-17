@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-test/deep"
 	"github.com/gorilla/websocket"
-	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/connection/testdata"
 )
@@ -79,21 +78,23 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	val, _ := c.instances[testdata.FakeHostname]
-	if diff := deep.Equal(testdata.FakeRegistration, val.instance); diff != nil {
+	if diff := deep.Equal(val.instance, *testdata.FakeRegistration.Registration); diff != nil {
 		t.Errorf("Heartbeat() did not save instance information; got: %v, want: %v",
-			val.instance, testdata.FakeRegistration)
+			val.instance, *testdata.FakeRegistration.Registration)
 	}
-	if val.health != testdata.FakeHealth.Score {
+	if val.health != testdata.FakeHealth.Health.Score {
 		t.Errorf("Heartbeat() did not update health score; got: %f, want: %f",
-			val.health, testdata.FakeHealth.Score)
+			val.health, testdata.FakeHealth.Health.Score)
 	}
 }
 
-func TestClient_Heartbeat_InvalidRegistration(t *testing.T) {
+func TestClient_Heartbeat_CannotUnmarshalMsg(t *testing.T) {
 	c, ws, _, teardown := setupTest(t)
 	defer teardown(t)
 
-	ws.WriteJSON(v2.Registration{Latitude: math.Inf(1)})
+	r := testdata.FakeRegistration
+	r.Registration.Latitude = math.Inf(1)
+	ws.WriteJSON(r)
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
@@ -104,21 +105,21 @@ func TestClient_Heartbeat_InvalidRegistration(t *testing.T) {
 	}
 }
 
-func TestClient_Heartbeat_InvalidHealth(t *testing.T) {
+func TestClient_Heartbeat_InvalidRegistrationType(t *testing.T) {
 	c, ws, _, teardown := setupTest(t)
 	defer teardown(t)
 
-	ws.WriteJSON(testdata.FakeRegistration)
-	ws.WriteJSON(v2.Health{Score: math.Inf(1)})
+	type test struct {
+		Foo string
+	}
+	ws.WriteJSON(test{Foo: "bar"})
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	val, _ := c.instances[testdata.FakeHostname]
-	if val.health != 0 {
-		t.Errorf("Heartbeat() should not have updated the health score; got: %f, want: 0",
-			val.health)
+	if len(c.instances) > 0 {
+		t.Errorf("Heartbeat() expected instances to be empty")
 	}
 }
 

@@ -38,7 +38,6 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 	defer ws.Close()
 	setReadDeadline(ws)
-	registered := false
 
 	for {
 		_, message, err := ws.ReadMessage()
@@ -49,21 +48,17 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 		if message != nil {
 			setReadDeadline(ws)
 
-			if !registered {
-				var rm v2.Registration
-				if err := json.Unmarshal(message, &rm); err != nil {
-					log.Errorf("failed to unmarshal registration message, err: %v", err)
-					return
-				}
-				c.registerInstance(rm)
-				registered = true
-			} else {
-				var hm v2.Health
-				if err := json.Unmarshal(message, &hm); err != nil {
-					log.Errorf("failed to unmarshal health message, err: %v", err)
-					continue
-				}
-				c.updateScore(hm)
+			var hbm v2.HeartbeatMessage
+			if err := json.Unmarshal(message, &hbm); err != nil {
+				log.Errorf("failed to unmarshal heartbeat message, err: %v", err)
+				continue
+			}
+
+			switch {
+			case hbm.Registration != nil:
+				c.registerInstance(*hbm.Registration)
+			case hbm.Health != nil:
+				c.updateScore(*hbm.Health)
 			}
 		}
 	}

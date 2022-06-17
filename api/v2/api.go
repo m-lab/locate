@@ -133,6 +133,13 @@ func NewError(typ, title string, status int) *Error {
 	}
 }
 
+// HeartbeatMessage contains pointers to structs of the types
+// of messages accepted by the heartbeat service.
+type HeartbeatMessage struct {
+	Health       *Health
+	Registration *Registration
+}
+
 // Registration contains a set of identifying fields
 // for a server instance.
 type Registration struct {
