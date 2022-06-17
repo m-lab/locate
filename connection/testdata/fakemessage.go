@@ -33,8 +33,7 @@ var (
 	}
 	FakeHealth = v2.HeartbeatMessage{
 		Health: &v2.Health{
-			Hostname: FakeHostname,
-			Score:    1.0,
+			Score: 1.0,
 		},
 	}
 )

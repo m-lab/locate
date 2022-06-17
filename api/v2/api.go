@@ -162,6 +162,5 @@ type Registration struct {
 // Health is the structure used by the heartbeat service
 // to report health updates.
 type Health struct {
-	Hostname string  // Fully qualified service hostname.
-	Score    float64 // Health score.
+	Score float64 // Health score.
 }

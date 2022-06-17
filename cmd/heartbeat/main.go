@@ -66,7 +66,7 @@ func write(ws *connection.Conn) {
 		case <-mainCtx.Done():
 			return
 		case <-ticker.C:
-			healthMsg := v2.Health{Hostname: hostname, Score: 1.0}
+			healthMsg := v2.Health{Score: 1.0}
 			hbm := v2.HeartbeatMessage{Health: &healthMsg}
 
 			err := ws.WriteMessage(websocket.TextMessage, hbm)

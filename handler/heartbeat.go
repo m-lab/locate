@@ -13,11 +13,6 @@ import (
 
 var readDeadline = static.WebsocketReadDeadline
 
-type instanceData struct {
-	instance v2.Registration
-	health   float64
-}
-
 // Heartbeat implements /v2/heartbeat requests.
 // It starts a new persistent connection and a new goroutine
 // to read incoming messages.
@@ -39,6 +34,7 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 	defer ws.Close()
 	setReadDeadline(ws)
 
+	var hostname string
 	for {
 		_, message, err := ws.ReadMessage()
 		if err != nil {
@@ -57,8 +53,9 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 			switch {
 			case hbm.Registration != nil:
 				c.registerInstance(*hbm.Registration)
+				hostname = hbm.Registration.Hostname
 			case hbm.Health != nil:
-				c.updateScore(*hbm.Health)
+				c.updateScore(hostname, *hbm.Health)
 			}
 		}
 	}
@@ -67,14 +64,14 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 func (c *Client) registerInstance(rm v2.Registration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.instances[rm.Hostname] = &instanceData{instance: rm}
+	c.instances[rm.Hostname] = &v2.HeartbeatMessage{Registration: &rm}
 }
 
-func (c *Client) updateScore(hm v2.Health) {
+func (c *Client) updateScore(hostname string, hm v2.Health) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if instance, found := c.instances[hm.Hostname]; found {
-		instance.health = hm.Score
+	if instance, found := c.instances[hostname]; found {
+		instance.Health = &hm
 	}
 }
 

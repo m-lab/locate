@@ -35,7 +35,7 @@ type Client struct {
 	Locator
 	ClientLocator
 	targetTmpl *template.Template
-	instances  map[string]*instanceData
+	instances  map[string]*v2.HeartbeatMessage
 	mu         sync.RWMutex
 }
 
@@ -63,7 +63,7 @@ func NewClient(project string, private Signer, locator Locator, client ClientLoc
 		Locator:       locator,
 		ClientLocator: client,
 		targetTmpl:    template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
-		instances:     make(map[string]*instanceData),
+		instances:     make(map[string]*v2.HeartbeatMessage),
 	}
 }
 
@@ -76,7 +76,7 @@ func NewClientDirect(project string, private Signer, locator Locator, client Cli
 		ClientLocator: client,
 		// Useful for the locatetest package when running a local server.
 		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
-		instances:  make(map[string]*instanceData),
+		instances:  make(map[string]*v2.HeartbeatMessage),
 	}
 }
 

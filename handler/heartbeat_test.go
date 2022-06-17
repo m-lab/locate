@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-test/deep"
 	"github.com/gorilla/websocket"
+	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/connection/testdata"
 )
@@ -30,7 +31,7 @@ func setupTest(t testing.TB) (*Client, *websocket.Conn, error, func(tb testing.T
 	return c, ws, err, func(t testing.TB) {
 		s.Close()
 		ws.Close()
-		c.instances = make(map[string]*instanceData)
+		c.instances = make(map[string]*v2.HeartbeatMessage)
 	}
 }
 
@@ -78,13 +79,13 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	val, _ := c.instances[testdata.FakeHostname]
-	if diff := deep.Equal(val.instance, *testdata.FakeRegistration.Registration); diff != nil {
+	if diff := deep.Equal(val.Registration, testdata.FakeRegistration.Registration); diff != nil {
 		t.Errorf("Heartbeat() did not save instance information; got: %v, want: %v",
-			val.instance, *testdata.FakeRegistration.Registration)
+			val.Registration, *testdata.FakeRegistration.Registration)
 	}
-	if val.health != testdata.FakeHealth.Health.Score {
-		t.Errorf("Heartbeat() did not update health score; got: %f, want: %f",
-			val.health, testdata.FakeHealth.Health.Score)
+	if diff := deep.Equal(val.Health, testdata.FakeHealth.Health); diff != nil {
+		t.Errorf("Heartbeat() did not update health; got: %f, want: %f",
+			val.Health, testdata.FakeHealth.Health)
 	}
 }
 
