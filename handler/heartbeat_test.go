@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/go-test/deep"
 	"github.com/gorilla/websocket"
+	"github.com/m-lab/go/testingx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/connection/testdata"
@@ -20,15 +20,19 @@ func init() {
 	readDeadline = 50 * time.Millisecond
 }
 
-func setupTest(t testing.TB) (*Client, *websocket.Conn, error, func(tb testing.TB)) {
+func mustSetupTest(t testing.TB) (*Client, *websocket.Conn, func(tb testing.TB)) {
 	c := fakeClient()
 	s := httptest.NewServer(http.HandlerFunc(c.Heartbeat))
 	u, _ := url.Parse(s.URL)
 	u.Scheme = "ws"
 	dialer := websocket.Dialer{}
 	ws, _, err := dialer.Dial(u.String(), http.Header{})
+	if err != nil {
+		s.Close()
+		t.Fatalf("failed to establish a connection, err: %v", err)
+	}
 
-	return c, ws, err, func(t testing.TB) {
+	return c, ws, func(t testing.TB) {
 		s.Close()
 		ws.Close()
 		c.instances = make(map[string]*v2.HeartbeatMessage)
@@ -49,12 +53,8 @@ func TestClient_Heartbeat_Error(t *testing.T) {
 }
 
 func TestClient_Heartbeat_Timeout(t *testing.T) {
-	_, _, err, teardown := setupTest(t)
+	_, _, teardown := mustSetupTest(t)
 	defer teardown(t)
-
-	if err != nil {
-		t.Fatalf("Heartbeat() connection error; got: %v, want: %v", err, nil)
-	}
 
 	// The read loop runs in a separate goroutine, so we wait for it to exit.
 	// It will exit if there are no new messages within the read deadline.
@@ -68,17 +68,19 @@ func TestClient_Heartbeat_Timeout(t *testing.T) {
 }
 
 func TestClient_Heartbeat_Success(t *testing.T) {
-	c, ws, _, teardown := setupTest(t)
+	c, ws, teardown := mustSetupTest(t)
 	defer teardown(t)
 
-	ws.WriteJSON(testdata.FakeRegistration)
-	ws.WriteJSON(testdata.FakeHealth)
+	err := ws.WriteJSON(testdata.FakeRegistration)
+	testingx.Must(t, err, "failed to write registration message")
+	err = ws.WriteJSON(testdata.FakeHealth)
+	testingx.Must(t, err, "failed to write health message")
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	val, _ := c.instances[testdata.FakeHostname]
+	val := c.instances[testdata.FakeHostname]
 	if diff := deep.Equal(val.Registration, testdata.FakeRegistration.Registration); diff != nil {
 		t.Errorf("Heartbeat() did not save instance information; got: %v, want: %v",
 			val.Registration, *testdata.FakeRegistration.Registration)
@@ -90,31 +92,15 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 
 }
 
-func TestClient_Heartbeat_CannotUnmarshalMsg(t *testing.T) {
-	c, ws, _, teardown := setupTest(t)
-	defer teardown(t)
-
-	r := testdata.FakeRegistration
-	r.Registration.Latitude = math.Inf(1)
-	ws.WriteJSON(r)
-
-	timer := time.NewTimer(2 * readDeadline)
-	<-timer.C
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	if len(c.instances) > 0 {
-		t.Errorf("Heartbeat() expected instances to be empty")
-	}
-}
-
 func TestClient_Heartbeat_InvalidRegistrationType(t *testing.T) {
-	c, ws, _, teardown := setupTest(t)
+	c, ws, teardown := mustSetupTest(t)
 	defer teardown(t)
 
 	type test struct {
 		Foo string
 	}
-	ws.WriteJSON(test{Foo: "bar"})
+	err := ws.WriteJSON(test{Foo: "bar"})
+	testingx.Must(t, err, "failed to write invalid registration message")
 
 	timer := time.NewTimer(2 * readDeadline)
 	<-timer.C
