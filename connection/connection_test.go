@@ -18,7 +18,7 @@ func Test_Dial(t *testing.T) {
 	s := testdata.FakeServer(fh.Upgrade)
 	defer close(c, s)
 
-	err := c.Dial(s.URL, http.Header{})
+	err := c.Dial(s.URL, http.Header{}, testdata.FakeRegistration)
 
 	if err != nil {
 		t.Errorf("Dial() should have returned nil error, err: %v", err)
@@ -35,7 +35,7 @@ func Test_Dial_ThenClose(t *testing.T) {
 	s := testdata.FakeServer(fh.Upgrade)
 	defer s.Close()
 
-	if err := c.Dial(s.URL, http.Header{}); err != nil {
+	if err := c.Dial(s.URL, http.Header{}, testdata.FakeRegistration); err != nil {
 		t.Errorf("Dial() should have returned nil error, err: %v", err)
 	}
 
@@ -51,7 +51,7 @@ func Test_Dial_ThenClose(t *testing.T) {
 		t.Error("Close() error, still connected")
 	}
 
-	if err := c.Dial(s.URL, http.Header{}); err != nil {
+	if err := c.Dial(s.URL, http.Header{}, testdata.FakeRegistration); err != nil {
 		t.Errorf("Dial() should have returned nil error, err: %v", err)
 	}
 
@@ -86,7 +86,7 @@ func Test_Dial_InvalidUrl(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewConn()
-			err := c.Dial(tt.url, http.Header{})
+			err := c.Dial(tt.url, http.Header{}, testdata.FakeRegistration)
 
 			if err == nil {
 				t.Error("Dial() should return an error when given an invalid URL")
@@ -106,7 +106,7 @@ func Test_Dial_ServerDown(t *testing.T) {
 	c.InitialInterval = 500 * time.Millisecond
 	c.MaxElapsedTime = time.Second
 
-	err := c.Dial(s.URL, http.Header{})
+	err := c.Dial(s.URL, http.Header{}, testdata.FakeRegistration)
 	if err == nil {
 		t.Error("Dial() should return an error once backoff ticker stops")
 	}
@@ -117,7 +117,7 @@ func Test_Dial_BadRequest(t *testing.T) {
 	fh := testdata.FakeHandler{}
 	// This handler returns a 400 status code.
 	s := testdata.FakeServer(fh.BadUpgrade)
-	err := c.Dial(s.URL, http.Header{})
+	err := c.Dial(s.URL, http.Header{}, testdata.FakeRegistration)
 
 	if err == nil {
 		t.Error("Dial() should fail when a 400 response status code is received")
@@ -145,7 +145,7 @@ func Test_WriteMessage(t *testing.T) {
 			fh := testdata.FakeHandler{}
 			s := testdata.FakeServer(fh.Upgrade)
 
-			c.Dial(s.URL, http.Header{})
+			c.Dial(s.URL, http.Header{}, testdata.FakeRegistration)
 
 			if tt.disconnect {
 				fh.Close()
@@ -179,7 +179,7 @@ func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
 	defer s.Close()
-	c.Dial(s.URL, http.Header{})
+	c.Dial(s.URL, http.Header{}, testdata.FakeRegistration)
 	// Close connection so writes fail.
 	fh.Close()
 
@@ -209,7 +209,7 @@ func Test_CloseAndReconnect(t *testing.T) {
 	defer close(c, s)
 	// For testing, make this time window smaller.
 	c.MaxReconnectionsTime = time.Second
-	c.Dial(s.URL, http.Header{})
+	c.Dial(s.URL, http.Header{}, testdata.FakeRegistration)
 
 	for i := 0; i < static.MaxReconnectionsTotal; i++ {
 		fh.Close()

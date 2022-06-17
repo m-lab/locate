@@ -132,3 +132,35 @@ func NewError(typ, title string, status int) *Error {
 		Status: status,
 	}
 }
+
+// HeartbeatMessage contains pointers to structs of the types
+// of messages accepted by the heartbeat service.
+type HeartbeatMessage struct {
+	Health       *Health
+	Registration *Registration
+}
+
+// Registration contains a set of identifying fields
+// for a server instance.
+type Registration struct {
+	City          string              // City (e.g., New York).
+	CountryCode   string              // Country code (e.g., US).
+	ContinentCode string              // Continent code (e.g., NA).
+	Experiment    string              // Experiment (e.g., ndt).
+	Hostname      string              // Fully qualified service hostname.
+	Latitude      float64             // Latitude.
+	Longitude     float64             // Longitude.
+	Machine       string              // Machine (e.g., mlab1).
+	Metro         string              // Metro (e.g., lga).
+	Project       string              // Project (e.g., mlab-sandbox).
+	Site          string              // Site (e.g.. lga01).
+	Type          string              // Machine type (e.g., physical, virtual).
+	Uplink        string              // Uplink capacity.
+	Services      map[string][]string // Mapping of service names.
+}
+
+// Health is the structure used by the heartbeat service
+// to report health updates.
+type Health struct {
+	Score float64 // Health score.
+}

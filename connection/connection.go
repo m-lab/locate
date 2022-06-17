@@ -58,6 +58,7 @@ type Conn struct {
 	ws                   *websocket.Conn
 	url                  url.URL
 	header               http.Header
+	dialMessage          interface{}
 	ticker               time.Ticker
 	mu                   sync.Mutex
 	reconnections        int
@@ -92,13 +93,13 @@ func NewConn() *Conn {
 // The function returns an error if the url is invalid or if
 // a 4XX error (except 408 and 425) is received in the HTTP
 // response.
-func (c *Conn) Dial(address string, header http.Header) error {
+func (c *Conn) Dial(address string, header http.Header, dialMsg interface{}) error {
 	u, err := url.ParseRequestURI(address)
 	if err != nil || (u.Scheme != "ws" && u.Scheme != "wss") {
 		return errors.New("malformed ws or wss URL")
 	}
 	c.url = *u
-
+	c.dialMessage = dialMsg
 	c.stop = make(chan bool)
 	c.header = header
 	c.dialer = websocket.Dialer{}
@@ -119,7 +120,7 @@ func (c *Conn) Dial(address string, header http.Header) error {
 	return c.connect()
 }
 
-// WriteMessage sends a message as a slice of bytes.
+// WriteMessage sends the JSON encoding of `data` as a message.
 // If the write fails or a disconnect has been detected, it will
 // close the connection and try to reconnect and resend the
 // message.
@@ -131,7 +132,7 @@ func (c *Conn) Dial(address string, header http.Header) error {
 //	   error).
 //	3. The write call in the websocket package failed
 //	   (gorilla/websocket error).
-func (c *Conn) WriteMessage(messageType int, data []byte) error {
+func (c *Conn) WriteMessage(messageType int, data interface{}) error {
 	if !c.isDialed {
 		return ErrNotDailed
 	}
@@ -169,8 +170,10 @@ func (c *Conn) CanConnect() bool {
 // Close closes the network connection and cleans up private
 // resources after the connection is done.
 func (c *Conn) Close() error {
-	c.isDialed = false
-	c.stop <- true
+	if c.isDialed {
+		c.isDialed = false
+		c.stop <- true
+	}
 	return c.close()
 }
 
@@ -215,9 +218,10 @@ func (c *Conn) reconnect() error {
 	return c.connect()
 }
 
-// connect creates a new client connection. In case of failure,
-// it uses an exponential backoff to increase the duration of
-// retry attempts.
+// connect creates a new client connection and sends the
+// registration message.
+// In case of failure, it uses an exponential backoff to
+// increase the duration of retry attempts.
 func (c *Conn) connect() error {
 	b := c.getBackoff()
 	ticker := backoff.NewTicker(b)
@@ -228,16 +232,11 @@ func (c *Conn) connect() error {
 	for range ticker.C {
 		ws, resp, err = c.dialer.Dial(c.url.String(), c.header)
 		if err != nil {
-			// Check for errors indicating we should not retry.
-			if resp != nil {
-				_, retry := retryErrors[resp.StatusCode]
-				if !retry {
-					log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
-						c.url.String(), err, resp.StatusCode)
-					return err
-				}
+			if resp != nil && !retryErrors[resp.StatusCode] {
+				log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
+					c.url.String(), err, resp.StatusCode)
+				ticker.Stop()
 			}
-
 			log.Printf("could not establish a connection with %s (will retry), err: %v",
 				c.url.String(), err)
 			continue
@@ -245,25 +244,31 @@ func (c *Conn) connect() error {
 
 		c.ws = ws
 		c.isConnected = true
-		ticker.Stop()
 		log.Printf("successfully established a connection with %s", c.url.String())
-		return nil
+		ticker.Stop()
+	}
+
+	if c.isConnected {
+		err = c.write(websocket.TextMessage, c.dialMessage)
 	}
 	return err
 }
 
 // write is a helper function that gets a writer using NextWriter,
 // writes the message and closes the writer.
-// It returns an error if the calls to NextWriter or WriteMessage
+// It returns an error if the calls to NextWriter or WriteJSON
 // return errors.
-func (c *Conn) write(messageType int, data []byte) error {
+func (c *Conn) write(messageType int, data interface{}) error {
 	// We want to identify and return write errors as soon as they occur.
 	// The supported interface for WriteMessage does not do that.
 	// Therefore, we are using NextWriter explicitly with Close
 	// to update the error.
-	w, err := c.ws.NextWriter(messageType)
+	// NextWriter is called with a PingMessage type because it is
+	// effectively a no-op, while using other message types can
+	// cause side-effects (e.g, loading an empty msg to the buffer).
+	w, err := c.ws.NextWriter(websocket.PingMessage)
 	if err == nil {
-		err = c.ws.WriteMessage(messageType, data)
+		err = c.ws.WriteJSON(data)
 		w.Close()
 	}
 	return err

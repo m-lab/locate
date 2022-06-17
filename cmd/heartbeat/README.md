@@ -16,5 +16,9 @@ in the `-heartbeat-url` flag.
 ```sh
 $ go build
 $ ./heartbeat \
-    -heartbeat-url=ws://locate-dot-mlab-sandbox.appspot.com/v2/platform/heartbeat?key=${API_KEY}
+    -heartbeat-url=ws://locate-dot-mlab-sandbox.appspot.com/v2/platform/heartbeat?key=${API_KEY} \
+    -registration-url=https://siteinfo.mlab-sandbox.measurementlab.net/v2/sites/registration.json \
+    -hostname=ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org \
+    -services=ndt/ndt7=ws:///ndt/v7/download,ws:///ndt/v7/upload \
+    -services=ndt/ndt7=wss:///ndt/v7/download,wss:///ndt/v7/upload
 ```

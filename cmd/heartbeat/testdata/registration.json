@@ -1,0 +1,15 @@
+{
+  "mlab1-lga0t.mlab-sandbox.measurement-lab.org": {
+      "City": "New York",
+      "ContinentCode": "NA",
+      "CountryCode": "US",
+      "Latitude": 40.7667,
+      "Longitude": -73.8667,
+      "Machine": "mlab1",
+      "Metro": "lga",
+      "Project": "mlab-sandbox",
+      "Site": "lga0t",
+      "Type": "physical",
+      "Uplink": "10g"
+   }
+}
