@@ -84,9 +84,10 @@ func TestClient_Heartbeat_Success(t *testing.T) {
 			val.Registration, *testdata.FakeRegistration.Registration)
 	}
 	if diff := deep.Equal(val.Health, testdata.FakeHealth.Health); diff != nil {
-		t.Errorf("Heartbeat() did not update health; got: %f, want: %f",
+		t.Errorf("Heartbeat() did not update health; got: %v, want: %v",
 			val.Health, testdata.FakeHealth.Health)
 	}
+
 }
 
 func TestClient_Heartbeat_CannotUnmarshalMsg(t *testing.T) {
