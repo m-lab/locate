@@ -7,6 +7,7 @@ require (
 	github.com/apex/log v1.9.0
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/go-test/deep v1.0.8
+	github.com/gomodule/redigo v1.8.8
 	github.com/googleapis/gax-go v1.0.3
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -19,4 +20,9 @@ require (
 	google.golang.org/api v0.74.0
 	google.golang.org/genproto v0.0.0-20220405205423-9d709892a2bf
 	gopkg.in/square/go-jose.v2 v2.6.0
+)
+
+require (
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/rafaeljusto/redigomock v2.4.0+incompatible
 )
