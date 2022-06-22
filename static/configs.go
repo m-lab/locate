@@ -23,6 +23,7 @@ const (
 	MaxReconnectionsTotal      = 10
 	MaxReconnectionsTime       = time.Hour
 	HeartbeatPeriod            = 10 * time.Second
+	RedisKeyExpiry             = 30 * time.Second
 )
 
 // URL creates inline url.URLs.

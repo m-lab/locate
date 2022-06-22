@@ -7,6 +7,7 @@ require (
 	github.com/apex/log v1.9.0
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/go-test/deep v1.0.8
+	github.com/gomodule/redigo v1.8.8
 	github.com/googleapis/gax-go v1.0.3
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/go-multierror v1.1.1

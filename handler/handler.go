@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"path"
 	"strings"
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -34,9 +33,8 @@ type Client struct {
 	project string
 	Locator
 	ClientLocator
+	InstanceManager
 	targetTmpl *template.Template
-	instances  map[string]*v2.HeartbeatMessage
-	mu         sync.RWMutex
 }
 
 // Locator defines how the TranslatedQuery handler requests machines nearest to
@@ -50,33 +48,39 @@ type ClientLocator interface {
 	Locate(req *http.Request) (*clientgeo.Location, error)
 }
 
+type InstanceManager interface {
+	RegisterInstance(rm v2.Registration)
+	UpdateHealth(hostname string, hm v2.Health)
+	GetAll() []v2.HeartbeatMessage
+}
+
 func init() {
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator, client ClientLocator) *Client {
+func NewClient(project string, private Signer, locator Locator, client ClientLocator, manager InstanceManager) *Client {
 	return &Client{
-		Signer:        private,
-		project:       project,
-		Locator:       locator,
-		ClientLocator: client,
-		targetTmpl:    template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
-		instances:     make(map[string]*v2.HeartbeatMessage),
+		Signer:          private,
+		project:         project,
+		Locator:         locator,
+		ClientLocator:   client,
+		InstanceManager: manager,
+		targetTmpl:      template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
 	}
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
-func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator) *Client {
+func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator, manager InstanceManager) *Client {
 	return &Client{
-		Signer:        private,
-		project:       project,
-		Locator:       locator,
-		ClientLocator: client,
+		Signer:          private,
+		project:         project,
+		Locator:         locator,
+		ClientLocator:   client,
+		InstanceManager: manager,
 		// Useful for the locatetest package when running a local server.
 		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
-		instances:  make(map[string]*v2.HeartbeatMessage),
 	}
 }
 
