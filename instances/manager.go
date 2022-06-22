@@ -15,7 +15,7 @@ type InstanceManager struct {
 }
 
 type RedisClient interface {
-	SetHash(key string, value ...interface{}) error
+	SetHash(key string, value v2.Registration) error
 }
 
 func NewInstanceManager(address string) *InstanceManager {
