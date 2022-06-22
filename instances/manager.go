@@ -29,7 +29,7 @@ func (m *InstanceManager) RegisterInstance(rm v2.Registration) {
 	m.registerInstance(rm)
 	err := m.SetHash(rm.Hostname, rm)
 	if err != nil {
-		log.Printf("failed to register instance in redis, err: %v", err)
+		log.Printf("HSET failed to register instance in redis, err: %v", err)
 	}
 }
 

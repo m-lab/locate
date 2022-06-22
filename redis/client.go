@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/gomodule/redigo/redis"
@@ -24,7 +25,10 @@ func (rc *RedisClient) SetHash(key string, value interface{}) error {
 	conn := rc.pool.Get()
 	defer conn.Close()
 
-	args := redis.Args{}.Add(key).AddFlat(value)
+	json, err := json.Marshal(value)
+	fmt.Printf("HSET json: +%v\n", json)
+
+	args := redis.Args{}.Add(key).AddFlat(json)
 	fmt.Printf("HSET args: %+v\n", args)
 	reply, err := conn.Do("HSET", args...)
 	fmt.Printf("HSET reply: %+v\n", reply)
