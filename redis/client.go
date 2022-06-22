@@ -1,6 +1,8 @@
 package redis
 
 import (
+	"fmt"
+
 	"github.com/gomodule/redigo/redis"
 	"github.com/m-lab/locate/static"
 )
@@ -22,7 +24,9 @@ func (rc *RedisClient) SetHash(key string, value ...interface{}) error {
 	conn := rc.pool.Get()
 	defer conn.Close()
 
-	_, err := conn.Do("HSET", redis.Args{}.Add(key).AddFlat(value)...)
+	args := redis.Args{}.Add(key).AddFlat(value)
+	fmt.Printf("HSET args: %+v\n", args)
+	_, err := conn.Do("HSET", args...)
 	if err == nil {
 		_, err = conn.Do("EXPIRE", key, static.RedisKeyExpiry)
 	}
