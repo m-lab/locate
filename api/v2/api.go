@@ -143,20 +143,20 @@ type HeartbeatMessage struct {
 // Registration contains a set of identifying fields
 // for a server instance.
 type Registration struct {
-	City          string              // City (e.g., New York).
-	CountryCode   string              // Country code (e.g., US).
-	ContinentCode string              // Continent code (e.g., NA).
-	Experiment    string              // Experiment (e.g., ndt).
-	Hostname      string              // Fully qualified service hostname.
-	Latitude      float64             // Latitude.
-	Longitude     float64             // Longitude.
-	Machine       string              // Machine (e.g., mlab1).
-	Metro         string              // Metro (e.g., lga).
-	Project       string              // Project (e.g., mlab-sandbox).
-	Site          string              // Site (e.g.. lga01).
-	Type          string              // Machine type (e.g., physical, virtual).
-	Uplink        string              // Uplink capacity.
-	Services      map[string][]string // Mapping of service names.
+	City          string              `redis:"City"`          // City (e.g., New York).
+	CountryCode   string              `redis:"CountryCode"`   // Country code (e.g., US).
+	ContinentCode string              `redis:"ContinentCode"` // Continent code (e.g., NA).
+	Experiment    string              `redis:"Experiment"`    // Experiment (e.g., ndt).
+	Hostname      string              `redis:"Hostname"`      // Fully qualified service hostname.
+	Latitude      float64             `redis:"Latitude"`      // Latitude.
+	Longitude     float64             `redis:"Longitude"`     // Longitude.
+	Machine       string              `redis:"Machine"`       // Machine (e.g., mlab1).
+	Metro         string              `redis:"Metro"`         // Metro (e.g., lga).
+	Project       string              `redis:"Project"`       // Project (e.g., mlab-sandbox).
+	Site          string              `redis:"Site"`          // Site (e.g.. lga01).
+	Type          string              `redis:"Type"`          // Machine type (e.g., physical, virtual).
+	Uplink        string              `redis:"Uplink"`        // Uplink capacity.
+	Services      map[string][]string `redis:"Services"`      // Mapping of service names.
 }
 
 // Health is the structure used by the heartbeat service

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/gomodule/redigo/redis"
-	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
 )
 
@@ -21,7 +20,7 @@ func NewRedisClient(address string) *RedisClient {
 	return &RedisClient{redisPool}
 }
 
-func (rc *RedisClient) SetHash(key string, value v2.Registration) error {
+func (rc *RedisClient) SetHash(key string, value interface{}) error {
 	conn := rc.pool.Get()
 	defer conn.Close()
 
