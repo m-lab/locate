@@ -1,6 +1,7 @@
 package instances
 
 import (
+	"log"
 	"sync"
 
 	v2 "github.com/m-lab/locate/api/v2"
@@ -26,7 +27,10 @@ func NewInstanceManager(address string) *InstanceManager {
 
 func (m *InstanceManager) RegisterInstance(rm v2.Registration) {
 	m.registerInstance(rm)
-	m.SetHash(rm.Hostname, rm)
+	err := m.SetHash(rm.Hostname, rm)
+	if err != nil {
+		log.Printf("failed to register instance in redis, err: %v", err)
+	}
 }
 
 func (m *InstanceManager) UpdateHealth(hostname string, hm v2.Health) {
