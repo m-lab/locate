@@ -143,20 +143,20 @@ type HeartbeatMessage struct {
 // Registration contains a set of identifying fields
 // for a server instance.
 type Registration struct {
-	City          string              `redis:"City"`          // City (e.g., New York).
-	CountryCode   string              `redis:"CountryCode"`   // Country code (e.g., US).
-	ContinentCode string              `redis:"ContinentCode"` // Continent code (e.g., NA).
-	Experiment    string              `redis:"Experiment"`    // Experiment (e.g., ndt).
-	Hostname      string              `redis:"Hostname"`      // Fully qualified service hostname.
-	Latitude      float64             `redis:"Latitude"`      // Latitude.
-	Longitude     float64             `redis:"Longitude"`     // Longitude.
-	Machine       string              `redis:"Machine"`       // Machine (e.g., mlab1).
-	Metro         string              `redis:"Metro"`         // Metro (e.g., lga).
-	Project       string              `redis:"Project"`       // Project (e.g., mlab-sandbox).
-	Site          string              `redis:"Site"`          // Site (e.g.. lga01).
-	Type          string              `redis:"Type"`          // Machine type (e.g., physical, virtual).
-	Uplink        string              `redis:"Uplink"`        // Uplink capacity.
-	Services      map[string][]string `redis:"Services"`      // Mapping of service names.
+	City          string              `redis:"City" json:"City"`                   // City (e.g., New York).
+	CountryCode   string              `redis:"CountryCode" json:"CountryCode"`     // Country code (e.g., US).
+	ContinentCode string              `redis:"ContinentCode" json:"ContinentCode"` // Continent code (e.g., NA).
+	Experiment    string              `redis:"Experiment" json:"Experiment"`       // Experiment (e.g., ndt).
+	Hostname      string              `redis:"Hostname" json:"Hostname"`           // Fully qualified service hostname.
+	Latitude      float64             `redis:"Latitude" json:"Latitude"`           // Latitude.
+	Longitude     float64             `redis:"Longitude" json:"Longitude"`         // Longitude.
+	Machine       string              `redis:"Machine" json:"Machine"`             // Machine (e.g., mlab1).
+	Metro         string              `redis:"Metro" json:"Metro"`                 // Metro (e.g., lga).
+	Project       string              `redis:"Project" json:"Project"`             // Project (e.g., mlab-sandbox).
+	Site          string              `redis:"Site" json:"Site"`                   // Site (e.g.. lga01).
+	Type          string              `redis:"Type" json:"Type"`                   // Machine type (e.g., physical, virtual).
+	Uplink        string              `redis:"Uplink" json:"Uplink"`               // Uplink capacity.
+	Services      map[string][]string `redis:"Services" json:"Services"`           // Mapping of service names.
 }
 
 // Health is the structure used by the heartbeat service
