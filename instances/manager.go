@@ -5,39 +5,38 @@ import (
 	"sync"
 
 	v2 "github.com/m-lab/locate/api/v2"
-	"github.com/m-lab/locate/redis"
 )
 
-type InstanceManager struct {
+type instanceManager struct {
 	instances map[string]*v2.HeartbeatMessage
 	mu        sync.RWMutex
 	RedisClient
 }
 
 type RedisClient interface {
-	SetHash(key string, value interface{}) error
+	SetHash(key string, value v2.Registration) error
 }
 
-func NewInstanceManager(address string) *InstanceManager {
-	return &InstanceManager{
+func NewInstanceManager(client RedisClient) *instanceManager {
+	return &instanceManager{
 		instances:   make(map[string]*v2.HeartbeatMessage),
-		RedisClient: redis.NewRedisClient(address),
+		RedisClient: client,
 	}
 }
 
-func (m *InstanceManager) RegisterInstance(rm v2.Registration) {
+func (m *instanceManager) RegisterInstance(rm v2.Registration) {
 	m.registerInstance(rm)
 	err := m.SetHash(rm.Hostname, rm)
 	if err != nil {
-		log.Printf("HSET failed to register instance in redis, err: %v", err)
+		log.Printf("failed to register instance in redis, err: %v", err)
 	}
 }
 
-func (m *InstanceManager) UpdateHealth(hostname string, hm v2.Health) {
+func (m *instanceManager) UpdateHealth(hostname string, hm v2.Health) {
 	m.updateHealth(hostname, hm)
 }
 
-func (m *InstanceManager) GetAll() []v2.HeartbeatMessage {
+func (m *instanceManager) GetAll() []v2.HeartbeatMessage {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -48,13 +47,13 @@ func (m *InstanceManager) GetAll() []v2.HeartbeatMessage {
 	return i
 }
 
-func (m *InstanceManager) registerInstance(rm v2.Registration) {
+func (m *instanceManager) registerInstance(rm v2.Registration) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.instances[rm.Hostname] = &v2.HeartbeatMessage{Registration: &rm}
 }
 
-func (m *InstanceManager) updateHealth(hostname string, hm v2.Health) {
+func (m *instanceManager) updateHealth(hostname string, hm v2.Health) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if instance, found := m.instances[hostname]; found {

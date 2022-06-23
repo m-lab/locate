@@ -14,6 +14,7 @@ import (
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/instances"
+	"github.com/m-lab/locate/instances/instancetest"
 )
 
 // Signer implements the Signer interface for unit tests.
@@ -51,7 +52,7 @@ func NewLocateServer(loc *Locator) *httptest.Server {
 	// fake signer, fake locator.
 	s := &Signer{}
 	c := handler.NewClientDirect("fake-project", s, loc, &clientgeo.NullLocator{},
-		instances.NewInstanceManager("1.2.3.4:8080"))
+		instances.NewInstanceManager(&instancetest.FakeRedisClient{}))
 
 	// USER APIs
 	mux := http.NewServeMux()

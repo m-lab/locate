@@ -15,6 +15,7 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/instances"
+	"github.com/m-lab/locate/instances/instancetest"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
 	log "github.com/sirupsen/logrus"
@@ -153,7 +154,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cl := clientgeo.NewAppEngineLocator()
-			m := instances.NewInstanceManager("1.2.3.4:8080")
+			m := instances.NewInstanceManager(&instancetest.FakeRedisClient{})
 			c := NewClient(tt.project, tt.signer, tt.locator, cl, m)
 
 			mux := http.NewServeMux()

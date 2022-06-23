@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/instances"
+	"github.com/m-lab/locate/instances/instancetest"
 )
 
 func init() {
@@ -65,5 +66,5 @@ func TestClient_Heartbeat_Timeout(t *testing.T) {
 
 func fakeClient() *Client {
 	return NewClient("mlab-sandbox", &fakeSigner{}, &fakeLocator{}, clientgeo.NewAppEngineLocator(),
-		instances.NewInstanceManager("1.2.3.4:8080"))
+		instances.NewInstanceManager(&instancetest.FakeRedisClient{}))
 }
