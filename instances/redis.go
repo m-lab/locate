@@ -12,7 +12,7 @@ const (
 	updateScript = `
 	if redis.call('exists', KEYS[1]) == 1 then
 		redis.call('hset', KEYS[1], ARGV[1], 0)
-		redis.call('expire', KEYS[1], ARGV[2], 0)
+		redis.call('expire', KEYS[1], ARGV[2])
 	end`
 )
 
