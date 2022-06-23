@@ -8,6 +8,10 @@ import (
 	"github.com/m-lab/locate/static"
 )
 
+const (
+	updateScript = `if redis.call('exists', KEYS[1]) == 1 then redis.call('hset', KEYS[1], ARGV[1], 0) end`
+)
+
 type redisClient struct {
 	pool *redis.Pool
 }
@@ -21,18 +25,25 @@ func NewRedisClient(address string) *redisClient {
 	return &redisClient{redisPool}
 }
 
-func (rc *redisClient) SetHash(key string, value v2.HeartbeatMessage) error {
+func (rc *redisClient) AddEntry(key string, value v2.HeartbeatMessage) error {
 	conn := rc.pool.Get()
 	defer conn.Close()
 
 	args := redis.Args{}.Add(key).AddFlat(value)
-	fmt.Printf("HSET args: %+v\n", args)
-	reply, err := conn.Do("HSET", args...)
-	fmt.Printf("HSET SET reply: %+v, err: %+v\n", reply, err)
+	_, err := conn.Do("HSET", args...)
 	if err == nil {
-		reply, err := conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
-		fmt.Printf("HSET EXPIRE reply: %+v, err: %+v\n", reply, err)
+		_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
 	}
+	return err
+}
+
+func (rc *redisClient) UpdateHealth(key string, value v2.Health) error {
+	conn := rc.pool.Get()
+	defer conn.Close()
+
+	lua := redis.NewScript(1, updateScript)
+	reply, err := lua.Do(conn, key, value)
+	fmt.Printf("LUA reply: %+v, err: +%v\n", reply, err)
 	return err
 }
 
