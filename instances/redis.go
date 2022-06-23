@@ -39,7 +39,7 @@ func (rc *redisDatastoreClient) AddEntry(key string, value v2.HeartbeatMessage) 
 	return reply, err
 }
 
-func (rc *redisDatastoreClient) Update(key string, value v2.Health) (interface{}, error) {
+func (rc *redisDatastoreClient) UpdateHealth(key string, value v2.Health) (interface{}, error) {
 	conn := rc.pool.Get()
 	defer conn.Close()
 
