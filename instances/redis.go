@@ -44,7 +44,10 @@ func (rc *redisClient) Update(key string, value v2.Health) error {
 	lua := redis.NewScript(1, updateScript)
 	// Make value Health.Score
 	reply, err := lua.Do(conn, key, value)
-	fmt.Printf("LUA reply: %+v, err: +%v\n", reply, err)
+	if err == nil {
+		_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
+	}
+	fmt.Printf("LUA reply: %+v, err: %+v\n", reply, err)
 	return err
 }
 
