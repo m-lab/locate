@@ -52,7 +52,7 @@ func NewLocateServer(loc *Locator) *httptest.Server {
 	// fake signer, fake locator.
 	s := &Signer{}
 	c := handler.NewClientDirect("fake-project", s, loc, &clientgeo.NullLocator{},
-		instances.NewInstanceManager(&instancetest.FakeRedisClient{}))
+		instances.NewInstanceManager(&instancetest.FakeDatastoreClient{}))
 
 	// USER APIs
 	mux := http.NewServeMux()

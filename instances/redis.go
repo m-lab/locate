@@ -1,8 +1,6 @@
 package instances
 
 import (
-	"fmt"
-
 	"github.com/gomodule/redigo/redis"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
@@ -16,40 +14,42 @@ const (
 	end`
 )
 
-type redisClient struct {
+type redisDatastoreClient struct {
 	pool *redis.Pool
 }
 
-func NewRedisClient(address string) *redisClient {
+func NewRedisDatastoreClient(address string) *redisDatastoreClient {
 	redisPool := &redis.Pool{
 		Dial: func() (redis.Conn, error) {
 			return redis.Dial("tcp", address)
 		},
 	}
-	return &redisClient{redisPool}
+	return &redisDatastoreClient{redisPool}
 }
 
-func (rc *redisClient) AddEntry(key string, value v2.HeartbeatMessage) error {
+func (rc *redisDatastoreClient) AddEntry(key string, value v2.HeartbeatMessage) (interface{}, error) {
 	conn := rc.pool.Get()
 	defer conn.Close()
 
 	args := redis.Args{}.Add(key).AddFlat(value)
-	_, err := conn.Do("HSET", args...)
+	reply, err := conn.Do("HSET", args...)
 	if err == nil {
-		_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
+		reply, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
 	}
-	return err
+	return reply, err
 }
 
-func (rc *redisClient) Update(key string, value v2.Health) error {
+func (rc *redisDatastoreClient) Update(key string, value v2.Health) (interface{}, error) {
 	conn := rc.pool.Get()
 	defer conn.Close()
 
 	lua := redis.NewScript(1, updateScript)
-	// TODO: Make value Health.Score
 	reply, err := lua.Do(conn, key, value, static.RedisKeyExpirySecs)
-	fmt.Printf("LUA reply: %+v, err: %+v\n", reply, err)
-	return err
+	return reply, err
+}
+
+func (rc *redisDatastoreClient) GetAll() ([]v2.HeartbeatMessage, error) {
+	return nil, nil
 }
 
 // func (rc *RedisClient) GetAll() ([]interface{}, error) {

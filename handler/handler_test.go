@@ -154,7 +154,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cl := clientgeo.NewAppEngineLocator()
-			m := instances.NewInstanceManager(&instancetest.FakeRedisClient{})
+			m := instances.NewInstanceManager(&instancetest.FakeDatastoreClient{})
 			c := NewClient(tt.project, tt.signer, tt.locator, cl, m)
 
 			mux := http.NewServeMux()

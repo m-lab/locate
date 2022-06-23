@@ -50,8 +50,7 @@ type ClientLocator interface {
 
 type InstanceManager interface {
 	RegisterInstance(hbm v2.HeartbeatMessage) error
-	UpdateHealth(hostname string, hm v2.Health) error
-	GetAll() []v2.HeartbeatMessage
+	HandleHeartbeat(hostname string, hm v2.Health) error
 }
 
 func init() {

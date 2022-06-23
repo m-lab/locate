@@ -1,6 +1,7 @@
 package instances
 
 import (
+	"fmt"
 	"sync"
 
 	v2 "github.com/m-lab/locate/api/v2"
@@ -9,42 +10,36 @@ import (
 type instanceManager struct {
 	instances map[string]*v2.HeartbeatMessage
 	mu        sync.RWMutex
-	RedisClient
+	dsc       DatastoreClient
 }
 
-type RedisClient interface {
-	AddEntry(key string, value v2.HeartbeatMessage) error
-	Update(key string, value v2.Health) error
+type DatastoreClient interface {
+	AddEntry(key string, value v2.HeartbeatMessage) (interface{}, error)
+	UpdateHealth(key string, value v2.Health) (interface{}, error)
+	GetAll() ([]v2.HeartbeatMessage, error)
 }
 
-func NewInstanceManager(client RedisClient) *instanceManager {
+func NewInstanceManager(client DatastoreClient) *instanceManager {
 	return &instanceManager{
-		instances:   make(map[string]*v2.HeartbeatMessage),
-		RedisClient: client,
+		instances: make(map[string]*v2.HeartbeatMessage),
+		dsc:       client,
 	}
 }
 
 func (m *instanceManager) RegisterInstance(hbm v2.HeartbeatMessage) error {
 	hostname := hbm.Registration.Hostname
+	if _, err := m.dsc.AddEntry(hostname, hbm); err != nil {
+		return err
+	}
 	m.registerInstance(hostname, hbm)
-	return m.AddEntry(hostname, hbm)
-}
-
-func (m *instanceManager) UpdateHealth(hostname string, hm v2.Health) error {
-	m.updateHealth(hostname, hm)
-	m.Update(hostname, hm)
 	return nil
 }
 
-func (m *instanceManager) GetAll() []v2.HeartbeatMessage {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	i := make([]v2.HeartbeatMessage, 0, len(m.instances))
-	for _, val := range m.instances {
-		i = append(i, *val.Clone())
+func (m *instanceManager) HandleHeartbeat(hostname string, hm v2.Health) error {
+	if _, err := m.dsc.UpdateHealth(hostname, hm); err != nil {
+		return err
 	}
-	return i
+	return m.updateHealth(hostname, hm)
 }
 
 func (m *instanceManager) registerInstance(hostname string, hbm v2.HeartbeatMessage) {
@@ -53,10 +48,12 @@ func (m *instanceManager) registerInstance(hostname string, hbm v2.HeartbeatMess
 	m.instances[hostname] = &hbm
 }
 
-func (m *instanceManager) updateHealth(hostname string, hm v2.Health) {
+func (m *instanceManager) updateHealth(hostname string, hm v2.Health) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if instance, found := m.instances[hostname]; found {
 		instance.Health = &hm
+		return nil
 	}
+	return fmt.Errorf("failed to find %s instance for health update", hostname)
 }
