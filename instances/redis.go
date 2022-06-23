@@ -1,6 +1,8 @@
 package instances
 
 import (
+	"fmt"
+
 	"github.com/gomodule/redigo/redis"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
@@ -26,7 +28,8 @@ func (rc *redisClient) SetHash(key string, value v2.Registration) error {
 	args := redis.Args{}.Add(key).AddFlat(value)
 	_, err := conn.Do("HSET", args...)
 	if err == nil {
-		_, err = conn.Do("EXPIRE", key, static.RedisKeyExpiry)
+		reply, err := conn.Do("EXPIRE", key, static.RedisKeyExpiry)
+		fmt.Printf("EXPIRE reply: %+v, err: %+v\n", reply, err)
 	}
 	return err
 }

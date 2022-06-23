@@ -136,8 +136,8 @@ func NewError(typ, title string, status int) *Error {
 // HeartbeatMessage contains pointers to structs of the types
 // of messages accepted by the heartbeat service.
 type HeartbeatMessage struct {
-	Health       *Health
-	Registration *Registration
+	Health       *Health       `redis:"Health" json:"Health"`
+	Registration *Registration `redis:"Registration" json:"Registration"`
 }
 
 // Registration contains a set of identifying fields
@@ -162,5 +162,5 @@ type Registration struct {
 // Health is the structure used by the heartbeat service
 // to report health updates.
 type Health struct {
-	Score float64 // Health score.
+	Score float64 `redis:"Score" json:"Score"` // Health score.
 }
