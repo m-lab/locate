@@ -28,7 +28,7 @@ func (rc *redisClient) SetHash(key string, value v2.Registration) error {
 	args := redis.Args{}.Add(key).AddFlat(value)
 	_, err := conn.Do("HSET", args...)
 	if err == nil {
-		reply, err := conn.Do("EXPIRE", key, static.RedisKeyExpiry)
+		reply, err := conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
 		fmt.Printf("EXPIRE reply: %+v, err: %+v\n", reply, err)
 	}
 	return err
