@@ -21,15 +21,17 @@ func NewRedisClient(address string) *redisClient {
 	return &redisClient{redisPool}
 }
 
-func (rc *redisClient) SetHash(key string, value v2.Registration) error {
+func (rc *redisClient) SetHash(key string, value v2.HeartbeatMessage) error {
 	conn := rc.pool.Get()
 	defer conn.Close()
 
 	args := redis.Args{}.Add(key).AddFlat(value)
-	_, err := conn.Do("HSET", args...)
+	fmt.Printf("HSET args: %+v\n", args)
+	reply, err := conn.Do("HSET", args...)
+	fmt.Printf("HSET SET reply: %+v, err: %+v\n", reply, err)
 	if err == nil {
 		reply, err := conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
-		fmt.Printf("EXPIRE reply: %+v, err: %+v\n", reply, err)
+		fmt.Printf("HSET EXPIRE reply: %+v, err: %+v\n", reply, err)
 	}
 	return err
 }

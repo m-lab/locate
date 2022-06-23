@@ -49,8 +49,8 @@ type ClientLocator interface {
 }
 
 type InstanceManager interface {
-	RegisterInstance(rm v2.Registration)
-	UpdateHealth(hostname string, hm v2.Health)
+	RegisterInstance(hbm v2.HeartbeatMessage) error
+	UpdateHealth(hostname string, hm v2.Health) error
 	GetAll() []v2.HeartbeatMessage
 }
 

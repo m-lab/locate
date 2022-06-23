@@ -1,7 +1,6 @@
 package instances
 
 import (
-	"log"
 	"sync"
 
 	v2 "github.com/m-lab/locate/api/v2"
@@ -14,7 +13,7 @@ type instanceManager struct {
 }
 
 type RedisClient interface {
-	SetHash(key string, value v2.Registration) error
+	SetHash(key string, value v2.HeartbeatMessage) error
 }
 
 func NewInstanceManager(client RedisClient) *instanceManager {
@@ -24,16 +23,15 @@ func NewInstanceManager(client RedisClient) *instanceManager {
 	}
 }
 
-func (m *instanceManager) RegisterInstance(rm v2.Registration) {
-	m.registerInstance(rm)
-	err := m.SetHash(rm.Hostname, rm)
-	if err != nil {
-		log.Printf("failed to register instance in redis, err: %v", err)
-	}
+func (m *instanceManager) RegisterInstance(hbm v2.HeartbeatMessage) error {
+	hostname := hbm.Registration.Hostname
+	m.registerInstance(hostname, hbm)
+	return m.SetHash(hostname, hbm)
 }
 
-func (m *instanceManager) UpdateHealth(hostname string, hm v2.Health) {
+func (m *instanceManager) UpdateHealth(hostname string, hm v2.Health) error {
 	m.updateHealth(hostname, hm)
+	return nil
 }
 
 func (m *instanceManager) GetAll() []v2.HeartbeatMessage {
@@ -47,10 +45,10 @@ func (m *instanceManager) GetAll() []v2.HeartbeatMessage {
 	return i
 }
 
-func (m *instanceManager) registerInstance(rm v2.Registration) {
+func (m *instanceManager) registerInstance(hostname string, hbm v2.HeartbeatMessage) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.instances[rm.Hostname] = &v2.HeartbeatMessage{Registration: &rm}
+	m.instances[hostname] = &hbm
 }
 
 func (m *instanceManager) updateHealth(hostname string, hm v2.Health) {
