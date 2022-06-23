@@ -1,8 +1,6 @@
 package instances
 
 import (
-	"fmt"
-
 	"github.com/gomodule/redigo/redis"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
@@ -42,12 +40,11 @@ func (rc *redisClient) Update(key string, value v2.Health) error {
 	defer conn.Close()
 
 	lua := redis.NewScript(1, updateScript)
-	// Make value Health.Score
-	reply, err := lua.Do(conn, key, value)
+	// TODO: Make value Health.Score
+	_, err := lua.Do(conn, key, value)
 	if err == nil {
 		_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
 	}
-	fmt.Printf("LUA reply: %+v, err: %+v\n", reply, err)
 	return err
 }
 
