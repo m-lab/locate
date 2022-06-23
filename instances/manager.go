@@ -14,7 +14,7 @@ type instanceManager struct {
 
 type RedisClient interface {
 	AddEntry(key string, value v2.HeartbeatMessage) error
-	UpdateHealth(key string, value v2.Health) error
+	Update(key string, value v2.Health) error
 }
 
 func NewInstanceManager(client RedisClient) *instanceManager {
@@ -32,7 +32,7 @@ func (m *instanceManager) RegisterInstance(hbm v2.HeartbeatMessage) error {
 
 func (m *instanceManager) UpdateHealth(hostname string, hm v2.Health) error {
 	m.updateHealth(hostname, hm)
-	m.UpdateHealth(hostname, hm)
+	m.Update(hostname, hm)
 	return nil
 }
 

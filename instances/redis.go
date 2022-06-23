@@ -37,11 +37,12 @@ func (rc *redisClient) AddEntry(key string, value v2.HeartbeatMessage) error {
 	return err
 }
 
-func (rc *redisClient) UpdateHealth(key string, value v2.Health) error {
+func (rc *redisClient) Update(key string, value v2.Health) error {
 	conn := rc.pool.Get()
 	defer conn.Close()
 
 	lua := redis.NewScript(1, updateScript)
+	// Make value Health.Score
 	reply, err := lua.Do(conn, key, value)
 	fmt.Printf("LUA reply: %+v, err: +%v\n", reply, err)
 	return err

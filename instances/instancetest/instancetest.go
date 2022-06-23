@@ -8,6 +8,6 @@ func (f *FakeRedisClient) AddEntry(key string, value v2.HeartbeatMessage) error 
 	return nil
 }
 
-func (f *FakeRedisClient) UpdateHealth(key string, value v2.Health) error {
+func (f *FakeRedisClient) Update(key string, value v2.Health) error {
 	return nil
 }
