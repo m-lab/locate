@@ -1,13 +1,19 @@
 package instances
 
 import (
+	"fmt"
+
 	"github.com/gomodule/redigo/redis"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
 )
 
 const (
-	updateScript = `if redis.call('exists', KEYS[1]) == 1 then redis.call('hset', KEYS[1], ARGV[1], 0) end`
+	updateScript = `
+	if redis.call('exists', KEYS[1]) == 1 then
+		redis.call('hset', KEYS[1], ARGV[1], 0)
+		redis.call('expire', KEYS[1], ARGV[2], 0)
+	end`
 )
 
 type redisClient struct {
@@ -41,10 +47,8 @@ func (rc *redisClient) Update(key string, value v2.Health) error {
 
 	lua := redis.NewScript(1, updateScript)
 	// TODO: Make value Health.Score
-	_, err := lua.Do(conn, key, value)
-	if err == nil {
-		_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
-	}
+	reply, err := lua.Do(conn, key, value, static.RedisKeyExpirySecs)
+	fmt.Printf("LUA reply: %+v, err: %+v\n", reply, err)
 	return err
 }
 
