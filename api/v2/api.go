@@ -16,9 +16,7 @@
 // NearestResult.NextRequest.URL when provided.
 package v2
 
-import (
-	"time"
-)
+import "time"
 
 // NearestResult is returned by the location service in response to query
 // requests.

@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+// RedisScan determines how the receiver will be interpreted when
+// read from Redis.
 func (r *Registration) RedisScan(x interface{}) error {
 	v, ok := x.([]byte)
 	if !ok {
@@ -13,6 +15,8 @@ func (r *Registration) RedisScan(x interface{}) error {
 	return json.Unmarshal(v, r)
 }
 
+// RedisScan determines how the receiver will be interpreted when
+// read from Redis.
 func (h *Health) RedisScan(x interface{}) error {
 	v, ok := x.([]byte)
 	if !ok {
