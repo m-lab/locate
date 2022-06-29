@@ -16,7 +16,7 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/instances"
-	"github.com/m-lab/locate/instances/instancetest"
+	"github.com/m-lab/locate/instances/instancestest"
 	"github.com/m-lab/locate/static"
 )
 
@@ -93,8 +93,8 @@ func TestClient_Monitoring(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cl := clientgeo.NewAppEngineLocator()
-			m := instances.NewInstanceManager(&instancetest.FakeDatastoreClient{})
-			c := NewClient("mlab-sandbox", tt.signer, tt.locator, cl, m)
+			h := instances.NewCachingInstanceHandler(&instancestest.FakeDatastoreClient{})
+			c := NewClient("mlab-sandbox", tt.signer, tt.locator, cl, h)
 			rw := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/v2/monitoring/"+tt.path, nil)
 			req = req.Clone(controller.SetClaim(req.Context(), tt.claim))

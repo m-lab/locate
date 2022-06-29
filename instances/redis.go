@@ -12,6 +12,8 @@ type redisDatastoreClient struct {
 	pool *redis.Pool
 }
 
+// NewRedisDatastoreClient returns a new DatastoreClient implementation
+// that reads and writes data in Redis.
 func NewRedisDatastoreClient(address string) *redisDatastoreClient {
 	redisPool := &redis.Pool{
 		Dial: func() (redis.Conn, error) {

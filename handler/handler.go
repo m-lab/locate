@@ -33,7 +33,7 @@ type Client struct {
 	project string
 	Locator
 	ClientLocator
-	InstanceManager
+	InstanceHandler
 	targetTmpl *template.Template
 }
 
@@ -48,11 +48,10 @@ type ClientLocator interface {
 	Locate(req *http.Request) (*clientgeo.Location, error)
 }
 
-// InstanceManager defines the interface for managing data regarding experiment
-// instances.
-type InstanceManager interface {
+// InstanceHandler defines the interface for handling experiment instance data.
+type InstanceHandler interface {
 	RegisterInstance(hbm v2.HeartbeatMessage) error
-	HandleHeartbeat(hostname string, hm v2.Health) error
+	UpdateHealth(hostname string, hm v2.Health) error
 }
 
 func init() {
@@ -61,25 +60,25 @@ func init() {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator, client ClientLocator, manager InstanceManager) *Client {
+func NewClient(project string, private Signer, locator Locator, client ClientLocator, instanceHandler InstanceHandler) *Client {
 	return &Client{
 		Signer:          private,
 		project:         project,
 		Locator:         locator,
 		ClientLocator:   client,
-		InstanceManager: manager,
+		InstanceHandler: instanceHandler,
 		targetTmpl:      template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
 	}
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
-func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator, manager InstanceManager) *Client {
+func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator, instanceHandler InstanceHandler) *Client {
 	return &Client{
 		Signer:          private,
 		project:         project,
 		Locator:         locator,
 		ClientLocator:   client,
-		InstanceManager: manager,
+		InstanceHandler: instanceHandler,
 		// Useful for the locatetest package when running a local server.
 		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
 	}

@@ -100,10 +100,10 @@ func main() {
 	}
 
 	redis := instances.NewRedisDatastoreClient(redisAddr)
-	manager := instances.NewInstanceManager(redis)
-	defer manager.Stop()
+	ih := instances.NewCachingInstanceHandler(redis)
+	defer ih.StopImport()
 
-	c := handler.NewClient(project, signer, srvLocator, locators, manager)
+	c := handler.NewClient(project, signer, srvLocator, locators, ih)
 
 	go func() {
 		// Check and reload db at least once a day.
