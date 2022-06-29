@@ -48,6 +48,8 @@ type ClientLocator interface {
 	Locate(req *http.Request) (*clientgeo.Location, error)
 }
 
+// InstanceManager defines the interface for managing data regarding experiment
+// instances.
 type InstanceManager interface {
 	RegisterInstance(hbm v2.HeartbeatMessage) error
 	HandleHeartbeat(hostname string, hm v2.Health) error
