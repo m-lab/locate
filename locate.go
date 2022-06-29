@@ -99,10 +99,11 @@ func main() {
 		locators = append(locators, mmLocator)
 	}
 
-	r := instances.NewRedisDatastoreClient(redisAddr)
-	im := instances.NewInstanceManager(rc)
+	redis := instances.NewRedisDatastoreClient(redisAddr)
+	manager := instances.NewInstanceManager(redis)
+	defer manager.Stop()
 
-	c := handler.NewClient(project, signer, srvLocator, locators, im)
+	c := handler.NewClient(project, signer, srvLocator, locators, manager)
 
 	go func() {
 		// Check and reload db at least once a day.

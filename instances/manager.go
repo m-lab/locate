@@ -41,15 +41,15 @@ func (m *instanceManager) RegisterInstance(hbm v2.HeartbeatMessage) error {
 	return nil
 }
 
-func (m *instanceManager) Stop() {
-	m.stop <- true
-}
-
 func (m *instanceManager) HandleHeartbeat(hostname string, hm v2.Health) error {
 	if err := m.dsc.Update(hostname, "Health", hm); err != nil {
 		return err
 	}
 	return m.updateHealth(hostname, hm)
+}
+
+func (m *instanceManager) Stop() {
+	m.stop <- true
 }
 
 func (m *instanceManager) registerInstance(hostname string, hbm v2.HeartbeatMessage) {
@@ -72,7 +72,6 @@ func (m *instanceManager) consumeDatastore() {
 	ticker := *time.NewTicker(static.DatastoreExportPeriod)
 	defer ticker.Stop()
 
-	// TODO: add cancel.
 	for {
 		select {
 		case <-m.stop:
