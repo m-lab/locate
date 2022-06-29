@@ -8,8 +8,8 @@ func (f *FakeDatastoreClient) AddEntry(key string, value v2.HeartbeatMessage) (i
 	return nil, nil
 }
 
-func (f *FakeDatastoreClient) UpdateHealth(key string, value v2.Health) (interface{}, error) {
-	return nil, nil
+func (f *FakeDatastoreClient) UpdateHealth(key string, value v2.Health) error {
+	return nil
 }
 
 func (f *FakeDatastoreClient) GetAll() ([]v2.HeartbeatMessage, error) {

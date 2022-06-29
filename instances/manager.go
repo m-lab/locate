@@ -3,40 +3,50 @@ package instances
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/static"
 )
 
 type instanceManager struct {
 	instances map[string]*v2.HeartbeatMessage
 	mu        sync.RWMutex
 	dsc       DatastoreClient
+	stop      chan bool
 }
 
 type DatastoreClient interface {
-	AddEntry(key string, value v2.HeartbeatMessage) (interface{}, error)
-	UpdateHealth(key string, value v2.Health) (interface{}, error)
-	GetAll() ([]v2.HeartbeatMessage, error)
+	Put(key string, field string, value interface{}) error
+	Update(key string, field string, value interface{}) error
+	GetAllHeartbeats() (map[string]*v2.HeartbeatMessage, error)
 }
 
 func NewInstanceManager(client DatastoreClient) *instanceManager {
-	return &instanceManager{
+	m := &instanceManager{
 		instances: make(map[string]*v2.HeartbeatMessage),
 		dsc:       client,
+		stop:      make(chan bool),
 	}
+	go m.consumeDatastore()
+	return m
 }
 
 func (m *instanceManager) RegisterInstance(hbm v2.HeartbeatMessage) error {
 	hostname := hbm.Registration.Hostname
-	if _, err := m.dsc.AddEntry(hostname, hbm); err != nil {
+	if err := m.dsc.Put(hostname, "Registration", *hbm.Registration); err != nil {
 		return err
 	}
 	m.registerInstance(hostname, hbm)
 	return nil
 }
 
+func (m *instanceManager) Stop() {
+	m.stop <- true
+}
+
 func (m *instanceManager) HandleHeartbeat(hostname string, hm v2.Health) error {
-	if _, err := m.dsc.UpdateHealth(hostname, hm); err != nil {
+	if err := m.dsc.Update(hostname, "Health", hm); err != nil {
 		return err
 	}
 	return m.updateHealth(hostname, hm)
@@ -56,4 +66,22 @@ func (m *instanceManager) updateHealth(hostname string, hm v2.Health) error {
 		return nil
 	}
 	return fmt.Errorf("failed to find %s instance for health update", hostname)
+}
+
+func (m *instanceManager) consumeDatastore() {
+	ticker := *time.NewTicker(static.DatastoreExportPeriod)
+	defer ticker.Stop()
+
+	// TODO: add cancel.
+	for {
+		select {
+		case <-m.stop:
+			return
+		case <-ticker.C:
+			values, err := m.dsc.GetAllHeartbeats()
+			if err != nil {
+				m.instances = values
+			}
+		}
+	}
 }

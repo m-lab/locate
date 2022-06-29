@@ -16,7 +16,10 @@
 // NearestResult.NextRequest.URL when provided.
 package v2
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // NearestResult is returned by the location service in response to query
 // requests.
@@ -163,4 +166,14 @@ type Registration struct {
 // to report health updates.
 type Health struct {
 	Score float64 `redis:"Score" json:"Score"` // Health score.
+}
+
+func (r *Registration) RedisScan(x interface{}) error {
+	v, _ := x.([]byte)
+	return json.Unmarshal(v, r)
+}
+
+func (r *Health) RedisScan(x interface{}) error {
+	v, _ := x.([]byte)
+	return json.Unmarshal(v, r)
 }

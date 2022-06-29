@@ -15,7 +15,7 @@ func TestLocalConfig_LoadSigner(t *testing.T) {
 	}{
 		{
 			name: "success",
-			file: "testdata/jwk_sig_EdDSA_unittest_20220415",
+			file: "testdata/jwk_sig_EdDSA_localdev_20220415",
 		},
 		{
 			name:    "error-badfile",
@@ -24,7 +24,7 @@ func TestLocalConfig_LoadSigner(t *testing.T) {
 		},
 		{
 			name:    "error-given-public-key",
-			file:    "testdata/jwk_sig_EdDSA_unittest_20220415.pub",
+			file:    "testdata/jwk_sig_EdDSA_localdev_20220415.pub",
 			wantErr: true,
 		},
 	}
@@ -49,7 +49,7 @@ func TestLocalConfig_LoadVerifier(t *testing.T) {
 	}{
 		{
 			name: "success",
-			file: "testdata/jwk_sig_EdDSA_unittest_20220415.pub",
+			file: "testdata/jwk_sig_EdDSA_localdev_20220415.pub",
 		},
 		{
 			name:    "error-badfile",
@@ -58,7 +58,7 @@ func TestLocalConfig_LoadVerifier(t *testing.T) {
 		},
 		{
 			name:    "error-given-private-key",
-			file:    "testdata/jwk_sig_EdDSA_unittest_20220415",
+			file:    "testdata/jwk_sig_EdDSA_localdev_20220415",
 			wantErr: true,
 		},
 	}

@@ -99,7 +99,7 @@ func main() {
 		locators = append(locators, mmLocator)
 	}
 
-	rc := instances.NewRedisDatastoreClient(redisAddr)
+	r := instances.NewRedisDatastoreClient(redisAddr)
 	im := instances.NewInstanceManager(rc)
 
 	c := handler.NewClient(project, signer, srvLocator, locators, im)

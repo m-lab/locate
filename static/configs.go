@@ -24,6 +24,7 @@ const (
 	MaxReconnectionsTime       = time.Hour
 	HeartbeatPeriod            = 10 * time.Second
 	RedisKeyExpirySecs         = 30
+	DatastoreExportPeriod      = 10 * time.Second
 )
 
 // URL creates inline url.URLs.
