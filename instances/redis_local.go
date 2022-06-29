@@ -13,7 +13,7 @@ import (
 	"github.com/m-lab/go/rtx"
 )
 
-func MustNewLocalRedisClient() *redisDatastoreClient {
+func MustNewLocalRedisDatastoreClient() *redisDatastoreClient {
 	cli, err := client.NewClientWithOpts()
 	rtx.Must(err, "failed to initialize a Docker client")
 

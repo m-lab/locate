@@ -2,6 +2,7 @@ package instances
 
 import (
 	"errors"
+	"runtime"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -97,6 +98,18 @@ func TestUpdateHealth_Success(t *testing.T) {
 	if diff := deep.Equal(h.instances[testdata.FakeHostname].Health, hm); diff != nil {
 		t.Errorf("UpdateHealth() failed to update health; got: %+v, want: %+v",
 			h.instances[testdata.FakeHostname].Health, hm)
+	}
+}
+
+func TestStopImport(t *testing.T) {
+	h := NewCachingInstanceHandler(fakeDC)
+	before := runtime.NumGoroutine()
+
+	h.StopImport()
+	after := runtime.NumGoroutine()
+	if after != before-1 {
+		t.Errorf("StopImport() failed to stop import goroutine; got %d, want %d",
+			after, before-1)
 	}
 }
 

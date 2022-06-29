@@ -26,6 +26,8 @@ func NewRedisDatastoreClient(address string) *redisDatastoreClient {
 	return &redisDatastoreClient{redisPool}
 }
 
+// Put sets a Redis Hash using the `HSET key field value` command.
+// If successful, it also sets a timeout on the key.
 func (rc *redisDatastoreClient) Put(key string, field string, value interface{}) error {
 	conn := rc.pool.Get()
 	defer conn.Close()
@@ -43,6 +45,8 @@ func (rc *redisDatastoreClient) Put(key string, field string, value interface{})
 	return err
 }
 
+// Update updates a field for a Redis Hash if an entry for the key already
+// exists. If successful, it resets the timeout on the key.
 func (rc *redisDatastoreClient) Update(key string, field string, value interface{}) error {
 	conn := rc.pool.Get()
 	defer conn.Close()
@@ -54,6 +58,8 @@ func (rc *redisDatastoreClient) Update(key string, field string, value interface
 	return rc.Put(key, field, value)
 }
 
+// GetAllHeartbeats uses the SCAN command to iterate over all the entries in Redis
+// and return a mapping of all the keys to their v2.HeartbeatMessage values.
 func (rc *redisDatastoreClient) GetAllHeartbeats() (values map[string]*v2.HeartbeatMessage, err error) {
 	conn := rc.pool.Get()
 	defer conn.Close()
