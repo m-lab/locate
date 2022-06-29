@@ -17,7 +17,6 @@
 package v2
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -166,14 +165,4 @@ type Registration struct {
 // to report health updates.
 type Health struct {
 	Score float64 `redis:"Score" json:"Score"` // Health score.
-}
-
-func (r *Registration) RedisScan(x interface{}) error {
-	v, _ := x.([]byte)
-	return json.Unmarshal(v, r)
-}
-
-func (r *Health) RedisScan(x interface{}) error {
-	v, _ := x.([]byte)
-	return json.Unmarshal(v, r)
 }
