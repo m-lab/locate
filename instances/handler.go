@@ -36,7 +36,22 @@ func NewCachingInstanceHandler(client DatastoreClient) *cachingInstanceHandler {
 		instances:       make(map[string]*v2.HeartbeatMessage),
 		stop:            make(chan bool),
 	}
-	go h.importDatastore()
+
+	// Start import loop.
+	go func(h *cachingInstanceHandler) {
+		ticker := *time.NewTicker(static.DatastoreExportPeriod)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-h.stop:
+				return
+			case <-ticker.C:
+				h.importDatastore()
+			}
+		}
+	}(h)
+
 	return h
 }
 
@@ -87,18 +102,8 @@ func (h *cachingInstanceHandler) updateHealth(hostname string, hm v2.Health) err
 }
 
 func (h *cachingInstanceHandler) importDatastore() {
-	ticker := *time.NewTicker(static.DatastoreExportPeriod)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-h.stop:
-			return
-		case <-ticker.C:
-			values, err := h.GetAllHeartbeats()
-			if err != nil {
-				h.instances = values
-			}
-		}
+	values, err := h.GetAllHeartbeats()
+	if err == nil {
+		h.instances = values
 	}
 }

@@ -95,7 +95,22 @@ func TestUpdateHealth_Success(t *testing.T) {
 	}
 
 	if diff := deep.Equal(h.instances[testdata.FakeHostname].Health, hm); diff != nil {
-		t.Errorf("UpdateHealth() failed to update health; got: %+v. want: %+v",
+		t.Errorf("UpdateHealth() failed to update health; got: %+v, want: %+v",
 			h.instances[testdata.FakeHostname].Health, hm)
+	}
+}
+
+func TestImportDatastore(t *testing.T) {
+	fdc := &instancestest.FakeDatastoreClient{}
+	h := NewCachingInstanceHandler(fdc)
+	defer h.StopImport()
+
+	fdc.FakeAdd(testdata.FakeHostname, &testdata.FakeRegistration)
+	h.importDatastore()
+
+	expected := map[string]*v2.HeartbeatMessage{testdata.FakeHostname: &testdata.FakeRegistration}
+	if diff := deep.Equal(h.instances, expected); diff != nil {
+		t.Errorf("importDatastore() failed to import; got: %v, want: %+v", h.instances,
+			expected)
 	}
 }

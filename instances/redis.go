@@ -2,11 +2,14 @@ package instances
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/gomodule/redigo/redis"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
 )
+
+var errNotFound = errors.New("failed to find key in Redis")
 
 type redisDatastoreClient struct {
 	pool *redis.Pool
@@ -45,10 +48,10 @@ func (rc *redisDatastoreClient) Update(key string, field string, value interface
 	defer conn.Close()
 
 	ok, err := redis.Bool(conn.Do("EXISTS", key))
-	if ok {
-		err = rc.Put(key, field, value)
+	if !ok || err != nil {
+		return errNotFound
 	}
-	return err
+	return rc.Put(key, field, value)
 }
 
 func (rc *redisDatastoreClient) GetAllHeartbeats() (values map[string]*v2.HeartbeatMessage, err error) {
