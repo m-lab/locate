@@ -20,6 +20,8 @@ import (
 	"github.com/m-lab/go/rtx"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
+	"github.com/m-lab/locate/instances"
+	"github.com/m-lab/locate/instances/instancestest"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/secrets"
 	"github.com/m-lab/locate/static"
@@ -95,7 +97,13 @@ func main() {
 		mmLocator := clientgeo.NewMaxmindLocator(mainCtx, mm)
 		locators = append(locators, mmLocator)
 	}
-	c := handler.NewClient(project, signer, srvLocator, locators)
+
+	// TODO(cristinaleon): replace this with actual redis implementation once
+	// it is merged.
+	ih := instances.NewCachingInstanceHandler(&instancestest.FakeDatastoreClient{})
+	defer ih.StopImport()
+
+	c := handler.NewClient(project, signer, srvLocator, locators, ih)
 
 	go func() {
 		// Check and reload db at least once a day.

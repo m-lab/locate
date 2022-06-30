@@ -8,12 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-test/deep"
 	"github.com/gorilla/websocket"
-	"github.com/m-lab/go/testingx"
-	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
-	"github.com/m-lab/locate/connection/testdata"
+	"github.com/m-lab/locate/instances"
+	"github.com/m-lab/locate/instances/instancestest"
 )
 
 func init() {
@@ -35,7 +33,6 @@ func mustSetupTest(t testing.TB) (*Client, *websocket.Conn, func(tb testing.TB))
 	return c, ws, func(t testing.TB) {
 		s.Close()
 		ws.Close()
-		c.instances = make(map[string]*v2.HeartbeatMessage)
 	}
 }
 
@@ -67,50 +64,7 @@ func TestClient_Heartbeat_Timeout(t *testing.T) {
 	}
 }
 
-func TestClient_Heartbeat_Success(t *testing.T) {
-	c, ws, teardown := mustSetupTest(t)
-	defer teardown(t)
-
-	err := ws.WriteJSON(testdata.FakeRegistration)
-	testingx.Must(t, err, "failed to write registration message")
-	err = ws.WriteJSON(testdata.FakeHealth)
-	testingx.Must(t, err, "failed to write health message")
-
-	timer := time.NewTimer(2 * readDeadline)
-	<-timer.C
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	val := c.instances[testdata.FakeHostname]
-	if diff := deep.Equal(val.Registration, testdata.FakeRegistration.Registration); diff != nil {
-		t.Errorf("Heartbeat() did not save instance information; got: %v, want: %v",
-			val.Registration, *testdata.FakeRegistration.Registration)
-	}
-	if diff := deep.Equal(val.Health, testdata.FakeHealth.Health); diff != nil {
-		t.Errorf("Heartbeat() did not update health; got: %v, want: %v",
-			val.Health, testdata.FakeHealth.Health)
-	}
-
-}
-
-func TestClient_Heartbeat_InvalidRegistrationType(t *testing.T) {
-	c, ws, teardown := mustSetupTest(t)
-	defer teardown(t)
-
-	type test struct {
-		Foo string
-	}
-	err := ws.WriteJSON(test{Foo: "bar"})
-	testingx.Must(t, err, "failed to write invalid registration message")
-
-	timer := time.NewTimer(2 * readDeadline)
-	<-timer.C
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	if len(c.instances) > 0 {
-		t.Errorf("Heartbeat() expected instances to be empty")
-	}
-}
-
 func fakeClient() *Client {
-	return NewClient("mlab-sandbox", &fakeSigner{}, &fakeLocator{}, clientgeo.NewAppEngineLocator())
+	return NewClient("mlab-sandbox", &fakeSigner{}, &fakeLocator{}, clientgeo.NewAppEngineLocator(),
+		instances.NewCachingInstanceHandler(&instancestest.FakeDatastoreClient{}))
 }
