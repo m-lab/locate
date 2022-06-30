@@ -9,7 +9,7 @@ import (
 	"github.com/m-lab/locate/static"
 )
 
-var errNotFound = errors.New("failed to find key in Redis")
+var errKeyNotFound = errors.New("failed to find key in Redis")
 
 type redisDatastoreClient struct {
 	pool *redis.Pool
@@ -17,13 +17,8 @@ type redisDatastoreClient struct {
 
 // NewRedisDatastoreClient returns a new DatastoreClient implementation
 // that reads and writes data in Redis.
-func NewRedisDatastoreClient(address string) *redisDatastoreClient {
-	redisPool := &redis.Pool{
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", address)
-		},
-	}
-	return &redisDatastoreClient{redisPool}
+func NewRedisDatastoreClient(pool *redis.Pool) *redisDatastoreClient {
+	return &redisDatastoreClient{pool}
 }
 
 // Put sets a Redis Hash using the `HSET key field value` command.
@@ -53,7 +48,7 @@ func (rc *redisDatastoreClient) Update(key string, field string, value interface
 
 	ok, err := redis.Bool(conn.Do("EXISTS", key))
 	if !ok || err != nil {
-		return errNotFound
+		return errKeyNotFound
 	}
 	return rc.Put(key, field, value)
 }

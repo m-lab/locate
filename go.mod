@@ -6,8 +6,6 @@ require (
 	cloud.google.com/go/secretmanager v1.4.0
 	github.com/apex/log v1.9.0
 	github.com/cenkalti/backoff/v4 v4.1.3
-	github.com/docker/docker v20.10.17+incompatible
-	github.com/docker/go-connections v0.4.0
 	github.com/go-test/deep v1.0.8
 	github.com/gomodule/redigo v1.8.8
 	github.com/googleapis/gax-go v1.0.3
@@ -25,12 +23,6 @@ require (
 )
 
 require (
-	github.com/Microsoft/go-winio v0.5.2 // indirect
-	github.com/docker/distribution v2.8.1+incompatible // indirect
-	github.com/docker/go-units v0.4.0 // indirect
-	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
-	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.0.2 // indirect
-	gotest.tools/v3 v3.3.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/rafaeljusto/redigomock v2.4.0+incompatible
 )

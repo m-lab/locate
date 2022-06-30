@@ -8,6 +8,7 @@ import (
 	"time"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"github.com/gomodule/redigo/redis"
 	"github.com/justinas/alice"
 	"gopkg.in/square/go-jose.v2/jwt"
 
@@ -99,7 +100,12 @@ func main() {
 		locators = append(locators, mmLocator)
 	}
 
-	redis := instances.NewRedisDatastoreClient(redisAddr)
+	pool := redis.Pool{
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", redisAddr)
+		},
+	}
+	redis := instances.NewRedisDatastoreClient(&pool)
 	ih := instances.NewCachingInstanceHandler(redis)
 	defer ih.StopImport()
 
