@@ -98,7 +98,7 @@ func main() {
 		locators = append(locators, mmLocator)
 	}
 
-	// TODO(cristinaleon): use redisAddr here to set up redis pool
+	// TODO(cristinaleon): use redisAddr here to set up redis pool.
 	// 	pool := redis.Pool{
 	//		Dial: func() (redis.Conn, error) {
 	//			return redis.Dial("tcp", redisAddr)
