@@ -2,8 +2,6 @@ version: '3.8'
 services:
     redis:
         image: redis:7.0.2-alpine
-        volumes:
-            - ./local:/local
         ports:
             - '6379:6379'
         command: redis-server
@@ -13,8 +11,6 @@ services:
         build:
             context: .
             dockerfile: Dockerfile
-        volumes:
-            - ./local:/local
         ports:
             - '8080:8080'
         command:
