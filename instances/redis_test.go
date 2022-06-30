@@ -136,6 +136,21 @@ func TestUpdate_Sucess(t *testing.T) {
 	}
 }
 
+func TestGetAllHeartbeats_SCANError(t *testing.T) {
+	conn, client := setUpTest()
+	scan := conn.GenericCommand("SCAN").ExpectError(errors.New("SCAN error"))
+
+	_, err := client.GetAllHeartbeats()
+
+	if conn.Stats(scan) != 1 {
+		t.Fatal("GetAllHeartbeats() failure, SCAN should have been called")
+	}
+
+	if err == nil {
+		t.Error("GetAllHeartbeats() error: nil, want: SCAN error")
+	}
+}
+
 func TestGetAllHeartbeats_Success(t *testing.T) {
 	conn, client := setUpTest()
 
@@ -170,5 +185,24 @@ func TestGetAllHeartbeats_Success(t *testing.T) {
 	want := map[string]*v2.HeartbeatMessage{testdata.FakeHostname: &hbm}
 	if diff := deep.Equal(got, want); diff != nil {
 		t.Errorf("GetAllHeartbeats() incorrect output; got: %+v, want: %+v", got, want)
+	}
+}
+
+func TestGetHeartbeat_HGETALLError(t *testing.T) {
+	conn, _ := setUpTest()
+
+	hgetall := conn.GenericCommand("HGETALL").ExpectError(errors.New("HGETALL error"))
+	got, err := getHeartbeat("foo", conn)
+
+	if conn.Stats(hgetall) != 1 {
+		t.Fatal("getHeartbeat() failure, HGETALL should have been called")
+	}
+
+	if err == nil {
+		t.Error("getHeartbeat() error: nil, want: HGETALL error")
+	}
+
+	if got != nil {
+		t.Errorf("getHeartbeat() incorrect output; got %+v, want nil", got)
 	}
 }

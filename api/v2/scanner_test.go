@@ -58,7 +58,7 @@ func TestRedisScan_Success(t *testing.T) {
 
 			err = tt.receiver.RedisScan(b)
 			if err != nil {
-				t.Fatalf("RedisScan() error: %v, want: nil", err)
+				t.Fatalf("RedisScan() error: %+v, want: nil", err)
 			}
 
 			if diff := deep.Equal(tt.receiver, tt.scanObj); diff != nil {

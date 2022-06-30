@@ -24,7 +24,7 @@ func TestRegisterInstance_InvalidArgument(t *testing.T) {
 	err := h.RegisterInstance(v2.HeartbeatMessage{})
 
 	if !errors.Is(err, errInvalidArgument) {
-		t.Errorf("RegisterInstance() error: %v, want: %v", err, errInvalidArgument)
+		t.Errorf("RegisterInstance() error: %+v, want: %+v", err, errInvalidArgument)
 	}
 }
 
@@ -36,7 +36,7 @@ func TestRegisterInstance_PutError(t *testing.T) {
 	err := h.RegisterInstance(hbm)
 
 	if !errors.Is(err, instancestest.FakeError) {
-		t.Errorf("RegisterInstance() error: %v, want: %v", err, instancestest.FakeError)
+		t.Errorf("RegisterInstance() error: %+v, want: %+v", err, instancestest.FakeError)
 	}
 }
 
@@ -48,7 +48,7 @@ func TestRegisterInstance_Success(t *testing.T) {
 	err := h.RegisterInstance(hbm)
 
 	if err != nil {
-		t.Errorf("RegisterInstance() error: %v, want: nil", err)
+		t.Errorf("RegisterInstance() error: %+v, want: nil", err)
 	}
 
 	if diff := deep.Equal(h.instances[hbm.Registration.Hostname], &hbm); diff != nil {
@@ -65,7 +65,7 @@ func TestUpdateHealth_UpdateError(t *testing.T) {
 	err := h.UpdateHealth(testdata.FakeHostname, *hm)
 
 	if !errors.Is(err, instancestest.FakeError) {
-		t.Errorf("UpdateHealth() error: %v, want: %v", err, instancestest.FakeError)
+		t.Errorf("UpdateHealth() error: %+v, want: %+v", err, instancestest.FakeError)
 	}
 }
 
@@ -92,7 +92,7 @@ func TestUpdateHealth_Success(t *testing.T) {
 	err = h.UpdateHealth(testdata.FakeHostname, *hm)
 
 	if err != nil {
-		t.Errorf("UpdateHealth() error: %v, want: !nil", err)
+		t.Errorf("UpdateHealth() error: %+v, want: !nil", err)
 	}
 
 	if diff := deep.Equal(h.instances[testdata.FakeHostname].Health, hm); diff != nil {
@@ -123,7 +123,7 @@ func TestImportDatastore(t *testing.T) {
 
 	expected := map[string]*v2.HeartbeatMessage{testdata.FakeHostname: &testdata.FakeRegistration}
 	if diff := deep.Equal(h.instances, expected); diff != nil {
-		t.Errorf("importDatastore() failed to import; got: %v, want: %+v", h.instances,
+		t.Errorf("importDatastore() failed to import; got: %+v, want: %+v", h.instances,
 			expected)
 	}
 }
