@@ -6,11 +6,11 @@
 // safegaurd measurement quality of your measurements and those of others. The
 // v2 API classifies user requests into three priorities.
 //
-//	API-key | Access Token | Priority
-//	--------------------------------------------------------
-//	YES     | YES          | API-Key, High Availability Pool
-//	YES     | NO           | API-Key, Best Effort Pool
-//	NO      | NO           | Global Best Effort Pool
+//  API-key | Access Token | Priority
+//  --------------------------------------------------------
+//  YES     | YES          | API-Key, High Availability Pool
+//  YES     | NO           | API-Key, Best Effort Pool
+//  NO      | NO           | Global Best Effort Pool
 //
 // For highest priority access to the platform, register an API key and use the
 // NearestResult.NextRequest.URL when provided.
