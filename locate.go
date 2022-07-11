@@ -21,6 +21,7 @@ import (
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/heartbeat"
+	"github.com/m-lab/locate/heartbeat/heartbeattest"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/secrets"
 	"github.com/m-lab/locate/static"
@@ -99,7 +100,8 @@ func main() {
 
 	// TODO(cristinaleon): replace this with actual redis implementation once
 	// it is merged.
-	tracker := heartbeat.NewHeartbeatStatusTracker(nil)
+	memorystore := heartbeattest.FakeDatastoreClient
+	tracker := heartbeat.NewHeartbeatStatusTracker(&memorystore)
 	defer tracker.StopImport()
 
 	c := handler.NewClient(project, signer, srvLocator, locators, tracker)
