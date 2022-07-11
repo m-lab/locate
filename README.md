@@ -8,6 +8,7 @@ measurement quality” using access control.
 ## Local Development
 
 ### Secret Manager
+
 Typically the locate service will run within a GCP environment, either AppEngine
 or GKE. In these cases, the locate service reads signer and verifier keys from
 GCP's secret manager. This dependency is not needed for local development.
@@ -32,11 +33,13 @@ Now you may visit localhost:8080 in your browser to see a response generating
 for the public platform.
 
 ### Redis
+
 A `docker-compose` configuration file is provided to run a local instance of the
 locate service along with Redis.
 
 In the root directory of the "locate" project, start a local build using default
 arguments and precomputed JSON Web Keys.
+
 ```sh
 docker-compose up
 ```

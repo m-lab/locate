@@ -35,6 +35,7 @@ var (
 	signerSecretName string
 	maxmind          = flagx.URL{}
 	verifySecretName string
+	redisAddr        string
 	keySource        = flagx.Enum{
 		Options: []string{"secretmanager", "local"},
 		Value:   "secretmanager",
@@ -49,6 +50,7 @@ func init() {
 	flag.StringVar(&legacyServer, "legacy-server", proxy.DefaultLegacyServer, "Base URL to mlab-ns server")
 	flag.StringVar(&signerSecretName, "signer-secret-name", "locate-service-signer-key", "Name of secret for locate signer key in Secret Manager")
 	flag.StringVar(&verifySecretName, "verify-secret-name", "locate-monitoring-service-verify-key", "Name of secret for monitoring verifier key in Secret Manager")
+	flag.StringVar(&redisAddr, "redis-address", "", "Primary endpoint for Redis instance")
 	flag.BoolVar(&locatorAE, "locator-appengine", true, "Use the AppEngine clientgeo locator")
 	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
