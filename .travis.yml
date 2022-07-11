@@ -11,7 +11,7 @@ addons:
     - ca-certificates
 
 install:
-- go install -v -t ./...
+- go install -v ./...
 - go install github.com/mattn/goveralls@latest
 
 script:
