@@ -1,4 +1,4 @@
-package instances
+package memorystore
 
 import (
 	"encoding/json"
@@ -14,19 +14,19 @@ import (
 	"github.com/rafaeljusto/redigomock"
 )
 
-func setUpTest() (*redigomock.Conn, *redisDatastoreClient) {
+func setUpTest[V any]() (*redigomock.Conn, *client[V]) {
 	conn := redigomock.NewConn()
 	pool := redis.Pool{
 		Dial: func() (redis.Conn, error) {
 			return conn, nil
 		},
 	}
-	c := NewRedisDatastoreClient(&pool)
+	c := NewClient[V](&pool)
 	return conn, c
 }
 
 func TestPut_MarshalError(t *testing.T) {
-	conn, client := setUpTest()
+	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET")
 
@@ -42,7 +42,7 @@ func TestPut_MarshalError(t *testing.T) {
 }
 
 func TestPut_HSETError(t *testing.T) {
-	conn, client := setUpTest()
+	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET").ExpectError(errors.New("HSET error"))
 	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration)
@@ -57,7 +57,7 @@ func TestPut_HSETError(t *testing.T) {
 }
 
 func TestPut_EXPIREError(t *testing.T) {
-	conn, client := setUpTest()
+	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET").Expect(1)
 	expire := conn.GenericCommand("EXPIRE").ExpectError(errors.New("EXPIRE error"))
@@ -73,7 +73,7 @@ func TestPut_EXPIREError(t *testing.T) {
 }
 
 func TestPut_Success(t *testing.T) {
-	conn, client := setUpTest()
+	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET").Expect(1)
 	expire := conn.GenericCommand("EXPIRE").Expect(1)
@@ -88,71 +88,64 @@ func TestPut_Success(t *testing.T) {
 	}
 }
 
-func TestUpdate_NonExistentKey(t *testing.T) {
-	conn, client := setUpTest()
-
-	// The redis.Bool helper casts its input into int64.
-	exists := conn.GenericCommand("EXISTS").Expect(int64(0))
-	err := client.Update(testdata.FakeHostname, "Health", testdata.FakeHealth.Health)
-
-	if conn.Stats(exists) != 1 {
-		t.Fatal("Update() failure, EXISTS should have been called")
-	}
-
-	if !errors.Is(err, errKeyNotFound) {
-		t.Errorf("Update() error: %+v, want: %+v", err, errKeyNotFound)
-	}
-}
-
-func TestUpdate_EXISTSError(t *testing.T) {
-	conn, client := setUpTest()
-
-	exists := conn.GenericCommand("EXISTS").ExpectError(errors.New("EXISTS error"))
-	err := client.Update(testdata.FakeHostname, "Health", testdata.FakeHealth.Health)
-
-	if conn.Stats(exists) != 1 {
-		t.Fatal("Update() failure, EXISTS should have been called")
-	}
-
-	if !errors.Is(err, errKeyNotFound) {
-		t.Errorf("Update() error: %+v, want: %+v", err, errKeyNotFound)
-	}
-}
-
-func TestUpdate_Sucess(t *testing.T) {
-	conn, client := setUpTest()
-
-	hset := conn.GenericCommand("HSET").Expect(1)
-	expire := conn.GenericCommand("EXPIRE").Expect(1)
-	exists := conn.GenericCommand("EXISTS").Expect(int64(1))
-	err := client.Update(testdata.FakeHostname, "Health", testdata.FakeHealth.Health)
-
-	if conn.Stats(hset) != 1 || conn.Stats(expire) != 1 || conn.Stats(exists) != 1 {
-		t.Fatal("Update() failure, HSET, EXPIRE, and EXISTS commands should have been called")
-	}
-
-	if err != nil {
-		t.Errorf("Update() error: %+v, want: nil", err)
-	}
-}
-
-func TestGetAllHeartbeats_SCANError(t *testing.T) {
-	conn, client := setUpTest()
+func TestGetAll_SCANError(t *testing.T) {
+	conn, client := setUpTest[v2.HeartbeatMessage]()
 	scan := conn.GenericCommand("SCAN").ExpectError(errors.New("SCAN error"))
 
-	_, err := client.GetAllHeartbeats()
+	_, err := client.GetAll()
 
 	if conn.Stats(scan) != 1 {
-		t.Fatal("GetAllHeartbeats() failure, SCAN should have been called")
+		t.Fatal("GetAll() failure, SCAN should have been called")
 	}
 
 	if err == nil {
-		t.Error("GetAllHeartbeats() error: nil, want: SCAN error")
+		t.Error("GetAll() error: nil, want: SCAN error")
 	}
 }
 
-func TestGetAllHeartbeats_Success(t *testing.T) {
-	conn, client := setUpTest()
+func TestGetAll_ScanLibraryError(t *testing.T) {
+	conn, client := setUpTest[v2.HeartbeatMessage]()
+
+	// Only returning one argument will cause the `redis.Scan()`
+	// call to fail with a "redigo.Scan: array short" error.
+	scan := conn.Command("SCAN", 0).Expect([]interface{}{
+		int64(10),
+	})
+
+	_, err := client.GetAll()
+
+	if conn.Stats(scan) != 1 {
+		t.Fatal("GetAll() failure, SCAN should have been called")
+	}
+
+	if err == nil {
+		t.Error("GetAll() error: nil, want: redigo.Scan error")
+	}
+}
+
+func TestGetAll_GetError(t *testing.T) {
+	conn, client := setUpTest[v2.HeartbeatMessage]()
+
+	scan := conn.Command("SCAN", 0).Expect([]interface{}{
+		int64(10), []interface{}{testdata.FakeHostname},
+	})
+
+	// This will return an error in the inner get() call.
+	hgetall := conn.GenericCommand("HGETALL").ExpectError(errors.New("HGETALL error"))
+
+	_, err := client.GetAll()
+
+	if conn.Stats(scan) != 1 || conn.Stats(hgetall) != 1 {
+		t.Fatal("GetAll() failure, SCAN and HGETALL should have been called")
+	}
+
+	if err == nil {
+		t.Error("GetAll() error: nil, want: get error")
+	}
+}
+
+func TestGetAll_Success(t *testing.T) {
+	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	scan := conn.Command("SCAN", 0).Expect([]interface{}{
 		int64(10), []interface{}{testdata.FakeHostname},
@@ -172,37 +165,53 @@ func TestGetAllHeartbeats_Success(t *testing.T) {
 		[]byte("Registration"), rBytes, []byte("Health"), hBytes,
 	})
 
-	got, err := client.GetAllHeartbeats()
+	got, err := client.GetAll()
 
 	if conn.Stats(scan) != 1 || conn.Stats(scan2) != 1 || conn.Stats(hgetall) != 1 {
-		t.Fatal("GetAllHeartbeats() failure, SCAN and HGETALL should have been called")
+		t.Fatal("GetAll() failure, SCAN and HGETALL should have been called")
 	}
 
 	if err != nil {
-		t.Fatalf("GetAllHeartbeats() error: %+v, want: nil", err)
+		t.Fatalf("GetAll() error: %+v, want: nil", err)
 	}
 
-	want := map[string]*v2.HeartbeatMessage{testdata.FakeHostname: &hbm}
+	want := map[string]v2.HeartbeatMessage{testdata.FakeHostname: hbm}
 	if diff := deep.Equal(got, want); diff != nil {
-		t.Errorf("GetAllHeartbeats() incorrect output; got: %+v, want: %+v", got, want)
+		t.Errorf("GetAll() incorrect output; got: %+v, want: %+v", got, want)
 	}
 }
 
-func TestGetHeartbeat_HGETALLError(t *testing.T) {
-	conn, _ := setUpTest()
+func TestGet_HGETALLError(t *testing.T) {
+	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hgetall := conn.GenericCommand("HGETALL").ExpectError(errors.New("HGETALL error"))
-	got, err := getHeartbeat("foo", conn)
+	_, err := client.get("", conn)
 
 	if conn.Stats(hgetall) != 1 {
-		t.Fatal("getHeartbeat() failure, HGETALL should have been called")
+		t.Fatal("get() failure, HGETALL should have been called")
 	}
 
 	if err == nil {
-		t.Error("getHeartbeat() error: nil, want: HGETALL error")
+		t.Error("get() error: nil, want: HGETALL error")
+	}
+}
+
+func TestGet_ScanStructError(t *testing.T) {
+	// ScanStruct fails when it does not know how to scan a field
+	// that doesn't implement the Scanner interface.
+	conn, client := setUpTest[v2.MonitoringResult]()
+
+	hgetall := conn.GenericCommand("HGETALL").Expect([]interface{}{
+		[]byte("Error"), &v2.Error{},
+	})
+
+	_, err := client.get("foo", conn)
+
+	if conn.Stats(hgetall) != 1 {
+		t.Fatal("get() failure, HGETALL should have been called")
 	}
 
-	if got != nil {
-		t.Errorf("getHeartbeat() incorrect output; got %+v, want nil", got)
+	if err == nil {
+		t.Error("get() error: nil, want: ScanStruct error")
 	}
 }

@@ -6,11 +6,11 @@
 // safegaurd measurement quality of your measurements and those of others. The
 // v2 API classifies user requests into three priorities.
 //
-//  API-key | Access Token | Priority
-//  --------------------------------------------------------
-//  YES     | YES          | API-Key, High Availability Pool
-//  YES     | NO           | API-Key, Best Effort Pool
-//  NO      | NO           | Global Best Effort Pool
+//	API-key | Access Token | Priority
+//	--------------------------------------------------------
+//	YES     | YES          | API-Key, High Availability Pool
+//	YES     | NO           | API-Key, Best Effort Pool
+//	NO      | NO           | Global Best Effort Pool
 //
 // For highest priority access to the platform, register an API key and use the
 // NearestResult.NextRequest.URL when provided.
@@ -136,31 +136,31 @@ func NewError(typ, title string, status int) *Error {
 // HeartbeatMessage contains pointers to structs of the types
 // of messages accepted by the heartbeat service.
 type HeartbeatMessage struct {
-	Health       *Health       `redis:"Health" json:"Health"`
-	Registration *Registration `redis:"Registration" json:"Registration"`
+	Health       *Health
+	Registration *Registration
 }
 
 // Registration contains a set of identifying fields
 // for a server instance.
 type Registration struct {
-	City          string              `redis:"City" json:"City"`                   // City (e.g., New York).
-	CountryCode   string              `redis:"CountryCode" json:"CountryCode"`     // Country code (e.g., US).
-	ContinentCode string              `redis:"ContinentCode" json:"ContinentCode"` // Continent code (e.g., NA).
-	Experiment    string              `redis:"Experiment" json:"Experiment"`       // Experiment (e.g., ndt).
-	Hostname      string              `redis:"Hostname" json:"Hostname"`           // Fully qualified service hostname.
-	Latitude      float64             `redis:"Latitude" json:"Latitude"`           // Latitude.
-	Longitude     float64             `redis:"Longitude" json:"Longitude"`         // Longitude.
-	Machine       string              `redis:"Machine" json:"Machine"`             // Machine (e.g., mlab1).
-	Metro         string              `redis:"Metro" json:"Metro"`                 // Metro (e.g., lga).
-	Project       string              `redis:"Project" json:"Project"`             // Project (e.g., mlab-sandbox).
-	Site          string              `redis:"Site" json:"Site"`                   // Site (e.g.. lga01).
-	Type          string              `redis:"Type" json:"Type"`                   // Machine type (e.g., physical, virtual).
-	Uplink        string              `redis:"Uplink" json:"Uplink"`               // Uplink capacity.
-	Services      map[string][]string `redis:"Services" json:"Services"`           // Mapping of service names.
+	City          string              // City (e.g., New York).
+	CountryCode   string              // Country code (e.g., US).
+	ContinentCode string              // Continent code (e.g., NA).
+	Experiment    string              // Experiment (e.g., ndt).
+	Hostname      string              // Fully qualified service hostname.
+	Latitude      float64             // Latitude.
+	Longitude     float64             // Longitude.
+	Machine       string              // Machine (e.g., mlab1).
+	Metro         string              // Metro (e.g., lga).
+	Project       string              // Project (e.g., mlab-sandbox).
+	Site          string              // Site (e.g.. lga01).
+	Type          string              // Machine type (e.g., physical, virtual).
+	Uplink        string              // Uplink capacity.
+	Services      map[string][]string // Mapping of service names.
 }
 
 // Health is the structure used by the heartbeat service
 // to report health updates.
 type Health struct {
-	Score float64 `redis:"Score" json:"Score"` // Health score.
+	Score float64 // Health score.
 }
