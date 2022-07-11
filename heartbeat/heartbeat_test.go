@@ -1,4 +1,4 @@
-package instances
+package heartbeat
 
 import (
 	"errors"
@@ -9,68 +9,56 @@ import (
 	"github.com/m-lab/go/testingx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/connection/testdata"
-	"github.com/m-lab/locate/instances/instancestest"
+	"github.com/m-lab/locate/heartbeat/heartbeattest"
 )
 
 var (
-	fakeDC    = &instancestest.FakeDatastoreClient{}
-	fakeErrDC = &instancestest.FakeErrorDatastoreClient{}
+	fakeDC    = &heartbeattest.FakeDatastoreClient
+	fakeErrDC = &heartbeattest.FakeErrorDatastoreClient
 )
 
-func TestRegisterInstance_InvalidArgument(t *testing.T) {
-	h := NewCachingInstanceHandler(fakeDC)
-	defer h.StopImport()
-
-	err := h.RegisterInstance(v2.HeartbeatMessage{})
-
-	if !errors.Is(err, errInvalidArgument) {
-		t.Errorf("RegisterInstance() error: %+v, want: %+v", err, errInvalidArgument)
-	}
-}
-
 func TestRegisterInstance_PutError(t *testing.T) {
-	h := NewCachingInstanceHandler(fakeErrDC)
+	h := NewHeartbeatStatusTracker(fakeErrDC)
 	defer h.StopImport()
 
-	hbm := testdata.FakeRegistration
-	err := h.RegisterInstance(hbm)
+	err := h.RegisterInstance(*testdata.FakeRegistration.Registration)
 
-	if !errors.Is(err, instancestest.FakeError) {
-		t.Errorf("RegisterInstance() error: %+v, want: %+v", err, instancestest.FakeError)
+	if !errors.Is(err, heartbeattest.FakeError) {
+		t.Errorf("RegisterInstance() error: %+v, want: %+v", err, heartbeattest.FakeError)
 	}
 }
 
 func TestRegisterInstance_Success(t *testing.T) {
-	h := NewCachingInstanceHandler(fakeDC)
+	h := NewHeartbeatStatusTracker(fakeDC)
 	defer h.StopImport()
 
 	hbm := testdata.FakeRegistration
-	err := h.RegisterInstance(hbm)
+	err := h.RegisterInstance(*hbm.Registration)
 
 	if err != nil {
 		t.Errorf("RegisterInstance() error: %+v, want: nil", err)
 	}
 
-	if diff := deep.Equal(h.instances[hbm.Registration.Hostname], &hbm); diff != nil {
+	if diff := deep.Equal(h.instances[hbm.Registration.Hostname], hbm); diff != nil {
 		t.Errorf("RegisterInstance() failed to register; got: %+v. want: %+v",
 			h.instances[hbm.Registration.Hostname], &hbm)
 	}
 }
 
 func TestUpdateHealth_UpdateError(t *testing.T) {
-	h := NewCachingInstanceHandler(fakeErrDC)
+	h := NewHeartbeatStatusTracker(fakeErrDC)
 	defer h.StopImport()
 
 	hm := testdata.FakeHealth.Health
 	err := h.UpdateHealth(testdata.FakeHostname, *hm)
 
-	if !errors.Is(err, instancestest.FakeError) {
-		t.Errorf("UpdateHealth() error: %+v, want: %+v", err, instancestest.FakeError)
+	if !errors.Is(err, heartbeattest.FakeError) {
+		t.Errorf("UpdateHealth() error: %+v, want: %+v", err, heartbeattest.FakeError)
 	}
 }
 
 func TestUpdateHealth_LocalError(t *testing.T) {
-	h := NewCachingInstanceHandler(fakeDC)
+	h := NewHeartbeatStatusTracker(fakeDC)
 	defer h.StopImport()
 
 	hm := testdata.FakeHealth.Health
@@ -82,10 +70,10 @@ func TestUpdateHealth_LocalError(t *testing.T) {
 }
 
 func TestUpdateHealth_Success(t *testing.T) {
-	h := NewCachingInstanceHandler(fakeDC)
+	h := NewHeartbeatStatusTracker(fakeDC)
 	defer h.StopImport()
 
-	err := h.RegisterInstance(testdata.FakeRegistration)
+	err := h.RegisterInstance(*testdata.FakeRegistration.Registration)
 	testingx.Must(t, err, "failed to register instance")
 
 	hm := testdata.FakeHealth.Health
@@ -102,7 +90,7 @@ func TestUpdateHealth_Success(t *testing.T) {
 }
 
 func TestStopImport(t *testing.T) {
-	h := NewCachingInstanceHandler(fakeDC)
+	h := NewHeartbeatStatusTracker(fakeDC)
 	before := runtime.NumGoroutine()
 
 	h.StopImport()
@@ -114,14 +102,14 @@ func TestStopImport(t *testing.T) {
 }
 
 func TestImportDatastore(t *testing.T) {
-	fdc := &instancestest.FakeDatastoreClient{}
-	h := NewCachingInstanceHandler(fdc)
+	fdc := &heartbeattest.FakeDatastoreClient
+	h := NewHeartbeatStatusTracker(fdc)
 	defer h.StopImport()
 
-	fdc.FakeAdd(testdata.FakeHostname, &testdata.FakeRegistration)
+	fdc.FakeAdd(testdata.FakeHostname, testdata.FakeRegistration)
 	h.importDatastore()
 
-	expected := map[string]*v2.HeartbeatMessage{testdata.FakeHostname: &testdata.FakeRegistration}
+	expected := map[string]v2.HeartbeatMessage{testdata.FakeHostname: testdata.FakeRegistration}
 	if diff := deep.Equal(h.instances, expected); diff != nil {
 		t.Errorf("importDatastore() failed to import; got: %+v, want: %+v", h.instances,
 			expected)

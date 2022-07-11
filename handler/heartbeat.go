@@ -52,8 +52,8 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 
 			switch {
 			case hbm.Registration != nil:
-				c.RegisterInstance(hbm)
 				hostname = hbm.Registration.Hostname
+				c.RegisterInstance(*hbm.Registration)
 			case hbm.Health != nil:
 				c.UpdateHealth(hostname, *hbm.Health)
 			}

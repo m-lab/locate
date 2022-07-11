@@ -10,8 +10,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/locate/clientgeo"
-	"github.com/m-lab/locate/instances"
-	"github.com/m-lab/locate/instances/instancestest"
+	"github.com/m-lab/locate/heartbeat"
+	"github.com/m-lab/locate/heartbeat/heartbeattest"
 )
 
 func init() {
@@ -66,5 +66,5 @@ func TestClient_Heartbeat_Timeout(t *testing.T) {
 
 func fakeClient() *Client {
 	return NewClient("mlab-sandbox", &fakeSigner{}, &fakeLocator{}, clientgeo.NewAppEngineLocator(),
-		instances.NewCachingInstanceHandler(&instancestest.FakeDatastoreClient{}))
+		heartbeat.NewHeartbeatStatusTracker(&heartbeattest.FakeDatastoreClient))
 }

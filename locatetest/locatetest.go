@@ -13,8 +13,8 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
-	"github.com/m-lab/locate/instances"
-	"github.com/m-lab/locate/instances/instancestest"
+	"github.com/m-lab/locate/heartbeat"
+	"github.com/m-lab/locate/heartbeat/heartbeattest"
 )
 
 // Signer implements the Signer interface for unit tests.
@@ -52,7 +52,7 @@ func NewLocateServer(loc *Locator) *httptest.Server {
 	// fake signer, fake locator.
 	s := &Signer{}
 	c := handler.NewClientDirect("fake-project", s, loc, &clientgeo.NullLocator{},
-		instances.NewCachingInstanceHandler(&instancestest.FakeDatastoreClient{}))
+		heartbeat.NewHeartbeatStatusTracker(&heartbeattest.FakeDatastoreClient))
 
 	// USER APIs
 	mux := http.NewServeMux()

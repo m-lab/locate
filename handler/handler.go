@@ -33,7 +33,7 @@ type Client struct {
 	project string
 	Locator
 	ClientLocator
-	InstanceHandler
+	StatusTracker
 	targetTmpl *template.Template
 }
 
@@ -48,9 +48,9 @@ type ClientLocator interface {
 	Locate(req *http.Request) (*clientgeo.Location, error)
 }
 
-// InstanceHandler defines the interface for handling experiment instance data.
-type InstanceHandler interface {
-	RegisterInstance(hbm v2.HeartbeatMessage) error
+// StatusTracker defines the interface for tracking the status of experiment instances.
+type StatusTracker interface {
+	RegisterInstance(rm v2.Registration) error
 	UpdateHealth(hostname string, hm v2.Health) error
 }
 
@@ -60,25 +60,25 @@ func init() {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator, client ClientLocator, instanceHandler InstanceHandler) *Client {
+func NewClient(project string, private Signer, locator Locator, client ClientLocator, tracker StatusTracker) *Client {
 	return &Client{
-		Signer:          private,
-		project:         project,
-		Locator:         locator,
-		ClientLocator:   client,
-		InstanceHandler: instanceHandler,
-		targetTmpl:      template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
+		Signer:        private,
+		project:       project,
+		Locator:       locator,
+		ClientLocator: client,
+		StatusTracker: tracker,
+		targetTmpl:    template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
 	}
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
-func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator, instanceHandler InstanceHandler) *Client {
+func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator, tracker StatusTracker) *Client {
 	return &Client{
-		Signer:          private,
-		project:         project,
-		Locator:         locator,
-		ClientLocator:   client,
-		InstanceHandler: instanceHandler,
+		Signer:        private,
+		project:       project,
+		Locator:       locator,
+		ClientLocator: client,
+		StatusTracker: tracker,
 		// Useful for the locatetest package when running a local server.
 		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
 	}
