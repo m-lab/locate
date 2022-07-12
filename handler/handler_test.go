@@ -14,6 +14,8 @@ import (
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
+	"github.com/m-lab/locate/heartbeat"
+	"github.com/m-lab/locate/heartbeat/heartbeattest"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
 	log "github.com/sirupsen/logrus"
@@ -152,7 +154,8 @@ func TestClient_TranslatedQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cl := clientgeo.NewAppEngineLocator()
-			c := NewClient(tt.project, tt.signer, tt.locator, cl)
+			h := heartbeat.NewHeartbeatStatusTracker(&heartbeattest.FakeMemorystoreClient)
+			c := NewClient(tt.project, tt.signer, tt.locator, cl, h)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.TranslatedQuery)
@@ -206,7 +209,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 
 func TestNewClientDirect(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		c := NewClientDirect("fake-project", nil, nil, nil)
+		c := NewClientDirect("fake-project", nil, nil, nil, nil)
 		if c == nil {
 			t.Error("got nil client!")
 		}

@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"path"
 	"strings"
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -34,9 +33,8 @@ type Client struct {
 	project string
 	Locator
 	ClientLocator
+	StatusTracker
 	targetTmpl *template.Template
-	instances  map[string]*v2.HeartbeatMessage
-	mu         sync.RWMutex
 }
 
 // Locator defines how the TranslatedQuery handler requests machines nearest to
@@ -50,33 +48,39 @@ type ClientLocator interface {
 	Locate(req *http.Request) (*clientgeo.Location, error)
 }
 
+// StatusTracker defines the interface for tracking the status of experiment instances.
+type StatusTracker interface {
+	RegisterInstance(rm v2.Registration) error
+	UpdateHealth(hostname string, hm v2.Health) error
+}
+
 func init() {
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator, client ClientLocator) *Client {
+func NewClient(project string, private Signer, locator Locator, client ClientLocator, tracker StatusTracker) *Client {
 	return &Client{
 		Signer:        private,
 		project:       project,
 		Locator:       locator,
 		ClientLocator: client,
+		StatusTracker: tracker,
 		targetTmpl:    template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
-		instances:     make(map[string]*v2.HeartbeatMessage),
 	}
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
-func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator) *Client {
+func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator, tracker StatusTracker) *Client {
 	return &Client{
 		Signer:        private,
 		project:       project,
 		Locator:       locator,
 		ClientLocator: client,
+		StatusTracker: tracker,
 		// Useful for the locatetest package when running a local server.
 		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
-		instances:  make(map[string]*v2.HeartbeatMessage),
 	}
 }
 

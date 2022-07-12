@@ -52,26 +52,12 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 
 			switch {
 			case hbm.Registration != nil:
-				c.registerInstance(*hbm.Registration)
 				hostname = hbm.Registration.Hostname
+				c.RegisterInstance(*hbm.Registration)
 			case hbm.Health != nil:
-				c.updateScore(hostname, *hbm.Health)
+				c.UpdateHealth(hostname, *hbm.Health)
 			}
 		}
-	}
-}
-
-func (c *Client) registerInstance(rm v2.Registration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.instances[rm.Hostname] = &v2.HeartbeatMessage{Registration: &rm}
-}
-
-func (c *Client) updateScore(hostname string, hm v2.Health) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if instance, found := c.instances[hostname]; found {
-		instance.Health = &hm
 	}
 }
 
