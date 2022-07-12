@@ -90,14 +90,14 @@ func TestUpdateHealth_Success(t *testing.T) {
 }
 
 func TestStopImport(t *testing.T) {
-	h := NewHeartbeatStatusTracker(fakeDC)
 	before := runtime.NumGoroutine()
+	h := NewHeartbeatStatusTracker(fakeDC)
 
 	h.StopImport()
 	after := runtime.NumGoroutine()
-	if after != (before - 1) {
+	if after != before {
 		t.Errorf("StopImport() failed to stop import goroutine; got %d, want %d",
-			after, before-1)
+			after, before)
 	}
 }
 
