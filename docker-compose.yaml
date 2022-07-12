@@ -1,0 +1,24 @@
+version: '3.8'
+services:
+    redis:
+        image: redis:7.0.2-alpine
+        ports:
+            - '6379:6379'
+        command: redis-server
+        restart: always
+
+    locate:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        ports:
+            - '8080:8080'
+        command:
+            - -google-cloud-project=mlab-sandbox
+            - -legacy-server=https://mlab-sandbox.appspot.com
+            - -platform-project=mlab-sandbox
+            - -port=8080
+            - -redis-address=redis:6379
+            - -key-source=local
+            - -signer-secret-name=./secrets/testdata/jwk_sig_EdDSA_test_20220415
+            - -verify-secret-name=./secrets/testdata/jwk_sig_EdDSA_test_20220415.pub
