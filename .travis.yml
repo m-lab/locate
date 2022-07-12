@@ -2,7 +2,7 @@ dist: focal
 
 language: go
 go:
-- 1.16
+- 1.18
 
 addons:
   apt:
@@ -11,8 +11,8 @@ addons:
     - ca-certificates
 
 install:
-- go get -v -t ./...
-- go get github.com/mattn/goveralls
+- go install -v ./...
+- go install github.com/mattn/goveralls@latest
 
 script:
 - go vet ./...
