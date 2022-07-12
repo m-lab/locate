@@ -25,4 +25,4 @@ env_variables:
   PLATFORM_PROJECT: {{PLATFORM_PROJECT}}
   LOCATOR_MAXMIND: true
   MAXMIND_URL: gs://downloader-{{PLATFORM_PROJECT}}/Maxmind/current/GeoLite2-City.tar.gz
-
+  REDIS_ADDRESS: {{REDIS_ADDRESS}}

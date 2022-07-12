@@ -1,12 +1,11 @@
 # Built the command using a golang base image.
-FROM golang:1.16.15-alpine3.15 AS build
+FROM golang:1.18.3-alpine3.16 AS build
 RUN apk add git
 ADD . /go/src/github.com/m-lab/locate
-# TODO(cristinaleon): remove the @master once the changes are tagged.
-RUN go get -v github.com/m-lab/locate/cmd/heartbeat@master
+RUN go install -v github.com/m-lab/locate/cmd/heartbeat@latest
 
 # Now copy the resulting command into the minimal base image.
-FROM alpine:3.15
+FROM alpine:3.16
 COPY --from=build /go/bin/heartbeat /
 WORKDIR /
 ENTRYPOINT ["/heartbeat"]
