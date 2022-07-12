@@ -30,7 +30,9 @@ func TestPut_MarshalError(t *testing.T) {
 
 	hset := conn.GenericCommand("HSET")
 
-	err := client.Put(testdata.FakeHostname, "Registration", math.Inf(1))
+	r := *testdata.FakeRegistration.Registration
+	r.Latitude = math.Inf(1)
+	err := client.Put(testdata.FakeHostname, "Registration", &r)
 
 	if conn.Stats(hset) > 0 {
 		t.Fatal("Put() failure, HSET command should not be called, want: marshal error")
