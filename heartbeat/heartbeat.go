@@ -28,7 +28,8 @@ type MemorystoreClient[V any] interface {
 }
 
 // NewHeartbeatStatusTracker returns a new StatusTracker implementation that uses
-// a datastore to cache (and later import) instance data from the Heartbeat Service.
+// a Memorystore client to cache (and later import) instance data from the Heartbeat Service.
+// StopImport() must be called to release resources.
 func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *heartbeatStatusTracker {
 	h := &heartbeatStatusTracker{
 		MemorystoreClient: client,
@@ -38,7 +39,7 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 
 	// Start import loop.
 	go func(h *heartbeatStatusTracker) {
-		ticker := *time.NewTicker(static.DatastoreExportPeriod)
+		ticker := *time.NewTicker(static.MemorystoreExportPeriod)
 		defer ticker.Stop()
 
 		for {
@@ -46,7 +47,7 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 			case <-h.stop:
 				return
 			case <-ticker.C:
-				h.importDatastore()
+				h.importMemorystore()
 			}
 		}
 	}(h)
@@ -54,7 +55,7 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 	return h
 }
 
-// RegisterInstance adds a new v2.Registration message to the datastore and keeps it
+// RegisterInstance adds a new v2.Registration message to the Memorystore client and keeps it
 // locally.
 func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 	hostname := rm.Hostname
@@ -66,7 +67,7 @@ func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 	return nil
 }
 
-// UpdateHealth updates the v2.Health field for the instance in the datastore and
+// UpdateHealth updates the v2.Health field for the instance in the Memorystore client and
 // updates it locally.
 func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) error {
 	if err := h.Put(hostname, "Health", hm); err != nil {
@@ -75,7 +76,7 @@ func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) err
 	return h.updateHealth(hostname, hm)
 }
 
-// StopImport stops importing instance data from the Datastore.
+// StopImport stops importing instance data from the Memorystore.
 // It must be called to release resources.
 func (h *heartbeatStatusTracker) StopImport() {
 	h.stop <- true
@@ -100,7 +101,7 @@ func (h *heartbeatStatusTracker) updateHealth(hostname string, hm v2.Health) err
 	return fmt.Errorf("failed to find %s instance for health update", hostname)
 }
 
-func (h *heartbeatStatusTracker) importDatastore() {
+func (h *heartbeatStatusTracker) importMemorystore() {
 	values, err := h.GetAll()
 
 	if err == nil {

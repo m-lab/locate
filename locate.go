@@ -100,7 +100,7 @@ func main() {
 
 	// TODO(cristinaleon): replace this with actual redis implementation once
 	// it is merged.
-	memorystore := heartbeattest.FakeDatastoreClient
+	memorystore := heartbeattest.FakeMemorystoreClient
 	tracker := heartbeat.NewHeartbeatStatusTracker(&memorystore)
 	defer tracker.StopImport()
 

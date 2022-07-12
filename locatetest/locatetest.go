@@ -52,7 +52,7 @@ func NewLocateServer(loc *Locator) *httptest.Server {
 	// fake signer, fake locator.
 	s := &Signer{}
 	c := handler.NewClientDirect("fake-project", s, loc, &clientgeo.NullLocator{},
-		heartbeat.NewHeartbeatStatusTracker(&heartbeattest.FakeDatastoreClient))
+		heartbeat.NewHeartbeatStatusTracker(&heartbeattest.FakeMemorystoreClient))
 
 	// USER APIs
 	mux := http.NewServeMux()

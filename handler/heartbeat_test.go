@@ -66,5 +66,5 @@ func TestClient_Heartbeat_Timeout(t *testing.T) {
 
 func fakeClient() *Client {
 	return NewClient("mlab-sandbox", &fakeSigner{}, &fakeLocator{}, clientgeo.NewAppEngineLocator(),
-		heartbeat.NewHeartbeatStatusTracker(&heartbeattest.FakeDatastoreClient))
+		heartbeat.NewHeartbeatStatusTracker(&heartbeattest.FakeMemorystoreClient))
 }

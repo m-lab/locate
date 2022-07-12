@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	fakeDC    = &heartbeattest.FakeDatastoreClient
-	fakeErrDC = &heartbeattest.FakeErrorDatastoreClient
+	fakeDC    = &heartbeattest.FakeMemorystoreClient
+	fakeErrDC = &heartbeattest.FakeErrorMemorystoreClient
 )
 
 func TestRegisterInstance_PutError(t *testing.T) {
@@ -95,23 +95,23 @@ func TestStopImport(t *testing.T) {
 
 	h.StopImport()
 	after := runtime.NumGoroutine()
-	if after != before-1 {
+	if after != (before - 1) {
 		t.Errorf("StopImport() failed to stop import goroutine; got %d, want %d",
 			after, before-1)
 	}
 }
 
-func TestImportDatastore(t *testing.T) {
-	fdc := &heartbeattest.FakeDatastoreClient
+func TestImportMemorystore(t *testing.T) {
+	fdc := &heartbeattest.FakeMemorystoreClient
 	h := NewHeartbeatStatusTracker(fdc)
 	defer h.StopImport()
 
 	fdc.FakeAdd(testdata.FakeHostname, testdata.FakeRegistration)
-	h.importDatastore()
+	h.importMemorystore()
 
 	expected := map[string]v2.HeartbeatMessage{testdata.FakeHostname: testdata.FakeRegistration}
 	if diff := deep.Equal(h.instances, expected); diff != nil {
-		t.Errorf("importDatastore() failed to import; got: %+v, want: %+v", h.instances,
+		t.Errorf("importMemorystore() failed to import; got: %+v, want: %+v", h.instances,
 			expected)
 	}
 }

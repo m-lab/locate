@@ -23,7 +23,7 @@ const (
 	MaxReconnectionsTotal      = 10
 	MaxReconnectionsTime       = time.Hour
 	HeartbeatPeriod            = 10 * time.Second
-	DatastoreExportPeriod      = 10 * time.Second
+	MemorystoreExportPeriod    = 10 * time.Second
 )
 
 // URL creates inline url.URLs.
