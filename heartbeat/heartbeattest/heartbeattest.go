@@ -3,6 +3,7 @@ package heartbeattest
 import (
 	"errors"
 
+	"github.com/gomodule/redigo/redis"
 	v2 "github.com/m-lab/locate/api/v2"
 )
 
@@ -23,7 +24,7 @@ type fakeMemorystoreClient[V any] struct {
 }
 
 // Put returns nil.
-func (c *fakeMemorystoreClient[V]) Put(key string, field string, value any) error {
+func (c *fakeMemorystoreClient[V]) Put(key string, field string, value redis.Scanner) error {
 	return nil
 }
 
@@ -40,7 +41,7 @@ func (c *fakeMemorystoreClient[V]) FakeAdd(key string, value V) {
 type fakeErrorMemorystoreClient[V any] struct{}
 
 // Put returns a FakeError.
-func (c *fakeErrorMemorystoreClient[V]) Put(key string, field string, value any) error {
+func (c *fakeErrorMemorystoreClient[V]) Put(key string, field string, value redis.Scanner) error {
 	return FakeError
 }
 

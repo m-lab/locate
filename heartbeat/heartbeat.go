@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gomodule/redigo/redis"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
 )
@@ -23,7 +24,7 @@ type heartbeatStatusTracker struct {
 // The interface takes in a type argument which specifies the types of values
 // that are stored and can be retrived.
 type MemorystoreClient[V any] interface {
-	Put(key string, field string, value any) error
+	Put(key string, field string, value redis.Scanner) error
 	GetAll() (map[string]V, error)
 }
 
@@ -59,7 +60,7 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 // locally.
 func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 	hostname := rm.Hostname
-	if err := h.Put(hostname, "Registration", rm); err != nil {
+	if err := h.Put(hostname, "Registration", &rm); err != nil {
 		return err
 	}
 
@@ -70,7 +71,7 @@ func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 // UpdateHealth updates the v2.Health field for the instance in the Memorystore client and
 // updates it locally.
 func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) error {
-	if err := h.Put(hostname, "Health", hm); err != nil {
+	if err := h.Put(hostname, "Health", &hm); err != nil {
 		return err
 	}
 	return h.updateHealth(hostname, hm)

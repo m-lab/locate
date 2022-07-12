@@ -8,6 +8,7 @@ import (
 	"time"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"github.com/gomodule/redigo/redis"
 	"github.com/justinas/alice"
 	"gopkg.in/square/go-jose.v2/jwt"
 
@@ -18,10 +19,11 @@ import (
 	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/memoryless"
 	"github.com/m-lab/go/rtx"
+	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/heartbeat"
-	"github.com/m-lab/locate/heartbeat/heartbeattest"
+	"github.com/m-lab/locate/memorystore"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/secrets"
 	"github.com/m-lab/locate/static"
@@ -100,10 +102,13 @@ func main() {
 		locators = append(locators, mmLocator)
 	}
 
-	// TODO(cristinaleon): replace this with actual redis implementation once
-	// it is merged.
-	memorystore := heartbeattest.FakeMemorystoreClient
-	tracker := heartbeat.NewHeartbeatStatusTracker(&memorystore)
+	pool := redis.Pool{
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", redisAddr)
+		},
+	}
+	memorystore := memorystore.NewClient[v2.HeartbeatMessage](&pool)
+	tracker := heartbeat.NewHeartbeatStatusTracker(memorystore)
 	defer tracker.StopImport()
 
 	c := handler.NewClient(project, signer, srvLocator, locators, tracker)
