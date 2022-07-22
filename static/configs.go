@@ -25,6 +25,7 @@ const (
 	HeartbeatPeriod            = 10 * time.Second
 	MemorystoreExportPeriod    = 10 * time.Second
 	RedisKeyExpirySecs         = 30
+	EarthRadiusKm              = 6371
 )
 
 // URL creates inline url.URLs.

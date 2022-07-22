@@ -52,6 +52,8 @@ type ClientLocator interface {
 type StatusTracker interface {
 	RegisterInstance(rm v2.Registration) error
 	UpdateHealth(hostname string, hm v2.Health) error
+	Instances() map[string]v2.HeartbeatMessage
+	StopImport()
 }
 
 func init() {
