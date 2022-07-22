@@ -19,6 +19,7 @@ import (
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
+	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/static"
 )
 
@@ -33,7 +34,7 @@ type Client struct {
 	project string
 	Locator
 	ClientLocator
-	StatusTracker
+	heartbeat.StatusTracker
 	targetTmpl *template.Template
 }
 
@@ -48,19 +49,13 @@ type ClientLocator interface {
 	Locate(req *http.Request) (*clientgeo.Location, error)
 }
 
-// StatusTracker defines the interface for tracking the status of experiment instances.
-type StatusTracker interface {
-	RegisterInstance(rm v2.Registration) error
-	UpdateHealth(hostname string, hm v2.Health) error
-}
-
 func init() {
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator, client ClientLocator, tracker StatusTracker) *Client {
+func NewClient(project string, private Signer, locator Locator, client ClientLocator, tracker heartbeat.StatusTracker) *Client {
 	return &Client{
 		Signer:        private,
 		project:       project,
@@ -72,7 +67,7 @@ func NewClient(project string, private Signer, locator Locator, client ClientLoc
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
-func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator, tracker StatusTracker) *Client {
+func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator, tracker heartbeat.StatusTracker) *Client {
 	return &Client{
 		Signer:        private,
 		project:       project,

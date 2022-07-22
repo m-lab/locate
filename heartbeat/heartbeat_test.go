@@ -89,6 +89,48 @@ func TestUpdateHealth_Success(t *testing.T) {
 	}
 }
 
+func TestInstances(t *testing.T) {
+	h := NewHeartbeatStatusTracker(fakeDC)
+	h.StopImport()
+
+	hbm := testdata.FakeRegistration
+	h.RegisterInstance(*hbm.Registration)
+
+	instances := h.Instances()
+	expected := map[string]v2.HeartbeatMessage{testdata.FakeHostname: testdata.FakeRegistration}
+	if diff := deep.Equal(instances, expected); diff != nil {
+		t.Errorf("Instances() got: %+v, want: %+v", instances, expected)
+	}
+
+}
+
+func TestInstancesCopy(t *testing.T) {
+	h := NewHeartbeatStatusTracker(fakeDC)
+	h.StopImport()
+
+	// Add a new instance with nil v2.Health.
+	hbm := testdata.FakeRegistration
+	h.RegisterInstance(*hbm.Registration)
+
+	// Get copy of instances and verify that v2.Health field is nil.
+	instances := h.Instances()
+	if instances[testdata.FakeHostname].Health != nil {
+		t.Errorf("Instances() got: %+v, want: nil", instances[testdata.FakeHostname].Health)
+	}
+
+	// Update v2.Health for the instance in the tracker.
+	h.UpdateHealth(testdata.FakeHostname, *testdata.FakeHealth.Health)
+	instancesWithUpdate := h.Instances()
+	if instancesWithUpdate[testdata.FakeHostname].Health == nil {
+		t.Errorf("Instances() got: nil, want: %+v", instancesWithUpdate[testdata.FakeHostname].Health)
+	}
+
+	// Verify original copy of instances did not get updated.
+	if instances[testdata.FakeHostname].Health != nil {
+		t.Errorf("Instances() got: %+v, want: nil", instances[testdata.FakeHostname].Health)
+	}
+}
+
 func TestStopImport(t *testing.T) {
 	before := runtime.NumGoroutine()
 	h := NewHeartbeatStatusTracker(fakeDC)
