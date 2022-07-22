@@ -3,9 +3,10 @@ package heartbeat
 import (
 	"math"
 	"net/url"
+	"reflect"
+	"sort"
 	"testing"
 
-	"github.com/go-test/deep"
 	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/mathx"
 	v2 "github.com/m-lab/locate/api/v2"
@@ -54,13 +55,13 @@ var (
 			CountryCode:   "US",
 			ContinentCode: "NA",
 			Experiment:    "ndt",
-			Hostname:      "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org",
+			Hostname:      "ndt-mlab1-lga00.mlab-sandbox.measurement-lab.org",
 			Latitude:      40.7667,
 			Longitude:     -73.8667,
 			Machine:       "mlab1",
 			Metro:         "lga",
 			Project:       "mlab-sandbox",
-			Site:          "lga0t",
+			Site:          "lga00",
 			Type:          "virtual",
 			Uplink:        "10g",
 			Services:      validNDT7Services,
@@ -73,13 +74,13 @@ var (
 			CountryCode:   "US",
 			ContinentCode: "NA",
 			Experiment:    "ndt",
-			Hostname:      "ndt-mlab2-lga0t.mlab-sandbox.measurement-lab.org",
+			Hostname:      "ndt-mlab2-lga00.mlab-sandbox.measurement-lab.org",
 			Latitude:      40.7667,
 			Longitude:     -73.8667,
 			Machine:       "mlab2",
 			Metro:         "lga",
 			Project:       "mlab-sandbox",
-			Site:          "lga0t",
+			Site:          "lga00",
 			Type:          "virtual",
 			Uplink:        "10g",
 			Services:      validNDT7Services,
@@ -92,13 +93,13 @@ var (
 			CountryCode:   "US",
 			ContinentCode: "NA",
 			Experiment:    "ndt",
-			Hostname:      "ndt-mlab1-lax01.mlab-sandbox.measurement-lab.org",
+			Hostname:      "ndt-mlab1-lax00.mlab-sandbox.measurement-lab.org",
 			Latitude:      33.9425,
 			Longitude:     -118.4072,
 			Machine:       "mlab1",
 			Metro:         "lax",
 			Project:       "mlab-sandbox",
-			Site:          "lax01",
+			Site:          "lax00",
 			Type:          "physical",
 			Uplink:        "10g",
 			Services:      validNDT7Services,
@@ -111,13 +112,13 @@ var (
 			CountryCode:   "US",
 			ContinentCode: "NA",
 			Experiment:    "wehe",
-			Hostname:      "wehe-mlab1-pdx01.mlab-sandbox.measurement-lab.org",
+			Hostname:      "wehe-mlab1-pdx00.mlab-sandbox.measurement-lab.org",
 			Latitude:      45.5886,
 			Longitude:     -122.5975,
 			Machine:       "mlab1",
 			Metro:         "pdx",
 			Project:       "mlab-sandbox",
-			Site:          "pdx01",
+			Site:          "pdx00",
 			Type:          "physical",
 			Uplink:        "10g",
 			Services:      map[string][]string{"wehe/replay": {"wss://4443/v0/envelope/access"}},
@@ -132,18 +133,23 @@ var (
 			City:          "New York",
 			CountryCode:   "US",
 			ContinentCode: "NA",
+			Experiment:    "ndt",
 			Latitude:      40.7667,
 			Longitude:     -73.8667,
 			Metro:         "lga",
 			Project:       "mlab-sandbox",
-			Site:          "lga0t",
+			Site:          "lga00",
 			Type:          "virtual",
 			Uplink:        "10g",
 			Services:      validNDT7Services,
 		},
 		machines: []machine{
 			{
-				name:   "name:mlab1-lga0t.mlab-sandbox.measurement-lab.org",
+				name:   "mlab1-lga00.mlab-sandbox.measurement-lab.org",
+				health: v2.Health{Score: 1},
+			},
+			{
+				name:   "mlab2-lga00.mlab-sandbox.measurement-lab.org",
 				health: v2.Health{Score: 1},
 			},
 		},
@@ -154,18 +160,19 @@ var (
 			City:          "Los Angeles",
 			CountryCode:   "US",
 			ContinentCode: "NA",
+			Experiment:    "ndt",
 			Latitude:      33.9425,
 			Longitude:     -118.4072,
 			Metro:         "lax",
 			Project:       "mlab-sandbox",
-			Site:          "lax01",
+			Site:          "lax00",
 			Type:          "physical",
 			Uplink:        "10g",
 			Services:      validNDT7Services,
 		},
 		machines: []machine{
 			{
-				name:   "ndt-mlab2-lax01.mlab-sandbox.measurement-lab.org",
+				name:   "mlab1-lax00.mlab-sandbox.measurement-lab.org",
 				health: v2.Health{Score: 1},
 			},
 		},
@@ -176,18 +183,19 @@ var (
 			City:          "Portland",
 			CountryCode:   "US",
 			ContinentCode: "NA",
+			Experiment:    "wehe",
 			Latitude:      45.5886,
 			Longitude:     -122.5975,
 			Metro:         "pdx",
 			Project:       "mlab-sandbox",
-			Site:          "pdx01",
+			Site:          "pdx00",
 			Type:          "physical",
 			Uplink:        "10g",
 			Services:      map[string][]string{"wehe/replay": {"wss://4443/v0/envelope/access"}},
 		},
 		machines: []machine{
 			{
-				name:   "name:mlab1-pdx01.mlab-sandbox.measurement-lab.org",
+				name:   "mlab1-pdx00.mlab-sandbox.measurement-lab.org",
 				health: v2.Health{Score: 1},
 			},
 		},
@@ -195,7 +203,7 @@ var (
 
 	// Test Targets.
 	virtualTarget = v2.Target{
-		Machine: "mlab1-lga0t.mlab-sandbox.measurement-lab.org",
+		Machine: "mlab1-lga00.mlab-sandbox.measurement-lab.org",
 		Location: &v2.Location{
 			City:    "New York",
 			Country: "US",
@@ -203,7 +211,7 @@ var (
 		URLs: map[string]string{},
 	}
 	physicalTarget = v2.Target{
-		Machine: "mlab1-lax01.mlab-sandbox.measurement-lab.org",
+		Machine: "mlab1-lax00.mlab-sandbox.measurement-lab.org",
 		Location: &v2.Location{
 			City:    "Los Angeles",
 			Country: "US",
@@ -211,7 +219,7 @@ var (
 		URLs: map[string]string{},
 	}
 	weheTarget = v2.Target{
-		Machine: "mlab1-pdx01.mlab-sandbox.measurement-lab.org",
+		Machine: "mlab1-pdx00.mlab-sandbox.measurement-lab.org",
 		Location: &v2.Location{
 			City:    "Portland",
 			Country: "US",
@@ -230,7 +238,7 @@ func TestNearest(t *testing.T) {
 	tests := []struct {
 		name            string
 		service         string
-		t               string
+		typ             string
 		lat             float64
 		lon             float64
 		instances       []v2.HeartbeatMessage
@@ -241,7 +249,7 @@ func TestNearest(t *testing.T) {
 		{
 			name:            "NDT7-any-type",
 			service:         "ndt/ndt7",
-			t:               "",
+			typ:             "",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{virtualTarget, physicalTarget},
@@ -251,7 +259,7 @@ func TestNearest(t *testing.T) {
 		{
 			name:            "NDT7-physical",
 			service:         "ndt/ndt7",
-			t:               "physical",
+			typ:             "physical",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{physicalTarget},
@@ -261,7 +269,7 @@ func TestNearest(t *testing.T) {
 		{
 			name:            "NDT7-virtual",
 			service:         "ndt/ndt7",
-			t:               "virtual",
+			typ:             "virtual",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{virtualTarget},
@@ -271,7 +279,7 @@ func TestNearest(t *testing.T) {
 		{
 			name:            "wehe",
 			service:         "wehe/replay",
-			t:               "",
+			typ:             "",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{weheTarget},
@@ -285,7 +293,7 @@ func TestNearest(t *testing.T) {
 		{
 			name:            "too-far",
 			service:         "ndt/ndt7",
-			t:               "",
+			typ:             "",
 			lat:             1000,
 			lon:             1000,
 			expectedTargets: nil,
@@ -307,13 +315,13 @@ func TestNearest(t *testing.T) {
 				locator.UpdateHealth(i.Registration.Hostname, *i.Health)
 			}
 
-			gotTargets, gotURLs, err := locator.Nearest(tt.service, tt.t, tt.lat, tt.lon)
+			gotTargets, gotURLs, err := locator.Nearest(tt.service, tt.typ, tt.lat, tt.lon)
 
-			if diff := deep.Equal(gotTargets, tt.expectedTargets); diff != nil {
+			if !reflect.DeepEqual(gotTargets, tt.expectedTargets) {
 				t.Errorf("Nearest() targets got: %+v, want %+v", gotTargets, tt.expectedTargets)
 			}
 
-			if diff := deep.Equal(gotURLs, tt.expectedURLs); diff != nil {
+			if !reflect.DeepEqual(gotURLs, tt.expectedURLs) {
 				t.Errorf("Nearest() URLs got: %+v, want %+v", gotURLs, tt.expectedURLs)
 			}
 
@@ -336,7 +344,7 @@ func TestFilterSites(t *testing.T) {
 	tests := []struct {
 		name     string
 		service  string
-		t        string
+		typ      string
 		lat      float64
 		lon      float64
 		expected []site
@@ -344,7 +352,7 @@ func TestFilterSites(t *testing.T) {
 		{
 			name:     "NDT7-any-type",
 			service:  "ndt/ndt7",
-			t:        "",
+			typ:      "",
 			lat:      43.1988,
 			lon:      -75.3242,
 			expected: []site{virtualSite, physicalSite},
@@ -352,7 +360,7 @@ func TestFilterSites(t *testing.T) {
 		{
 			name:     "NDT7-physical",
 			service:  "ndt/ndt7",
-			t:        "physical",
+			typ:      "physical",
 			lat:      43.1988,
 			lon:      -75.3242,
 			expected: []site{physicalSite},
@@ -360,7 +368,7 @@ func TestFilterSites(t *testing.T) {
 		{
 			name:     "NDT7-virtual",
 			service:  "ndt/ndt7",
-			t:        "virtual",
+			typ:      "virtual",
 			lat:      43.1988,
 			lon:      -75.3242,
 			expected: []site{virtualSite},
@@ -368,7 +376,7 @@ func TestFilterSites(t *testing.T) {
 		{
 			name:     "wehe",
 			service:  "wehe/replay",
-			t:        "",
+			typ:      "",
 			lat:      43.1988,
 			lon:      -75.3242,
 			expected: []site{weheSite},
@@ -376,7 +384,7 @@ func TestFilterSites(t *testing.T) {
 		{
 			name:     "too-far",
 			service:  "ndt-ndt7",
-			t:        "",
+			typ:      "",
 			lat:      1000,
 			lon:      1000,
 			expected: []site{},
@@ -385,9 +393,16 @@ func TestFilterSites(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := filterSites(tt.service, tt.t, tt.lat, tt.lon, instances)
+			got := filterSites(tt.service, tt.typ, tt.lat, tt.lon, instances)
 
-			if diff := deep.Equal(got, tt.expected); diff != nil {
+			sortSites(got)
+			for _, v := range got {
+				sort.Slice(v.machines, func(i, j int) bool {
+					return v.machines[i].name < v.machines[j].name
+				})
+			}
+
+			if !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("filterSites() got: %+v, want: %+v", got, tt.expected)
 			}
 		})
@@ -395,7 +410,7 @@ func TestFilterSites(t *testing.T) {
 }
 
 func TestIsValidInstance(t *testing.T) {
-	validHost := "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org"
+	validHost := "ndt-mlab1-lga00.mlab-sandbox.measurement-lab.org"
 	validLat := 40.7667
 	validLon := -73.8667
 	validType := "virtual"
@@ -403,7 +418,7 @@ func TestIsValidInstance(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		t            string
+		typ          string
 		host         string
 		lat          float64
 		lon          float64
@@ -416,7 +431,7 @@ func TestIsValidInstance(t *testing.T) {
 	}{
 		{
 			name:         "0-health",
-			t:            "virtual",
+			typ:          "virtual",
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -429,7 +444,7 @@ func TestIsValidInstance(t *testing.T) {
 		},
 		{
 			name:         "invalid-host",
-			t:            "virtual",
+			typ:          "virtual",
 			host:         "invalid-host",
 			lat:          validLat,
 			lon:          validLon,
@@ -442,7 +457,7 @@ func TestIsValidInstance(t *testing.T) {
 		},
 		{
 			name:         "mismatched-type",
-			t:            "virtual",
+			typ:          "virtual",
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -455,7 +470,7 @@ func TestIsValidInstance(t *testing.T) {
 		},
 		{
 			name:         "invalid-service",
-			t:            "virtual",
+			typ:          "virtual",
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -468,7 +483,7 @@ func TestIsValidInstance(t *testing.T) {
 		},
 		{
 			name:         "invalid-distance",
-			t:            "virtual",
+			typ:          "virtual",
 			host:         validHost,
 			lat:          1000,
 			lon:          1000,
@@ -481,7 +496,7 @@ func TestIsValidInstance(t *testing.T) {
 		},
 		{
 			name:         "success-same-type",
-			t:            "virtual",
+			typ:          "virtual",
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -491,7 +506,7 @@ func TestIsValidInstance(t *testing.T) {
 			expected:     true,
 			expectedHost: host.Name{
 				Machine: "mlab1",
-				Site:    "lga0t",
+				Site:    "lga00",
 				Project: "mlab-sandbox",
 				Domain:  "measurement-lab.org",
 				Version: "v2",
@@ -500,7 +515,7 @@ func TestIsValidInstance(t *testing.T) {
 		},
 		{
 			name:         "success-no-type",
-			t:            "",
+			typ:          "",
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -510,7 +525,7 @@ func TestIsValidInstance(t *testing.T) {
 			expected:     true,
 			expectedHost: host.Name{
 				Machine: "mlab1",
-				Site:    "lga0t",
+				Site:    "lga00",
 				Project: "mlab-sandbox",
 				Domain:  "measurement-lab.org",
 				Version: "v2",
@@ -532,7 +547,7 @@ func TestIsValidInstance(t *testing.T) {
 					Machine:       "mlab1",
 					Metro:         "lga",
 					Project:       "mlab-sandbox",
-					Site:          "lga0t",
+					Site:          "lga00",
 					Type:          tt.instanceType,
 					Uplink:        "10g",
 					Services:      tt.services,
@@ -541,7 +556,7 @@ func TestIsValidInstance(t *testing.T) {
 					Score: tt.score,
 				},
 			}
-			got, gotHost, gotDist := isValidInstance("ndt/ndt7", tt.t, 43.1988, -75.3242, v)
+			got, gotHost, gotDist := isValidInstance("ndt/ndt7", tt.typ, 43.1988, -75.3242, v)
 
 			if got != tt.expected {
 				t.Errorf("isValidInstance() got: %t, want: %t", got, tt.expected)
@@ -587,7 +602,7 @@ func TestSortSites(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sortSites(tt.sites)
 
-			if diff := deep.Equal(tt.sites, tt.expected); diff != nil {
+			if !reflect.DeepEqual(tt.sites, tt.expected) {
 				t.Errorf("sortSites() got: %+v, want: %+v", tt.sites, tt.expected)
 			}
 		})
@@ -705,11 +720,11 @@ func TestPickTargets(t *testing.T) {
 			rand = mathx.NewRandom(1658340109320624212)
 			got, gotURLs := pickTargets("ndt/ndt7", tt.sites)
 
-			if diff := deep.Equal(got, tt.expected); diff != nil {
+			if !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("pickTargets() got: %+v, want: %+v", got, tt.expected)
 			}
 
-			if diff := deep.Equal(gotURLs, tt.expectedURLs); diff != nil {
+			if !reflect.DeepEqual(gotURLs, tt.expectedURLs) {
 				t.Errorf("pickTargets() urls got: %+v, want: %+v", gotURLs, tt.expectedURLs)
 			}
 		})

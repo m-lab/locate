@@ -80,11 +80,11 @@ func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) err
 // Instances returns a mapping of all the v2.HeartbeatMessage instance keys to
 // their values.
 func (h *heartbeatStatusTracker) Instances() map[string]v2.HeartbeatMessage {
-	copy := make(map[string]v2.HeartbeatMessage, len(h.instances))
+	c := make(map[string]v2.HeartbeatMessage, len(h.instances))
 	for k, v := range h.instances {
-		copy[k] = v
+		c[k] = v
 	}
-	return copy
+	return c
 }
 
 // StopImport stops importing instance data from the Memorystore.

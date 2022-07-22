@@ -24,7 +24,6 @@ require (
 )
 
 require (
-	bou.ke/monkey v1.0.2
 	cloud.google.com/go v0.100.2 // indirect
 	cloud.google.com/go/compute v1.5.0 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
