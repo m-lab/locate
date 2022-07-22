@@ -89,6 +89,20 @@ func TestUpdateHealth_Success(t *testing.T) {
 	}
 }
 
+func TestInstances(t *testing.T) {
+	h := NewHeartbeatStatusTracker(fakeDC)
+	h.StopImport()
+
+	hbm := testdata.FakeRegistration
+	h.RegisterInstance(*hbm.Registration)
+
+	instances := h.Instances()
+	expected := map[string]v2.HeartbeatMessage{testdata.FakeHostname: testdata.FakeRegistration}
+	if diff := deep.Equal(instances, expected); diff != nil {
+		t.Errorf("Instances() got: %+v, want: %+v", instances, expected)
+	}
+}
+
 func TestStopImport(t *testing.T) {
 	before := runtime.NumGoroutine()
 	h := NewHeartbeatStatusTracker(fakeDC)
