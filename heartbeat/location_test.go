@@ -1,16 +1,14 @@
-package location
+package heartbeat
 
 import (
 	"math"
 	"net/url"
 	"testing"
-	"time"
 
-	"bou.ke/monkey"
 	"github.com/go-test/deep"
 	"github.com/m-lab/go/host"
+	"github.com/m-lab/go/mathx"
 	v2 "github.com/m-lab/locate/api/v2"
-	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
 )
 
@@ -299,20 +297,15 @@ func TestNearest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			memorystore := heartbeattest.FakeMemorystoreClient
-			tracker := heartbeat.NewHeartbeatStatusTracker(&memorystore)
+			tracker := NewHeartbeatStatusTracker(&memorystore)
 			locator := NewServerLocator(tracker)
 			locator.StopImport()
+			rand = mathx.NewRandom(1658458451000000000)
 
 			for _, i := range instances {
 				locator.RegisterInstance(*i.Registration)
 				locator.UpdateHealth(i.Registration.Hostname, *i.Health)
 			}
-
-			monkey.Patch(time.Now, func() time.Time {
-				t, _ := time.Parse(time.RFC3339, "2022-07-22T02:54:11Z")
-				return t
-			})
-			defer monkey.Unpatch(time.Now)
 
 			gotTargets, gotURLs, err := locator.Nearest(tt.service, tt.t, tt.lat, tt.lon)
 
@@ -707,9 +700,10 @@ func TestPickTargets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Pass in a fixed seed so the pattern is only pseudorandom and can
+			// Use a fixed seed so the pattern is only pseudorandom and can
 			// be verififed against expectations.
-			got, gotURLs := pickTargets("ndt/ndt7", tt.sites, 1658340109320624212)
+			rand = mathx.NewRandom(1658340109320624212)
+			got, gotURLs := pickTargets("ndt/ndt7", tt.sites)
 
 			if diff := deep.Equal(got, tt.expected); diff != nil {
 				t.Errorf("pickTargets() got: %+v, want: %+v", got, tt.expected)
