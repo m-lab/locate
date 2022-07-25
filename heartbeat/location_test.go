@@ -290,16 +290,6 @@ func TestNearest(t *testing.T) {
 			}},
 			wantErr: false,
 		},
-		{
-			name:            "too-far",
-			service:         "ndt/ndt7",
-			typ:             "",
-			lat:             1000,
-			lon:             1000,
-			expectedTargets: nil,
-			expectedURLs:    nil,
-			wantErr:         true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -475,19 +465,6 @@ func TestIsValidInstance(t *testing.T) {
 			lat:          validLat,
 			lon:          validLon,
 			services:     map[string][]string{},
-			instanceType: validType,
-			score:        validScore,
-			expected:     false,
-			expectedHost: host.Name{},
-			expectedDist: 0,
-		},
-		{
-			name:         "invalid-distance",
-			typ:          "virtual",
-			host:         validHost,
-			lat:          1000,
-			lon:          1000,
-			services:     validNDT7Services,
 			instanceType: validType,
 			score:        validScore,
 			expected:     false,
