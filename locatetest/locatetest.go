@@ -46,14 +46,14 @@ func (l *Locator) Nearest(ctx context.Context, service, lat, lon string) ([]v2.T
 	return t, nil
 }
 
-// LocatorV2 is a fake Locator implementation that returns the configured Servers or Err.
+// LocatorV2 is a fake LocatorV2 implementation that returns the configured Servers or Err.
 type LocatorV2 struct {
 	heartbeat.StatusTracker
 	Servers []string
 	Err     error
 }
 
-// Nearest resturns the pre-configured Locator Servers or Err.
+// Nearest resturns the pre-configured LocatorV2 Servers or Err.
 func (l *LocatorV2) Nearest(service, typ string, lat, lon float64) ([]v2.Target, []url.URL, error) {
 	if l.Err != nil {
 		return nil, nil, l.Err

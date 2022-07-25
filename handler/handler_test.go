@@ -82,7 +82,6 @@ func TestClient_TranslatedQuery(t *testing.T) {
 		path       string
 		signer     Signer
 		locator    *fakeLocator
-		cl         ClientLocator
 		project    string
 		latlon     string
 		header     http.Header

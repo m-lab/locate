@@ -48,7 +48,8 @@ type Locator interface {
 	Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error)
 }
 
-// LocatorV2 ...
+// LocatorV2 defines how the Nearest handler requests machines nearest to the
+// client.
 type LocatorV2 interface {
 	Nearest(service, typ string, lat, lon float64) ([]v2.Target, []url.URL, error)
 	heartbeat.StatusTracker
@@ -142,7 +143,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	writeResult(rw, http.StatusOK, &result)
 }
 
-// Nearest implements /v2beta/nearest requests and uses the LocatorV2 to lookup
+// Nearest implements /v2beta/nearest requests and uses the LocatorV2 to look up
 // nearest servers.
 func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
