@@ -3,6 +3,7 @@ package locatetest
 import (
 	"context"
 	"errors"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
@@ -10,45 +11,87 @@ import (
 	"github.com/m-lab/locate/api/locate"
 )
 
-func TestNewLocateServer(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		loc := &Locator{
-			Servers: []string{"127.0.0.1"},
-		}
-		srv := NewLocateServer(loc)
+func TestLocateServer_Success(t *testing.T) {
+	tests := []struct {
+		name string
+		srv  *httptest.Server
+		path string
+		want int
+	}{
+		{
+			name: "success-locate-server",
+			srv: NewLocateServer(&Locator{
+				Servers: []string{"127.0.0.1"},
+			}),
+			path: "/v2/nearest",
+			want: 1,
+		},
+		{
+			name: "success-locate-server-v2",
+			srv: NewLocateServerV2(&LocatorV2{
+				Servers: []string{"127.0.0.1"},
+			}),
+			path: "/v2beta/nearest",
+			want: 1,
+		},
+	}
 
-		c := locate.NewClient("fake-user-agent")
-		u, err := url.Parse(srv.URL)
-		testingx.Must(t, err, "failed to parse locatetest url")
-		u.Path = "/v2/nearest/"
-		c.BaseURL = u
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := locate.NewClient("fake-user-agent")
+			u, err := url.Parse(tt.srv.URL)
+			testingx.Must(t, err, "failed to parse locatetest url")
+			u.Path = tt.path
+			c.BaseURL = u
 
-		ctx := context.Background()
-		// NOTE: only known services (e.g. ndt/ndt7) are supported by the locate API.
-		targets, err := c.Nearest(ctx, "ndt/ndt7")
-		testingx.Must(t, err, "failed to get response from locatetest server")
+			ctx := context.Background()
+			// NOTE: only known services (e.g. ndt/ndt7) are supported by the locate API.
+			targets, err := c.Nearest(ctx, "ndt/ndt7")
+			testingx.Must(t, err, "failed to get response from locatetest server")
 
-		if len(loc.Servers) != len(targets) {
-			t.Errorf("NewLocateServer() = got %d, want %d", len(targets), len(loc.Servers))
-		}
-	})
-	t.Run("error", func(t *testing.T) {
-		loc := &Locator{
-			Err: errors.New("fake error"),
-		}
-		srv := NewLocateServer(loc)
+			if tt.want != len(targets) {
+				t.Errorf("NewLocateServer() = got %d, want %d", len(targets), tt.want)
+			}
+		})
+	}
+}
 
-		c := locate.NewClient("fake-user-agent")
-		u, err := url.Parse(srv.URL)
-		testingx.Must(t, err, "failed to parse locatetest url")
-		u.Path = "/v2/nearest/"
-		c.BaseURL = u
+func TestLocateServer_Error(t *testing.T) {
+	tests := []struct {
+		name string
+		srv  *httptest.Server
+		path string
+	}{
+		{
+			name: "error-locate-server",
+			srv: NewLocateServer(&Locator{
+				Err: errors.New("fake error"),
+			}),
+			path: "/v2/nearest",
+		},
+		{
+			name: "error-locate-server-v2",
+			srv: NewLocateServerV2(&LocatorV2{
+				Err: errors.New("fake error"),
+			}),
+			path: "/v2beta/nearest",
+		},
+	}
 
-		ctx := context.Background()
-		// NOTE: only known services (e.g. ndt/ndt7) are supported by the locate API.
-		targets, err := c.Nearest(ctx, "ndt/ndt7")
-		if err == nil {
-			t.Errorf("expected error, got %#v", targets)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := locate.NewClient("fake-user-agent")
+			u, err := url.Parse(tt.srv.URL)
+			testingx.Must(t, err, "failed to parse locatetest url")
+			u.Path = tt.path
+			c.BaseURL = u
+
+			ctx := context.Background()
+			// NOTE: only known services (e.g. ndt/ndt7) are supported by the locate API.
+			targets, err := c.Nearest(ctx, "ndt/ndt7")
+			if err == nil {
+				t.Errorf("expected error, got %#v", targets)
+			}
+		})
+	}
 }
