@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/heartbeat"
-	"github.com/m-lab/locate/heartbeat/heartbeattest"
 )
 
 // Signer implements the Signer interface for unit tests.
@@ -46,13 +46,33 @@ func (l *Locator) Nearest(ctx context.Context, service, lat, lon string) ([]v2.T
 	return t, nil
 }
 
+// LocatorV2 is a fake Locator implementation that returns the configured Servers or Err.
+type LocatorV2 struct {
+	heartbeat.StatusTracker
+	Servers []string
+	Err     error
+}
+
+// Nearest resturns the pre-configured Locator Servers or Err.
+func (l *LocatorV2) Nearest(service, typ string, lat, lon float64) ([]v2.Target, []url.URL, error) {
+	if l.Err != nil {
+		return nil, nil, l.Err
+	}
+	t := make([]v2.Target, len(l.Servers))
+	for i := range l.Servers {
+		t[i].Machine = l.Servers[i]
+	}
+	return t, []url.URL{}, nil
+}
+
 // NewLocateServer creates an httptest.Server that can respond to Locate API v2
 // requests. Useful for unit testing.
+// TODO(cristinaleon): replace the *Locator by a *LocatorV2 once the V2
+// version replaces the original.
 func NewLocateServer(loc *Locator) *httptest.Server {
 	// fake signer, fake locator.
 	s := &Signer{}
-	c := handler.NewClientDirect("fake-project", s, loc, &clientgeo.NullLocator{},
-		heartbeat.NewHeartbeatStatusTracker(&heartbeattest.FakeMemorystoreClient))
+	c := handler.NewClientDirect("fake-project", s, loc, &LocatorV2{}, &clientgeo.NullLocator{})
 
 	// USER APIs
 	mux := http.NewServeMux()

@@ -150,6 +150,50 @@ paths:
       tags:
         - public
 
+  # Beta V2 "nearest" requests WITH an API key.
+  "/v2beta/nearest/{name}/{type}":
+    get:
+      description: |-
+        Find the nearest healthy service.
+
+        This resource is in Beta testing and requires an API key.
+
+      operationId: "v2-beta-nearest"
+      produces:
+      - "application/json"
+      parameters:
+        - name: name
+          in: path
+          description: The service name, e.g. "ndt", "neubot", "wehe", etc.
+          type: string
+          required: true
+        - name: service-type
+          in: path
+          description: The service type, e.g. "ndt7", "dash", "replay", etc.
+          type: string
+          required: true
+        - name: type
+          in: query
+          description: The machine type, e.g., "physical" or "virtual."
+          required: false
+      responses:
+        '200':
+          description: The result of the nearest request. Clients should use the
+            next request fields to schedule the next request in the event of
+            error or batch scheduling.
+          schema:
+            $ref: "#/definitions/NearestResult"
+        '500':
+          description: An error occurred while looking for the service.
+            Clients should use the next request fields to schedule the next
+            request in the event of error.
+          schema:
+            $ref: "#/definitions/ErrorResult"
+      security:
+      - api_key: []
+      tags:
+        - public
+
   "/v2/platform/heartbeat":
     get:
       description: |-
