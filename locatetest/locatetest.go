@@ -53,7 +53,7 @@ type LocatorV2 struct {
 	Err     error
 }
 
-// Nearest resturns the pre-configured LocatorV2 Servers or Err.
+// Nearest returns the pre-configured LocatorV2 Servers or Err.
 func (l *LocatorV2) Nearest(service, typ string, lat, lon float64) ([]v2.Target, []url.URL, error) {
 	if l.Err != nil {
 		return nil, nil, l.Err
