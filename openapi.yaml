@@ -167,15 +167,11 @@ paths:
           description: The service name, e.g. "ndt", "neubot", "wehe", etc.
           type: string
           required: true
-        - name: service-type
+        - name: type
           in: path
           description: The service type, e.g. "ndt7", "dash", "replay", etc.
           type: string
           required: true
-        - name: type
-          in: query
-          description: The machine type, e.g., "physical" or "virtual."
-          required: false
       responses:
         '200':
           description: The result of the nearest request. Clients should use the

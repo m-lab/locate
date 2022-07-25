@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -24,6 +24,8 @@ import (
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/static"
 )
+
+var errFailedToLookupClient = errors.New("Failed to look up client location")
 
 // Signer defines how access tokens are signed.
 type Signer interface {
@@ -158,7 +160,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	lat, errLat := strconv.ParseFloat(loc.Latitude, 64)
 	lon, errLon := strconv.ParseFloat(loc.Longitude, 64)
 	if errLat != nil || errLon != nil {
-		result.Error = v2.NewError("client", "Failed to parse client location", http.StatusInternalServerError)
+		result.Error = v2.NewError("client", errFailedToLookupClient.Error(), http.StatusInternalServerError)
 		writeResult(rw, result.Error.Status, &result)
 		return
 	}
@@ -186,10 +188,10 @@ func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) 
 	if err != nil {
 		status := http.StatusServiceUnavailable
 		result := v2.NearestResult{
-			Error: v2.NewError("client", "Failed to lookup client location", status),
+			Error: v2.NewError("client", errFailedToLookupClient.Error(), status),
 		}
 		writeResult(rw, result.Error.Status, &result)
-		return nil, fmt.Errorf("Failed to lookup client location")
+		return nil, errFailedToLookupClient
 	}
 
 	// Copy location headers to response writer.
