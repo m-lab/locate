@@ -166,7 +166,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Find the nearest targets using the client parameters.
-	t := req.URL.Query().Get("type")
+	t := req.URL.Query().Get("machine-type")
 	targets, urls, err := c.LocatorV2.Nearest(service, t, lat, lon)
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
