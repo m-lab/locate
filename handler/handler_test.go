@@ -67,12 +67,22 @@ func (l *fakeLocatorV2) Nearest(service, typ string, lat, lon float64) ([]v2.Tar
 	return l.targets, l.urls, nil
 }
 
+type fakeAppEngineLocator struct {
+	loc *clientgeo.Location
+	err error
+}
+
+func (l *fakeAppEngineLocator) Locate(req *http.Request) (*clientgeo.Location, error) {
+	return l.loc, l.err
+}
+
 func TestClient_TranslatedQuery(t *testing.T) {
 	tests := []struct {
 		name       string
 		path       string
 		signer     Signer
 		locator    *fakeLocator
+		cl         ClientLocator
 		project    string
 		latlon     string
 		header     http.Header
@@ -226,6 +236,7 @@ func TestClient_Nearest(t *testing.T) {
 		path       string
 		signer     Signer
 		locator    *fakeLocatorV2
+		cl         ClientLocator
 		project    string
 		latlon     string
 		header     http.Header
@@ -267,18 +278,23 @@ func TestClient_Nearest(t *testing.T) {
 			wantStatus: http.StatusServiceUnavailable,
 		},
 		{
-			name:   "error-corrupt-latlon",
-			path:   "ndt/ndt5",
-			signer: &fakeSigner{},
-			locator: &fakeLocatorV2{
-				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
-			},
+			name: "error-corrupt-latlon",
+			path: "ndt/ndt5",
 			header: http.Header{
 				"X-AppEngine-CityLatLong": []string{"corrupt-value"},
 			},
-			wantLatLon: "",
-			wantKey:    "ws://:3001/ndt_protocol",
 			wantStatus: http.StatusServiceUnavailable,
+		},
+		{
+			name: "error-cannot-parse-latlon",
+			path: "ndt/ndt5",
+			cl: &fakeAppEngineLocator{
+				loc: &clientgeo.Location{
+					Latitude:  "invalid-float",
+					Longitude: "invalid-float",
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:   "success-nearest-server",
@@ -340,8 +356,10 @@ func TestClient_Nearest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cl := clientgeo.NewAppEngineLocator()
-			c := NewClient(tt.project, tt.signer, &fakeLocator{}, tt.locator, cl)
+			if tt.cl == nil {
+				tt.cl = clientgeo.NewAppEngineLocator()
+			}
+			c := NewClient(tt.project, tt.signer, &fakeLocator{}, tt.locator, tt.cl)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2beta/nearest/", c.Nearest)
