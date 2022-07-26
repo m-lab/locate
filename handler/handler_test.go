@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -15,7 +16,6 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/heartbeat"
-	"github.com/m-lab/locate/heartbeat/heartbeattest"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
 	log "github.com/sirupsen/logrus"
@@ -51,6 +51,29 @@ func (l *fakeLocator) Nearest(ctx context.Context, service, lat, lon string) ([]
 		return nil, l.err
 	}
 	return l.targets, nil
+}
+
+type fakeLocatorV2 struct {
+	heartbeat.StatusTracker
+	err     error
+	targets []v2.Target
+	urls    []url.URL
+}
+
+func (l *fakeLocatorV2) Nearest(service, typ string, lat, lon float64) ([]v2.Target, []url.URL, error) {
+	if l.err != nil {
+		return nil, nil, l.err
+	}
+	return l.targets, l.urls, nil
+}
+
+type fakeAppEngineLocator struct {
+	loc *clientgeo.Location
+	err error
+}
+
+func (l *fakeAppEngineLocator) Locate(req *http.Request) (*clientgeo.Location, error) {
+	return l.loc, l.err
 }
 
 func TestClient_TranslatedQuery(t *testing.T) {
@@ -154,8 +177,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cl := clientgeo.NewAppEngineLocator()
-			h := heartbeat.NewHeartbeatStatusTracker(&heartbeattest.FakeMemorystoreClient)
-			c := NewClient(tt.project, tt.signer, tt.locator, cl, h)
+			c := NewClient(tt.project, tt.signer, tt.locator, &fakeLocatorV2{}, cl)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.TranslatedQuery)
@@ -202,6 +224,187 @@ func TestClient_TranslatedQuery(t *testing.T) {
 			}
 			if _, ok := result.Results[0].URLs[tt.wantKey]; !ok {
 				t.Errorf("TranslateQuery() result missing URLs key; want %q", tt.wantKey)
+			}
+		})
+	}
+}
+
+func TestClient_Nearest(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		signer     Signer
+		locator    *fakeLocatorV2
+		cl         ClientLocator
+		project    string
+		latlon     string
+		header     http.Header
+		wantLatLon string
+		wantKey    string
+		wantStatus int
+	}{
+		{
+			name:   "error-unmatched-service",
+			path:   "no-instances-serve-this/datatype-name",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				err: errors.New("No servers found for this service error"),
+			},
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+			},
+			wantLatLon: "40.3,-70.4", // Client receives lat/lon provided by AppEngine.
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "error-nearest-failure",
+			path: "ndt/ndt5",
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+			},
+			wantLatLon: "40.3,-70.4", // Client receives lat/lon provided by AppEngine.
+			locator: &fakeLocatorV2{
+				err: errors.New("Fake signer error"),
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "error-nearest-failure-no-content",
+			path: "ndt/ndt5",
+			locator: &fakeLocatorV2{
+				err: heartbeat.ErrNoAvailableServers,
+			},
+			wantStatus: http.StatusServiceUnavailable,
+		},
+		{
+			name: "error-corrupt-latlon",
+			path: "ndt/ndt5",
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"corrupt-value"},
+			},
+			wantStatus: http.StatusServiceUnavailable,
+		},
+		{
+			name: "error-cannot-parse-latlon",
+			path: "ndt/ndt5",
+			cl: &fakeAppEngineLocator{
+				loc: &clientgeo.Location{
+					Latitude:  "invalid-float",
+					Longitude: "invalid-float",
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:   "success-nearest-server",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+					{Scheme: "wss", Host: ":3010", Path: "ndt_protocol"},
+				},
+			},
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+			},
+			wantLatLon: "40.3,-70.4", // Client receives lat/lon provided by AppEngine.
+			wantKey:    "ws://:3001/ndt_protocol",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "success-nearest-server-using-region",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+					{Scheme: "wss", Host: ":3010", Path: "ndt_protocol"},
+				},
+			},
+			header: http.Header{
+				"X-AppEngine-Country": []string{"US"},
+				"X-AppEngine-Region":  []string{"ny"},
+			},
+			wantLatLon: "43.19880000,-75.3242000", // Region center.
+			wantKey:    "ws://:3001/ndt_protocol",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "success-nearest-server-using-country",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+					{Scheme: "wss", Host: ":3010", Path: "ndt_protocol"},
+				},
+			},
+			header: http.Header{
+				"X-AppEngine-Region":      []string{"fake-region"},
+				"X-AppEngine-Country":     []string{"US"},
+				"X-AppEngine-CityLatLong": []string{"0.000000,0.000000"},
+			},
+			wantLatLon: "37.09024,-95.712891", // Country center.
+			wantKey:    "ws://:3001/ndt_protocol",
+			wantStatus: http.StatusOK,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.cl == nil {
+				tt.cl = clientgeo.NewAppEngineLocator()
+			}
+			c := NewClient(tt.project, tt.signer, &fakeLocator{}, tt.locator, tt.cl)
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("/v2beta2/nearest/", c.Nearest)
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2beta2/nearest/"+tt.path+"?client_name=foo", nil)
+			rtx.Must(err, "Failed to create request")
+			req.Header = tt.header
+
+			result := &v2.NearestResult{}
+			resp, err := proxy.UnmarshalResponse(req, result)
+			if err != nil {
+				t.Fatalf("Failed to get response from: %s %s", srv.URL, tt.path)
+			}
+			if resp.Header.Get("Access-Control-Allow-Origin") != "*" {
+				t.Errorf("Nearest() wrong Access-Control-Allow-Origin header; got %s, want '*'",
+					resp.Header.Get("Access-Control-Allow-Origin"))
+			}
+			if resp.Header.Get("Content-Type") != "application/json" {
+				t.Errorf("Nearest() wrong Content-Type header; got %s, want 'application/json'",
+					resp.Header.Get("Content-Type"))
+			}
+			if resp.Header.Get("X-Locate-ClientLatLon") != tt.wantLatLon {
+				t.Errorf("Nearest() wrong X-Locate-ClientLatLon header; got %s, want '%s'",
+					resp.Header.Get("X-Locate-ClientLatLon"), tt.wantLatLon)
+			}
+			if result.Error != nil && result.Error.Status != tt.wantStatus {
+				t.Errorf("Nearest() wrong status; got %d, want %d", result.Error.Status, tt.wantStatus)
+			}
+			if result.Error != nil {
+				return
+			}
+			if result.Results == nil && tt.wantStatus == http.StatusOK {
+				t.Errorf("Nearest() wrong status; got %d, want %d", result.Error.Status, tt.wantStatus)
+			}
+			if len(tt.locator.targets) != len(result.Results) {
+				t.Errorf("Nearest() wrong result count; got %d, want %d",
+					len(result.Results), len(tt.locator.targets))
+			}
+			if len(result.Results[0].URLs) != len(static.Configs[tt.path]) {
+				t.Errorf("Nearest() result wrong URL count; got %d, want %d",
+					len(result.Results[0].URLs), len(static.Configs[tt.path]))
+			}
+			if _, ok := result.Results[0].URLs[tt.wantKey]; !ok {
+				t.Errorf("Nearest() result missing URLs key; want %q", tt.wantKey)
 			}
 		})
 	}

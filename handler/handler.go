@@ -6,10 +6,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"html/template"
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +25,8 @@ import (
 	"github.com/m-lab/locate/static"
 )
 
+var errFailedToLookupClient = errors.New("Failed to look up client location")
+
 // Signer defines how access tokens are signed.
 type Signer interface {
 	Sign(cl jwt.Claims) (string, error)
@@ -33,8 +37,8 @@ type Client struct {
 	Signer
 	project string
 	Locator
+	LocatorV2
 	ClientLocator
-	heartbeat.StatusTracker
 	targetTmpl *template.Template
 }
 
@@ -42,6 +46,13 @@ type Client struct {
 // the client.
 type Locator interface {
 	Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error)
+}
+
+// LocatorV2 defines how the Nearest handler requests machines nearest to the
+// client.
+type LocatorV2 interface {
+	Nearest(service, typ string, lat, lon float64) ([]v2.Target, []url.URL, error)
+	heartbeat.StatusTracker
 }
 
 // ClientLocator defines the interfeace for looking up the client geo location.
@@ -55,25 +66,25 @@ func init() {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator, client ClientLocator, tracker heartbeat.StatusTracker) *Client {
+func NewClient(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator) *Client {
 	return &Client{
 		Signer:        private,
 		project:       project,
 		Locator:       locator,
+		LocatorV2:     locatorV2,
 		ClientLocator: client,
-		StatusTracker: tracker,
 		targetTmpl:    template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
 	}
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
-func NewClientDirect(project string, private Signer, locator Locator, client ClientLocator, tracker heartbeat.StatusTracker) *Client {
+func NewClientDirect(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator) *Client {
 	return &Client{
 		Signer:        private,
 		project:       project,
 		Locator:       locator,
+		LocatorV2:     locatorV2,
 		ClientLocator: client,
-		StatusTracker: tracker,
 		// Useful for the locatetest package when running a local server.
 		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
 	}
@@ -96,13 +107,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm() // Parse any raw query parameters into req.Form url.Values.
 	result := v2.NearestResult{}
 	experiment, service := getExperimentAndService(req.URL.Path)
-
-	// Set CORS policy to allow third-party websites to use returned resources.
-	rw.Header().Set("Content-Type", "application/json")
-	rw.Header().Set("Access-Control-Allow-Origin", "*")
-	// Prevent caching of result.
-	// See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
-	rw.Header().Set("Cache-Control", "no-store")
+	setHeaders(rw)
 
 	// Check whether the service is valid before all other steps to fail fast.
 	ports, ok := static.Configs[service]
@@ -112,20 +117,17 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Lookup the client location using the client request.
-	loc, err := c.Locate(req)
+	// Look up client location.
+	loc, err := c.checkClientLocation(rw, req)
 	if err != nil {
 		status := http.StatusServiceUnavailable
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", status)
 		writeResult(rw, result.Error.Status, &result)
 		return
 	}
-	// Copy location headers to response writer.
-	for key := range loc.Headers {
-		rw.Header().Set(key, loc.Headers.Get(key))
-	}
+
 	// Find the nearest targets using provided lat,lon.
-	targets, err := c.Nearest(req.Context(), service, loc.Latitude, loc.Longitude)
+	targets, err := c.Locator.Nearest(req.Context(), service, loc.Latitude, loc.Longitude)
 	if err != nil {
 		status := http.StatusInternalServerError
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", status)
@@ -138,13 +140,76 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 		targets[i].URLs = map[string]string{}
 	}
 
-	// Populate each set of URLs using the ports configuration.
-	for i := range targets {
-		token := c.getAccessToken(targets[i].Machine, experiment)
-		targets[i].URLs = c.getURLs(ports, targets[i].Machine, experiment, token, clientValues(req.Form))
-	}
+	// Populate targets URLs and write out response.
+	c.populateURLs(targets, ports, experiment, req.Form)
 	result.Results = targets
 	writeResult(rw, http.StatusOK, &result)
+}
+
+// Nearest uses an implementation of the LocatorV2 interface to look up
+// nearest servers.
+func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
+	req.ParseForm()
+	result := v2.NearestResult{}
+	experiment, service := getExperimentAndService(req.URL.Path)
+	setHeaders(rw)
+
+	// Look up client location.
+	loc, err := c.checkClientLocation(rw, req)
+	if err != nil {
+		status := http.StatusServiceUnavailable
+		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", status)
+		writeResult(rw, result.Error.Status, &result)
+		return
+	}
+
+	// Parse client location.
+	lat, errLat := strconv.ParseFloat(loc.Latitude, 64)
+	lon, errLon := strconv.ParseFloat(loc.Longitude, 64)
+	if errLat != nil || errLon != nil {
+		result.Error = v2.NewError("client", errFailedToLookupClient.Error(), http.StatusInternalServerError)
+		writeResult(rw, result.Error.Status, &result)
+		return
+	}
+
+	// Find the nearest targets using the client parameters.
+	t := req.URL.Query().Get("machine-type")
+	targets, urls, err := c.LocatorV2.Nearest(service, t, lat, lon)
+	if err != nil {
+		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
+		writeResult(rw, result.Error.Status, &result)
+		return
+	}
+
+	// Populate target URLs and write out response.
+	c.populateURLs(targets, urls, experiment, req.Form)
+	result.Results = targets
+	writeResult(rw, http.StatusOK, &result)
+}
+
+// checkClientLocation looks up the client location and copies the location
+// headers to the response writer.
+func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) (*clientgeo.Location, error) {
+	// Lookup the client location using the client request.
+	loc, err := c.Locate(req)
+	if err != nil {
+		return nil, errFailedToLookupClient
+	}
+
+	// Copy location headers to response writer.
+	for key := range loc.Headers {
+		rw.Header().Set(key, loc.Headers.Get(key))
+	}
+
+	return loc, nil
+}
+
+// populateURLs populates each set of URLs using the target configuration.
+func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, form url.Values) {
+	for i := range targets {
+		token := c.getAccessToken(targets[i].Machine, exp)
+		targets[i].URLs = c.getURLs(ports, targets[i].Machine, exp, token, clientValues(form))
+	}
 }
 
 // getAccessToken allocates a new access token using the given machine name as
@@ -192,6 +257,16 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 		urls[name] = target.String()
 	}
 	return urls
+}
+
+// setHeaders sets the response headers for "nearest" requests.
+func setHeaders(rw http.ResponseWriter) {
+	// Set CORS policy to allow third-party websites to use returned resources.
+	rw.Header().Set("Content-Type", "application/json")
+	rw.Header().Set("Access-Control-Allow-Origin", "*")
+	// Prevent caching of result.
+	// See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	rw.Header().Set("Cache-Control", "no-store")
 }
 
 // writeResult marshals the result and writes the result to the response writer.

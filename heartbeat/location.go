@@ -130,7 +130,7 @@ func isValidInstance(service, typ string, lat, lon float64, v v2.HeartbeatMessag
 	// TODO(cristinaleon): Add in-country biasing for distance.
 	// It might require implementing a reverse geocoder.
 	distance := mathx.GetHaversineDistance(lat, lon, r.Latitude, r.Longitude)
-	if distance > static.EarthRadiusKm {
+	if distance > static.EarthHalfCircumferenceKm {
 		return false, host.Name{}, 0
 	}
 

@@ -110,8 +110,9 @@ func main() {
 	memorystore := memorystore.NewClient[v2.HeartbeatMessage](&pool)
 	tracker := heartbeat.NewHeartbeatStatusTracker(memorystore)
 	defer tracker.StopImport()
+	srvLocatorV2 := heartbeat.NewServerLocator(tracker)
 
-	c := handler.NewClient(project, signer, srvLocator, locators, tracker)
+	c := handler.NewClient(project, signer, srvLocator, srvLocatorV2, locators)
 
 	go func() {
 		// Check and reload db at least once a day.
@@ -163,6 +164,8 @@ func main() {
 	mux.HandleFunc("/v2/nearest/", http.HandlerFunc(c.TranslatedQuery))
 	// REQUIRED: API keys parameters required for priority requests.
 	mux.HandleFunc("/v2/priority/nearest/", http.HandlerFunc(c.TranslatedQuery))
+	// Beta version of V2 nearest requests.
+	mux.HandleFunc("/v2beta2/nearest/", http.HandlerFunc(c.Nearest))
 
 	// DEPRECATED APIs: TODO: retire after migrating clients.
 	mux.Handle("/v2/monitoring/", monitoringChain)
