@@ -165,7 +165,7 @@ func main() {
 	// REQUIRED: API keys parameters required for priority requests.
 	mux.HandleFunc("/v2/priority/nearest/", http.HandlerFunc(c.TranslatedQuery))
 	// Beta version of V2 nearest requests.
-	mux.HandleFunc("/v2beta/nearest/", http.HandlerFunc(c.Nearest))
+	mux.HandleFunc("/v2beta2/nearest/", http.HandlerFunc(c.Nearest))
 
 	// DEPRECATED APIs: TODO: retire after migrating clients.
 	mux.Handle("/v2/monitoring/", monitoringChain)

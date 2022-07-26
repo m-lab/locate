@@ -151,7 +151,7 @@ paths:
         - public
 
   # Beta V2 "nearest" requests WITH an API key.
-  "/v2beta/nearest/{name}/{type}":
+  "/v2beta2/nearest/{name}/{type}":
     get:
       description: |-
         Find the nearest healthy service.

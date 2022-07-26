@@ -120,6 +120,9 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	// Look up client location.
 	loc, err := c.checkClientLocation(rw, req)
 	if err != nil {
+		status := http.StatusServiceUnavailable
+		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", status)
+		writeResult(rw, result.Error.Status, &result)
 		return
 	}
 
@@ -143,7 +146,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	writeResult(rw, http.StatusOK, &result)
 }
 
-// Nearest implements /v2beta/nearest requests and uses the LocatorV2 to look up
+// Nearest uses an implementation of the LocatorV2 interface to look up
 // nearest servers.
 func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
@@ -154,6 +157,9 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	// Look up client location.
 	loc, err := c.checkClientLocation(rw, req)
 	if err != nil {
+		status := http.StatusServiceUnavailable
+		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", status)
+		writeResult(rw, result.Error.Status, &result)
 		return
 	}
 
@@ -187,11 +193,6 @@ func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) 
 	// Lookup the client location using the client request.
 	loc, err := c.Locate(req)
 	if err != nil {
-		status := http.StatusServiceUnavailable
-		result := v2.NearestResult{
-			Error: v2.NewError("client", errFailedToLookupClient.Error(), status),
-		}
-		writeResult(rw, result.Error.Status, &result)
 		return nil, errFailedToLookupClient
 	}
 

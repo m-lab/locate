@@ -361,11 +361,11 @@ func TestClient_Nearest(t *testing.T) {
 			c := NewClient(tt.project, tt.signer, &fakeLocator{}, tt.locator, tt.cl)
 
 			mux := http.NewServeMux()
-			mux.HandleFunc("/v2beta/nearest/", c.Nearest)
+			mux.HandleFunc("/v2beta2/nearest/", c.Nearest)
 			srv := httptest.NewServer(mux)
 			defer srv.Close()
 
-			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2beta/nearest/"+tt.path+"?client_name=foo", nil)
+			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2beta2/nearest/"+tt.path+"?client_name=foo", nil)
 			rtx.Must(err, "Failed to create request")
 			req.Header = tt.header
 

@@ -92,7 +92,7 @@ func NewLocateServerV2(loc *LocatorV2) *httptest.Server {
 
 	// USER APIs
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v2beta/nearest/", http.HandlerFunc(c.Nearest))
+	mux.HandleFunc("/v2beta2/nearest/", http.HandlerFunc(c.Nearest))
 
 	srv := httptest.NewServer(mux)
 	log.Println("Listening for INSECURE access requests on " + srv.URL)

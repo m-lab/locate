@@ -31,7 +31,7 @@ func TestLocateServer_Success(t *testing.T) {
 			srv: NewLocateServerV2(&LocatorV2{
 				Servers: []string{"127.0.0.1"},
 			}),
-			path: "/v2beta/nearest",
+			path: "/v2beta2/nearest",
 			want: 1,
 		},
 	}
@@ -74,7 +74,7 @@ func TestLocateServer_Error(t *testing.T) {
 			srv: NewLocateServerV2(&LocatorV2{
 				Err: errors.New("fake error"),
 			}),
-			path: "/v2beta/nearest",
+			path: "/v2beta2/nearest",
 		},
 	}
 
