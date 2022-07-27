@@ -27,7 +27,7 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 		log.Errorf("failed to establish a connection: %v", err)
 		return
 	}
-	metrics.HeartbeatConnections.Inc()
+	metrics.CurrentHeartbeatConnections.Inc()
 	go c.handleHeartbeats(ws)
 }
 
@@ -41,7 +41,7 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 		_, message, err := ws.ReadMessage()
 		if err != nil {
 			log.Errorf("read error: %v", err)
-			metrics.HeartbeatConnections.Dec()
+			metrics.CurrentHeartbeatConnections.Dec()
 			return
 		}
 		if message != nil {
