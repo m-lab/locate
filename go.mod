@@ -16,6 +16,7 @@ require (
 	github.com/m-lab/go v0.1.53
 	github.com/m-lab/uuid-annotator v0.4.5
 	github.com/oschwald/geoip2-golang v1.5.0
+	github.com/prometheus/client_golang v1.7.1
 	github.com/rafaeljusto/redigomock v2.4.0+incompatible
 	github.com/sirupsen/logrus v1.8.1
 	google.golang.org/api v0.74.0
@@ -41,7 +42,6 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/oschwald/maxminddb-golang v1.8.0 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
-	github.com/prometheus/client_golang v1.7.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.10.0 // indirect
 	github.com/prometheus/procfs v0.1.3 // indirect

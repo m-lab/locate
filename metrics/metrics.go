@@ -6,27 +6,15 @@ import (
 )
 
 var (
-	// ConnectionClosedTotal counts the number of times connections
-	// are closed.
+	// RequestsTotal counts the number of 'nearest' requests served by
+	// the Locate service.
 	//
 	// Example usage:
-	// metrics.ConnectionClosedTotal.Inc()
-	ConnectionClosedTotal = promauto.NewCounter(
+	// metrics.RequestsTotal.WithLabelValues("200").Inc()
+	RequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "locate_connection_closed_total",
-			Help: "Number of connections that have been closed.",
-		},
-	)
-
-	// ReconnectionsTotal counts the number of times a reconnection
-	// attempt is made.
-	//
-	// Example usage:
-	// metrics.ReconnectionsTotal.WithLabelValues("success").Inc()
-	ReconnectionsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "locate_reconnections_total",
-			Help: "Number of reconnection attempts.",
+			Name: "locate_requests_total",
+			Help: "Number of 'nearest' requests served by the Locate service.",
 		},
 		[]string{"status"},
 	)
@@ -42,5 +30,17 @@ var (
 			Help: "Number of times App Engine is used to find the client location.",
 		},
 		[]string{"country"},
+	)
+
+	// HeartbeatConnectionsTotal counts the number of active Heartbeat
+	// connections.
+	//
+	// Example usage:
+	// metrics.HeartbeatConnectionsTotal.Inc()
+	HeartbeatConnectionsTotal = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "locate_heartbeat_connections_total",
+			Help: "Number of active Heartbeat connections.",
+		},
 	)
 )

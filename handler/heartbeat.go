@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 	log "github.com/sirupsen/logrus"
 )
@@ -26,6 +27,7 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 		log.Errorf("failed to establish a connection: %v", err)
 		return
 	}
+	metrics.HeartbeatConnectionsTotal.Inc()
 	go c.handleHeartbeats(ws)
 }
 
@@ -39,6 +41,7 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 		_, message, err := ws.ReadMessage()
 		if err != nil {
 			log.Errorf("read error: %v", err)
+			metrics.HeartbeatConnectionsTotal.Dec()
 			return
 		}
 		if message != nil {
