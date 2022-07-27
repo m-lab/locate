@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/connection"
@@ -37,6 +38,9 @@ func init() {
 func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "failed to read args from env")
+
+	prom := prometheusx.MustServeMetrics()
+	defer prom.Close()
 
 	// Load registration data.
 	r, err := LoadRegistration(mainCtx, hostname, registrationURL.URL)

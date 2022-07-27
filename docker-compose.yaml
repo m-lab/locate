@@ -22,3 +22,4 @@ services:
             - -key-source=local
             - -signer-secret-name=./secrets/testdata/jwk_sig_EdDSA_test_20220415
             - -verify-secret-name=./secrets/testdata/jwk_sig_EdDSA_test_20220415.pub
+            - -prometheusx.listen-address=:9990

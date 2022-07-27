@@ -18,6 +18,7 @@ import (
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/memoryless"
+	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
@@ -71,6 +72,9 @@ type loader interface {
 func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Could not parse env args")
+
+	prom := prometheusx.MustServeMetrics()
+	defer prom.Close()
 
 	// Create the Secret Manager client
 	client, err := secretmanager.NewClient(mainCtx)

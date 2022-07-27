@@ -12,6 +12,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/gorilla/websocket"
+	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 )
 
@@ -126,12 +127,12 @@ func (c *Conn) Dial(address string, header http.Header, dialMsg interface{}) err
 // message.
 //
 // The write will fail under the following conditions:
-//	1. The client has not called Dial (ErrNotDialed).
-//	2. The connection is disconnected and it was not able to
-//	   reconnect (ErrTooManyReconnects or an internal connection
-//	   error).
-//	3. The write call in the websocket package failed
-//	   (gorilla/websocket error).
+//  1. The client has not called Dial (ErrNotDialed).
+//  2. The connection is disconnected and it was not able to
+//     reconnect (ErrTooManyReconnects or an internal connection
+//     error).
+//  3. The write call in the websocket package failed
+//     (gorilla/websocket error).
 func (c *Conn) WriteMessage(messageType int, data interface{}) error {
 	if !c.isDialed {
 		return ErrNotDailed
@@ -191,7 +192,15 @@ func (c *Conn) closeAndReconnect() error {
 	if err != nil {
 		return err
 	}
-	return c.reconnect()
+
+	err = c.reconnect()
+	if err != nil {
+		metrics.ReconnectionsTotal.WithLabelValues(err.Error()).Inc()
+		return err
+	}
+
+	metrics.ReconnectionsTotal.WithLabelValues("success").Inc()
+	return nil
 }
 
 // close closes the underlying network connection without
@@ -200,7 +209,11 @@ func (c *Conn) close() error {
 	if c.IsConnected() {
 		c.isConnected = false
 		if c.ws != nil {
-			return c.ws.Close()
+			err := c.ws.Close()
+			if err == nil {
+				metrics.ConnectionClosedTotal.Inc()
+			}
+			return err
 		}
 	}
 	return nil

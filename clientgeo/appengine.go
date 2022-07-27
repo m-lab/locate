@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/apex/log"
+	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 )
 
@@ -45,6 +46,9 @@ func (sl *AppEngineLocator) Locate(req *http.Request) (*Location, error) {
 		"Path":        req.URL.Path,
 	}
 
+	country := headers.Get("X-AppEngine-Country")
+	metrics.AppEngineTotal.WithLabelValues(country).Inc()
+
 	// First, try the given lat/lon. Avoid invalid values like 0,0.
 	latlon := headers.Get("X-AppEngine-CityLatLong")
 	loc, err := splitLatLon(latlon)
@@ -55,7 +59,6 @@ func (sl *AppEngineLocator) Locate(req *http.Request) (*Location, error) {
 		return loc, nil
 	}
 	// The next two fallback methods require the country, so check this next.
-	country := headers.Get("X-AppEngine-Country")
 	if country == "" || static.Countries[country] == "" {
 		// Without a valid country value, we can neither lookup the
 		// region nor country.
