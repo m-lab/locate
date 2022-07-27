@@ -32,15 +32,15 @@ var (
 		[]string{"country"},
 	)
 
-	// CurrentHeartbeatConnections counts the number of active Heartbeat
-	// connections.
+	// CurrentHeartbeatConnections counts the number of currently active
+	// Heartbeat connections.
 	//
 	// Example usage:
 	// metrics.CurrentHeartbeatConnections.Inc()
 	CurrentHeartbeatConnections = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "locate_current_heartbeat_connections",
-			Help: "Number of active Heartbeat connections.",
+			Help: "Number of currently active Heartbeat connections.",
 		},
 	)
 )
