@@ -22,6 +22,7 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/heartbeat"
+	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 )
 
@@ -160,6 +161,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 		status := http.StatusServiceUnavailable
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", status)
 		writeResult(rw, result.Error.Status, &result)
+		metrics.RequestsTotal.WithLabelValues(http.StatusText(result.Error.Status)).Inc()
 		return
 	}
 
@@ -169,6 +171,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	if errLat != nil || errLon != nil {
 		result.Error = v2.NewError("client", errFailedToLookupClient.Error(), http.StatusInternalServerError)
 		writeResult(rw, result.Error.Status, &result)
+		metrics.RequestsTotal.WithLabelValues(http.StatusText(result.Error.Status)).Inc()
 		return
 	}
 
@@ -178,6 +181,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
 		writeResult(rw, result.Error.Status, &result)
+		metrics.RequestsTotal.WithLabelValues(http.StatusText(result.Error.Status)).Inc()
 		return
 	}
 
@@ -185,6 +189,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	c.populateURLs(targets, urls, experiment, req.Form)
 	result.Results = targets
 	writeResult(rw, http.StatusOK, &result)
+	metrics.RequestsTotal.WithLabelValues(http.StatusText(http.StatusOK)).Inc()
 }
 
 // checkClientLocation looks up the client location and copies the location
