@@ -6,17 +6,17 @@ import (
 )
 
 var (
-	// RequestsTotal counts the number of 'nearest' requests served by
+	// RequestsTotal counts the number of requests served by
 	// the Locate service.
 	//
 	// Example usage:
-	// metrics.RequestsTotal.WithLabelValues("200").Inc()
+	// metrics.RequestsTotal.WithLabelValues("nearest", "200").Inc()
 	RequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "locate_requests_total",
-			Help: "Number of 'nearest' requests served by the Locate service.",
+			Help: "Number of requests served by the Locate service.",
 		},
-		[]string{"status"},
+		[]string{"type", "status"},
 	)
 
 	// AppEngineTotal counts the number of times App Engine headers are
