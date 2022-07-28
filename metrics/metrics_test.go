@@ -7,7 +7,7 @@ import (
 )
 
 func TestLintMetrics(t *testing.T) {
-	RequestsTotal.WithLabelValues("status")
+	RequestsTotal.WithLabelValues("type", "status")
 	AppEngineTotal.WithLabelValues("country")
 	CurrentHeartbeatConnections.Set(0)
 	promtest.LintMetrics(nil)
