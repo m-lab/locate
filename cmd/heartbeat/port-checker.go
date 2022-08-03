@@ -27,6 +27,9 @@ func NewPortChecker(services map[string][]string) *PortChecker {
 
 // checkPorts returns true if all the given ports are open and false
 // otherwise.
+// When dialing tcp networks, if the host is empty, the "net" package
+// uses the local system. This implementation only passes in the port
+// to the `DialTimeout` call to ensure it is done over localhost.
 func (ps *PortChecker) checkPorts() bool {
 	for p := range ps.ports {
 		conn, err := net.DialTimeout("tcp", p, time.Second)
