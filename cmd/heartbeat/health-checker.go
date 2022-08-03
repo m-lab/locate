@@ -7,10 +7,9 @@ type HealthChecker struct {
 
 // NewHealthChecker creates a new HealthChecker.
 func NewHealthChecker(pc PortChecker) *HealthChecker {
-	hc := HealthChecker{
+	return &HealthChecker{
 		pc: pc,
 	}
-	return &hc
 }
 
 // getHealth combines a set of health checks into a single score.
