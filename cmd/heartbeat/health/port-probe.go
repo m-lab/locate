@@ -34,7 +34,6 @@ func (ps *PortProbe) checkPorts() bool {
 			log.Printf("Failed to reach port %s", p)
 			return false
 		}
-		log.Printf("Successfully reached port %s", p)
 		conn.Close()
 	}
 	return true
