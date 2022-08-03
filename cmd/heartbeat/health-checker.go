@@ -1,20 +1,21 @@
 package main
 
-// HealthChecker ...
+// HealthChecker checks the health of a local experiment instance.
 type HealthChecker struct {
-	scanner PortScanner
+	pc PortChecker
 }
 
-// NewHealthChecker ...
-func NewHealthChecker(ps PortScanner) *HealthChecker {
+// NewHealthChecker creates a new HealthChecker.
+func NewHealthChecker(pc PortChecker) *HealthChecker {
 	hc := HealthChecker{
-		scanner: ps,
+		pc: pc,
 	}
 	return &hc
 }
 
+// getHealth combines a set of health checks into a single score.
 func (hc *HealthChecker) getHealth() float64 {
-	if hc.scanner.scanPorts() {
+	if hc.pc.checkPorts() {
 		return 1
 	}
 	return 0

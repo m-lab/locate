@@ -52,8 +52,8 @@ func main() {
 	err = conn.Dial(heartbeatURL, http.Header{}, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
-	ps := NewPortScanner(s)
-	hc := NewHealthChecker(*ps)
+	pc := NewPortChecker(s)
+	hc := NewHealthChecker(*pc)
 
 	write(conn, hc)
 }
