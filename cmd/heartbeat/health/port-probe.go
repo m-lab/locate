@@ -1,4 +1,4 @@
-package main
+package health
 
 import (
 	"log"
@@ -12,31 +12,29 @@ const (
 	defaultPortSecure = "443"
 )
 
-// PortChecker checks whether a set of ports are open.
-type PortChecker struct {
+// PortProbe checks whether a set of ports are open.
+type PortProbe struct {
 	ports map[string]bool
 }
 
-// NewPortChecker creates a new PortChecker.
-func NewPortChecker(services map[string][]string) *PortChecker {
-	pc := PortChecker{
+// NewPortProbe creates a new PortProbe.
+func NewPortProbe(services map[string][]string) *PortProbe {
+	pp := PortProbe{
 		ports: getPorts(services),
 	}
-	return &pc
+	return &pp
 }
 
 // checkPorts returns true if all the given ports are open and false
 // otherwise.
-// When dialing tcp networks, if the host is empty, the "net" package
-// uses the local system. This implementation only passes in the port
-// to the `DialTimeout` call to ensure it is done over localhost.
-func (ps *PortChecker) checkPorts() bool {
+func (ps *PortProbe) checkPorts() bool {
 	for p := range ps.ports {
-		conn, err := net.DialTimeout("tcp", p, time.Second)
+		conn, err := net.DialTimeout("tcp", "localhost:"+p, time.Second)
 		if err != nil {
 			log.Printf("Failed to reach port %s", p)
 			return false
 		}
+		log.Printf("Successfully reached port %s", p)
 		conn.Close()
 	}
 	return true
@@ -56,7 +54,7 @@ func getPorts(services map[string][]string) map[string]bool {
 			}
 
 			port := getPort(*url)
-			ports[":"+port] = true
+			ports[port] = true
 		}
 	}
 

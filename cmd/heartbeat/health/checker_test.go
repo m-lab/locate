@@ -1,22 +1,22 @@
-package main
+package health
 
 import "testing"
 
-func TestHealthChecker_getHealth(t *testing.T) {
+func TestChecker_getHealth(t *testing.T) {
 	tests := []struct {
 		name string
-		pc   PortChecker
+		pp   *PortProbe
 		want float64
 	}{
 
 		{
 			name: "health-1",
-			pc:   PortChecker{},
+			pp:   &PortProbe{},
 			want: 1,
 		},
 		{
 			name: "health-0",
-			pc: PortChecker{
+			pp: &PortProbe{
 				ports: map[string]bool{"65536": true},
 			},
 			want: 0,
@@ -25,11 +25,11 @@ func TestHealthChecker_getHealth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hc := NewHealthChecker(tt.pc)
+			hc := NewChecker(tt.pp)
 
-			got := hc.getHealth()
+			got := hc.GetHealth()
 			if got != tt.want {
-				t.Errorf("HealthChecker.getHealth() = %v, want %v", got, tt.want)
+				t.Errorf("Checker.GetHealth() = %v, want %v", got, tt.want)
 			}
 		})
 	}

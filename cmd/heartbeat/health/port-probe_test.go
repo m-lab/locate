@@ -1,4 +1,4 @@
-package main
+package health
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestPortChecker_scanPorts(t *testing.T) {
+func TestPortProbe_scanPorts(t *testing.T) {
 	tests := []struct {
 		name            string
 		servers         int
@@ -60,11 +60,11 @@ func TestPortChecker_scanPorts(t *testing.T) {
 				svcs["unreachable"] = []string{tt.unreachablePort}
 			}
 
-			pc := NewPortChecker(svcs)
+			pp := NewPortProbe(svcs)
 
-			got := pc.checkPorts()
+			got := pp.checkPorts()
 			if got != tt.want {
-				t.Errorf("PortChecker.scanPorts() = %v, want %v", got, tt.want)
+				t.Errorf("PortProbe.scanPorts() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -94,8 +94,8 @@ func Test_getPorts(t *testing.T) {
 				},
 			},
 			want: map[string]bool{
-				":3001": true,
-				":3010": true,
+				"3001": true,
+				"3010": true,
 			},
 		},
 		{
@@ -107,7 +107,7 @@ func Test_getPorts(t *testing.T) {
 				},
 			},
 			want: map[string]bool{
-				":80": true,
+				"80": true,
 			},
 		},
 		{
@@ -119,7 +119,7 @@ func Test_getPorts(t *testing.T) {
 				},
 			},
 			want: map[string]bool{
-				":443": true,
+				"443": true,
 			},
 		},
 		{
@@ -137,10 +137,10 @@ func Test_getPorts(t *testing.T) {
 				},
 			},
 			want: map[string]bool{
-				":80":   true,
-				":443":  true,
-				":3001": true,
-				":3010": true,
+				"80":   true,
+				"443":  true,
+				"3001": true,
+				"3010": true,
 			},
 		},
 	}

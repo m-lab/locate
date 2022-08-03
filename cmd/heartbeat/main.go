@@ -11,6 +11,7 @@ import (
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/cmd/heartbeat/health"
 	"github.com/m-lab/locate/connection"
 	"github.com/m-lab/locate/static"
 )
@@ -52,15 +53,15 @@ func main() {
 	err = conn.Dial(heartbeatURL, http.Header{}, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
-	pc := NewPortChecker(s)
-	hc := NewHealthChecker(*pc)
+	probe := health.NewPortProbe(s)
+	hc := health.NewChecker(probe)
 
 	write(conn, hc)
 }
 
 // write starts a write loop to send health messages every
 // HeartbeatPeriod.
-func write(ws *connection.Conn, hc *HealthChecker) {
+func write(ws *connection.Conn, hc *health.Checker) {
 	defer ws.Close()
 	ticker := *time.NewTicker(heartbeatPeriod)
 	defer ticker.Stop()
@@ -70,7 +71,7 @@ func write(ws *connection.Conn, hc *HealthChecker) {
 		case <-mainCtx.Done():
 			return
 		case <-ticker.C:
-			score := hc.getHealth()
+			score := hc.GetHealth()
 			healthMsg := v2.Health{Score: score}
 			hbm := v2.HeartbeatMessage{Health: &healthMsg}
 
