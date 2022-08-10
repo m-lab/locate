@@ -132,6 +132,10 @@ paths:
           description: datatype
           type: string
           required: true
+        - name: machine-type
+          in: query
+          description: The machine type, e.g., "physical" or "virtual".
+          type: string
       responses:
         '200':
           description: The result of the nearest request. Clients should use the
