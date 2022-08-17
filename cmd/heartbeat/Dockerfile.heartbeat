@@ -1,8 +1,10 @@
 # Built the command using a golang base image.
 FROM golang:1.18.3-alpine3.16 AS build
-RUN apk add git
-ADD . /go/src/github.com/m-lab/locate
-RUN go install -v github.com/m-lab/locate/cmd/heartbeat@latest
+WORKDIR /go/src/github.com/m-lab/locate
+ADD go.mod go.sum ./
+RUN go mod download
+ADD . ./
+RUN go install -v ./cmd/heartbeat
 
 # Now copy the resulting command into the minimal base image.
 FROM alpine:3.16

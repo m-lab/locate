@@ -25,7 +25,7 @@ func TestChecker_getHealth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hc := NewChecker(tt.pp)
+			hc := NewChecker(tt.pp, nil)
 
 			got := hc.GetHealth()
 			if got != tt.want {
