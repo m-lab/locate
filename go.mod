@@ -28,6 +28,13 @@ require (
 )
 
 require (
+	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
+	github.com/imdario/mergo v0.3.5 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7 // indirect
+)
+
+require (
 	cloud.google.com/go v0.100.2 // indirect
 	cloud.google.com/go/compute v1.5.0 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect

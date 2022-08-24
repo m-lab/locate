@@ -23,6 +23,8 @@ var (
 	pod                 string
 	node                string
 	namespace           string
+	kubernetesAuth      = "/var/run/secrets/kubernetes.io/serviceaccount/"
+	kubernetesURL       = flagx.URL{}
 	registrationURL     = flagx.URL{}
 	services            = flagx.KeyValueArray{}
 	heartbeatPeriod     = static.HeartbeatPeriod
@@ -37,6 +39,7 @@ func init() {
 	flag.StringVar(&pod, "pod", "", "Kubernetes pod name")
 	flag.StringVar(&node, "node", "", "Kubernetes node name")
 	flag.StringVar(&namespace, "namespace", "", "Kubernetes namespace")
+	flag.Var(&kubernetesURL, "kubernetes-url", "URL for Kubernetes API")
 	flag.Var(&registrationURL, "registration-url", "URL for site registration")
 	flag.Var(&services, "services", "Maps experiment target names to their set of services")
 }
@@ -60,11 +63,7 @@ func main() {
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
 	probe := health.NewPortProbe(s)
-	k8s, err := health.NewKubernetesClient(pod, node, namespace)
-	if err != nil {
-		log.Printf("failed to start k8s client, err: %+v", err)
-	}
-
+	k8s := health.MustNewKubernetesClient(mainCtx, kubernetesURL.URL, pod, node, namespace, kubernetesAuth)
 	hc := health.NewChecker(probe, k8s)
 
 	write(conn, hc)
