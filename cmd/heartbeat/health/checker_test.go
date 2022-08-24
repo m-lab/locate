@@ -10,14 +10,14 @@ func TestChecker_getHealth(t *testing.T) {
 	tests := []struct {
 		name string
 		pp   *PortProbe
-		kc   *KubernetesClient
+		k8s  *KubernetesClient
 		want float64
 	}{
 
 		{
 			name: "health-1",
 			pp:   &PortProbe{},
-			kc: &KubernetesClient{
+			k8s: &KubernetesClient{
 				clientset: healthyClientset,
 			},
 			want: 1,
@@ -27,7 +27,7 @@ func TestChecker_getHealth(t *testing.T) {
 			pp: &PortProbe{
 				ports: map[string]bool{"65536": true},
 			},
-			kc: &KubernetesClient{
+			k8s: &KubernetesClient{
 				clientset: healthyClientset,
 			},
 			want: 0,
@@ -35,7 +35,7 @@ func TestChecker_getHealth(t *testing.T) {
 		{
 			name: "kubernetes-unhealthy",
 			pp:   &PortProbe{},
-			kc: &KubernetesClient{
+			k8s: &KubernetesClient{
 				clientset: fake.NewSimpleClientset(),
 			},
 			want: 0,
@@ -45,7 +45,7 @@ func TestChecker_getHealth(t *testing.T) {
 			pp: &PortProbe{
 				ports: map[string]bool{"65536": true},
 			},
-			kc: &KubernetesClient{
+			k8s: &KubernetesClient{
 				clientset: fake.NewSimpleClientset(),
 			},
 			want: 0,
@@ -54,7 +54,7 @@ func TestChecker_getHealth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hc := NewChecker(tt.pp, tt.kc)
+			hc := NewChecker(tt.pp, tt.k8s)
 
 			got := hc.GetHealth()
 			if got != tt.want {
