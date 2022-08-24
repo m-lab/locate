@@ -140,3 +140,45 @@ func TestKubernetesClient_isHealthy(t *testing.T) {
 		})
 	}
 }
+
+func TestKubernetesClient_isInMaintenance(t *testing.T) {
+	tests := []struct {
+		name      string
+		clientset kubernetes.Interface
+		want      bool
+	}{
+		{
+			name:      "available",
+			clientset: fake.NewSimpleClientset(&v1.Node{}),
+			want:      false,
+		},
+		{
+			name: "lame-duck",
+			clientset: fake.NewSimpleClientset(
+				&v1.Node{
+					Spec: v1.NodeSpec{
+						Taints: []v1.Taint{
+							{Key: "lame-duck"},
+						},
+					},
+				},
+			),
+			want: true,
+		},
+		{
+			name:      "no-node",
+			clientset: fake.NewSimpleClientset(),
+			want:      false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &KubernetesClient{
+				clientset: tt.clientset,
+			}
+			if got := c.isInMaintenance(); got != tt.want {
+				t.Errorf("KubernetesClient.isInMaintenance() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
