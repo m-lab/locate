@@ -18,13 +18,30 @@ type KubernetesClient struct {
 	node      string
 	namespace string
 	ctx       context.Context
-	ctxCancel context.CancelFunc
 	clientset kubernetes.Interface
 }
 
 // MustNewKubernetesClient creates a new KubenernetesClient instance.
 // If the client cannot be instantiated, the function will exit.
 func MustNewKubernetesClient(ctx context.Context, url *url.URL, pod, node, namespace, auth string) *KubernetesClient {
+	defConfig := getDefaultClientConfig(url, auth)
+	restConfig, err := defConfig.ClientConfig()
+	rtx.Must(err, "failed to create kubernetes config")
+
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	rtx.Must(err, "failed to create kubernetes clientset")
+
+	client := &KubernetesClient{
+		pod:       pod,
+		node:      node,
+		namespace: namespace,
+		ctx:       ctx,
+		clientset: clientset,
+	}
+	return client
+}
+
+func getDefaultClientConfig(url *url.URL, auth string) clientcmd.ClientConfig {
 	// This is a low-level structure normally created from parsing a kubeconfig
 	// file.  Since we know all values we can create the client object directly.
 	//
@@ -56,35 +73,20 @@ func MustNewKubernetesClient(ctx context.Context, url *url.URL, pod, node, names
 		CurrentContext: "cluster-user",
 	}
 
-	// Construct a "direct client" using the auth above to contact the API server.
-	defClient := clientcmd.NewDefaultClientConfig(
+	defConfig := clientcmd.NewDefaultClientConfig(
 		clusterClient,
 		&clientcmd.ConfigOverrides{
 			ClusterInfo: api.Cluster{Server: ""},
 		},
 	)
-	restConfig, err := defClient.ClientConfig()
-	rtx.Must(err, "failed to create kubernetes config")
 
-	clientset, err := kubernetes.NewForConfig(restConfig)
-	rtx.Must(err, "failed to create kubernetes clientset")
-
-	ctx, ctxCancel := context.WithCancel(ctx)
-	client := &KubernetesClient{
-		pod:       pod,
-		node:      node,
-		namespace: namespace,
-		ctx:       ctx,
-		ctxCancel: ctxCancel,
-		clientset: clientset,
-	}
-	return client
+	return defConfig
 }
 
 // isHealthy returns true if the following conditions are true:
 //   - The Pod's status is "Running"
 //   - The Node's Ready condition is "True"
-//   - The Pod does not have a "lame-duck" taint
+//   - The Node does not have a "lame-duck" taint
 func (c *KubernetesClient) isHealthy() bool {
 	return c.isPodRunning() && c.isNodeReady() && !c.isInMaintenance()
 }

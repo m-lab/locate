@@ -1,8 +1,12 @@
 package health
 
 import (
+	"context"
+	"net/url"
 	"testing"
 
+	"github.com/go-test/deep"
+	"github.com/m-lab/go/testingx"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -25,6 +29,33 @@ var (
 		runningPod, readyNode,
 	)
 )
+
+func TestKubernetesClient_MustNewKubernetesClient(t *testing.T) {
+	ctx := context.Background()
+	u := &url.URL{
+		Scheme: "https",
+		Host:   "localhost:1234",
+	}
+	defConfig := getDefaultClientConfig(u, "testdata/")
+	restConfig, err := defConfig.ClientConfig()
+	testingx.Must(t, err, "failed to create kubernetes config")
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	testingx.Must(t, err, "failed to create kubernetes clientset")
+
+	want := &KubernetesClient{
+		pod:       "pod",
+		node:      "node",
+		namespace: "namespace",
+		ctx:       ctx,
+		clientset: clientset,
+	}
+
+	got := MustNewKubernetesClient(ctx, u, "pod", "node", "namespace", "testdata/")
+
+	if diff := deep.Equal(got, want); diff != nil {
+		t.Errorf("MustNewKubernetesClient() got: %+v, want:: %+v", got, want)
+	}
+}
 
 func TestKubernetesClient_isHealthy(t *testing.T) {
 	tests := []struct {
