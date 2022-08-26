@@ -9,55 +9,75 @@ import (
 
 func TestChecker_getHealth(t *testing.T) {
 	tests := []struct {
-		name string
-		pp   *PortProbe
-		k8s  *KubernetesClient
-		want float64
+		name    string
+		checker *Checker
+		want    float64
 	}{
-
 		{
 			name: "health-1",
-			pp:   &PortProbe{},
-			k8s: &KubernetesClient{
-				clientset: healthyClientset,
-			},
+			checker: NewCheckerK8S(
+				&PortProbe{},
+				&KubernetesClient{
+					clientset: healthyClientset,
+				},
+			),
+			want: 1,
+		},
+		{
+			name: "health-1-k8s-nil",
+			checker: NewChecker(
+				&PortProbe{},
+			),
 			want: 1,
 		},
 		{
 			name: "ports-unhealthy",
-			pp: &PortProbe{
-				ports: map[string]bool{"65536": true},
-			},
-			k8s: &KubernetesClient{
-				clientset: healthyClientset,
-			},
+			checker: NewCheckerK8S(
+				&PortProbe{
+					ports: map[string]bool{"65536": true},
+				},
+				&KubernetesClient{
+					clientset: healthyClientset,
+				},
+			),
 			want: 0,
 		},
 		{
 			name: "kubernetes-unhealthy",
-			pp:   &PortProbe{},
-			k8s: &KubernetesClient{
-				clientset: fake.NewSimpleClientset(),
-			},
+			checker: NewCheckerK8S(
+				&PortProbe{},
+				&KubernetesClient{
+					clientset: fake.NewSimpleClientset(),
+				},
+			),
 			want: 0,
 		},
 		{
 			name: "all-unhealthy",
-			pp: &PortProbe{
-				ports: map[string]bool{"65536": true},
-			},
-			k8s: &KubernetesClient{
-				clientset: fake.NewSimpleClientset(),
-			},
+			checker: NewCheckerK8S(
+				&PortProbe{
+					ports: map[string]bool{"65536": true},
+				},
+				&KubernetesClient{
+					clientset: fake.NewSimpleClientset(),
+				},
+			),
+			want: 0,
+		},
+		{
+			name: "all-unhealthy-k8s-nil",
+			checker: NewChecker(
+				&PortProbe{
+					ports: map[string]bool{"65536": true},
+				},
+			),
 			want: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hc := NewCheckerK8S(tt.pp, tt.k8s)
-
-			got := hc.GetHealth(context.Background())
+			got := tt.checker.GetHealth(context.Background())
 			if got != tt.want {
 				t.Errorf("Checker.GetHealth() = %v, want %v", got, tt.want)
 			}
