@@ -91,7 +91,7 @@ func write(ws *connection.Conn, hc *health.Checker) {
 		case <-mainCtx.Done():
 			return
 		case <-ticker.C:
-			score := hc.GetHealth(mainCtx)
+			score := getHealth(hc)
 			healthMsg := v2.Health{Score: score}
 			hbm := v2.HeartbeatMessage{Health: &healthMsg}
 
@@ -101,4 +101,10 @@ func write(ws *connection.Conn, hc *health.Checker) {
 			}
 		}
 	}
+}
+
+func getHealth(hc *health.Checker) float64 {
+	ctx, cancel := context.WithTimeout(mainCtx, heartbeatPeriod)
+	defer cancel()
+	return hc.GetHealth(ctx)
 }
