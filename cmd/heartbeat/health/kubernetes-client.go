@@ -4,8 +4,12 @@ import (
 	"context"
 	"net/url"
 	"path"
+	"strconv"
+	"time"
 
 	"github.com/m-lab/go/rtx"
+	"github.com/m-lab/locate/metrics"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -17,13 +21,12 @@ type KubernetesClient struct {
 	pod       string
 	node      string
 	namespace string
-	ctx       context.Context
 	clientset kubernetes.Interface
 }
 
 // MustNewKubernetesClient creates a new KubenernetesClient instance.
 // If the client cannot be instantiated, the function will exit.
-func MustNewKubernetesClient(ctx context.Context, url *url.URL, pod, node, namespace, auth string) *KubernetesClient {
+func MustNewKubernetesClient(url *url.URL, pod, node, namespace, auth string) *KubernetesClient {
 	defConfig := getDefaultClientConfig(url, auth)
 	restConfig, err := defConfig.ClientConfig()
 	rtx.Must(err, "failed to create kubernetes config")
@@ -35,7 +38,6 @@ func MustNewKubernetesClient(ctx context.Context, url *url.URL, pod, node, names
 		pod:       pod,
 		node:      node,
 		namespace: namespace,
-		ctx:       ctx,
 		clientset: clientset,
 	}
 	return client
@@ -87,39 +89,40 @@ func getDefaultClientConfig(url *url.URL, auth string) clientcmd.ClientConfig {
 //   - The Pod's status is "Running"
 //   - The Node's Ready condition is "True"
 //   - The Node does not have a "lame-duck" taint
-func (c *KubernetesClient) isHealthy() bool {
-	return c.isPodRunning() && c.isNodeReady() && !c.isInMaintenance()
+func (c *KubernetesClient) isHealthy(ctx context.Context) bool {
+	start := time.Now()
+	isHealthy := c.isPodRunning(ctx) && c.isNodeReady(ctx)
+	metrics.KubernetesRequestTimeHistogram.WithLabelValues(strconv.FormatBool(isHealthy)).Observe(time.Since(start).Seconds())
+	return isHealthy
 }
 
-func (c *KubernetesClient) isPodRunning() bool {
-	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(c.ctx, c.pod, metav1.GetOptions{})
+func (c *KubernetesClient) isPodRunning(ctx context.Context) bool {
+	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(ctx, c.pod, metav1.GetOptions{})
 	if err != nil {
 		return false
 	}
 	return pod.Status.Phase == "Running"
 }
 
-func (c *KubernetesClient) isNodeReady() bool {
-	node, err := c.clientset.CoreV1().Nodes().Get(c.ctx, c.node, metav1.GetOptions{})
+// isNodeReady returns true if the following conditions are true:
+//   - The Node's Ready condition is "True"
+//   - The Node does not have a "lame-duck" taint
+func (c *KubernetesClient) isNodeReady(ctx context.Context) bool {
+	node, err := c.clientset.CoreV1().Nodes().Get(ctx, c.node, metav1.GetOptions{})
 	if err != nil {
 		return false
 	}
 
 	for _, condition := range node.Status.Conditions {
 		if condition.Type == "Ready" && condition.Status == "True" {
-			return true
+			return !isInMaintenance(node)
 		}
 	}
 
 	return false
 }
 
-func (c *KubernetesClient) isInMaintenance() bool {
-	node, err := c.clientset.CoreV1().Nodes().Get(c.ctx, c.node, metav1.GetOptions{})
-	if err != nil {
-		return false
-	}
-
+func isInMaintenance(node *v1.Node) bool {
 	for _, taint := range node.Spec.Taints {
 		if taint.Key == "lame-duck" {
 			return true

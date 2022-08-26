@@ -1,6 +1,7 @@
 package health
 
 import (
+	"context"
 	"testing"
 
 	"k8s.io/client-go/kubernetes/fake"
@@ -54,9 +55,9 @@ func TestChecker_getHealth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hc := NewChecker(tt.pp, tt.k8s)
+			hc := NewCheckerK8S(tt.pp, tt.k8s)
 
-			got := hc.GetHealth()
+			got := hc.GetHealth(context.Background())
 			if got != tt.want {
 				t.Errorf("Checker.GetHealth() = %v, want %v", got, tt.want)
 			}

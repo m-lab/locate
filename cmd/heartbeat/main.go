@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/cmd/heartbeat/health"
@@ -48,6 +49,10 @@ func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "failed to read args from env")
 
+	// Start metrics server.
+	prom := prometheusx.MustServeMetrics()
+	defer prom.Close()
+
 	// Load registration data.
 	r, err := LoadRegistration(mainCtx, hostname, registrationURL.URL)
 	rtx.Must(err, "could not load registration data")
@@ -63,8 +68,13 @@ func main() {
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
 	probe := health.NewPortProbe(s)
-	k8s := health.MustNewKubernetesClient(mainCtx, kubernetesURL.URL, pod, node, namespace, kubernetesAuth)
-	hc := health.NewChecker(probe, k8s)
+	hc := &health.Checker{}
+	if kubernetesURL.URL == nil {
+		hc = health.NewChecker(probe)
+	} else {
+		k8s := health.MustNewKubernetesClient(kubernetesURL.URL, pod, node, namespace, kubernetesAuth)
+		hc = health.NewCheckerK8S(probe, k8s)
+	}
 
 	write(conn, hc)
 }
@@ -81,7 +91,7 @@ func write(ws *connection.Conn, hc *health.Checker) {
 		case <-mainCtx.Done():
 			return
 		case <-ticker.C:
-			score := hc.GetHealth()
+			score := hc.GetHealth(mainCtx)
 			healthMsg := v2.Health{Score: score}
 			hbm := v2.HeartbeatMessage{Health: &healthMsg}
 

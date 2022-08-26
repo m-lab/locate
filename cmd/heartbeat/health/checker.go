@@ -1,5 +1,7 @@
 package health
 
+import "golang.org/x/net/context"
+
 // Checker checks the health of a local experiment instance.
 type Checker struct {
 	pp  *PortProbe
@@ -7,7 +9,14 @@ type Checker struct {
 }
 
 // NewChecker creates a new Checker.
-func NewChecker(pp *PortProbe, k8s *KubernetesClient) *Checker {
+func NewChecker(pp *PortProbe) *Checker {
+	return &Checker{
+		pp: pp,
+	}
+}
+
+// NewCheckerK8S creates a new Checker for Kubernetes deployments.
+func NewCheckerK8S(pp *PortProbe, k8s *KubernetesClient) *Checker {
 	return &Checker{
 		pp:  pp,
 		k8s: k8s,
@@ -15,8 +24,11 @@ func NewChecker(pp *PortProbe, k8s *KubernetesClient) *Checker {
 }
 
 // GetHealth combines a set of health checks into a single score.
-func (hc *Checker) GetHealth() float64 {
-	if hc.pp.checkPorts() && hc.k8s.isHealthy() {
+func (hc *Checker) GetHealth(ctx context.Context) float64 {
+	if hc.pp.checkPorts() {
+		if hc.k8s != nil && !hc.k8s.isHealthy(ctx) {
+			return 0
+		}
 		return 1
 	}
 	return 0
