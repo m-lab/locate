@@ -54,4 +54,24 @@ var (
 		},
 		[]string{"healthy"},
 	)
+
+	// KubernetesRequestsTotal counts the number of requests from the Heartbeat
+	// Service to the Kubernetes API server.
+	KubernetesRequestsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "heartbeat_kubernetes_requests_total",
+			Help: "Number of requests from the HBS to the Kubernetes API",
+		},
+		[]string{"status"},
+	)
+
+	// PortChecksTotal counts the number of port checks performed by the Heartbeat
+	// Service.
+	PortChecksTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "heartbeat_port_checks_total",
+			Help: "Number of port checks the HBS performs",
+		},
+		[]string{"status"},
+	)
 )

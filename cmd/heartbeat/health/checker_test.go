@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -43,14 +44,14 @@ func TestChecker_getHealth(t *testing.T) {
 			want: 0,
 		},
 		{
-			name: "kubernetes-unhealthy",
+			name: "kubernetes-call-fail",
 			checker: NewCheckerK8S(
 				&PortProbe{},
 				&KubernetesClient{
 					clientset: fake.NewSimpleClientset(),
 				},
 			),
-			want: 0,
+			want: 1,
 		},
 		{
 			name: "all-unhealthy",
@@ -59,7 +60,20 @@ func TestChecker_getHealth(t *testing.T) {
 					ports: map[string]bool{"65536": true},
 				},
 				&KubernetesClient{
-					clientset: fake.NewSimpleClientset(),
+					clientset: fake.NewSimpleClientset(
+						&v1.Pod{
+							Status: v1.PodStatus{
+								Phase: "Pending",
+							},
+						},
+						&v1.Node{
+							Status: v1.NodeStatus{
+								Conditions: []v1.NodeCondition{
+									{Type: "Ready", Status: "False"},
+								},
+							},
+						},
+					),
 				},
 			),
 			want: 0,

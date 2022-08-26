@@ -112,18 +112,18 @@ func TestKubernetesClient_isHealthy(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "no-pod",
+			name: "pod-call-fail",
 			clientset: fake.NewSimpleClientset(
 				readyNode,
 			),
-			want: false,
+			want: true,
 		},
 		{
-			name: "no-node",
+			name: "node-call-fail",
 			clientset: fake.NewSimpleClientset(
 				runningPod,
 			),
-			want: false,
+			want: true,
 		},
 	}
 

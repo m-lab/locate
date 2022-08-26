@@ -85,10 +85,12 @@ func getDefaultClientConfig(url *url.URL, auth string) clientcmd.ClientConfig {
 	return defConfig
 }
 
-// isHealthy returns true if the following conditions are true:
+// isHealthy returns true if it can determine the following conditions are true:
 //   - The Pod's status is "Running"
 //   - The Node's Ready condition is "True"
 //   - The Node does not have a "lame-duck" taint
+//
+// OR if it cannot contact the API Server to make a determination.
 func (c *KubernetesClient) isHealthy(ctx context.Context) bool {
 	start := time.Now()
 	isHealthy := c.isPodRunning(ctx) && c.isNodeReady(ctx)
@@ -99,20 +101,27 @@ func (c *KubernetesClient) isHealthy(ctx context.Context) bool {
 func (c *KubernetesClient) isPodRunning(ctx context.Context) bool {
 	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(ctx, c.pod, metav1.GetOptions{})
 	if err != nil {
-		return false
+		metrics.KubernetesRequestsTotal.WithLabelValues(err.Error()).Inc()
+		return true
 	}
+
+	metrics.KubernetesRequestsTotal.WithLabelValues("OK").Inc()
 	return pod.Status.Phase == "Running"
 }
 
-// isNodeReady returns true if the following conditions are true:
+// isNodeReady returns true if it can determine the following conditions are true:
 //   - The Node's Ready condition is "True"
 //   - The Node does not have a "lame-duck" taint
+//
+// OR if it cannot contact the API Server to make a determination.
 func (c *KubernetesClient) isNodeReady(ctx context.Context) bool {
 	node, err := c.clientset.CoreV1().Nodes().Get(ctx, c.node, metav1.GetOptions{})
 	if err != nil {
-		return false
+		metrics.KubernetesRequestsTotal.WithLabelValues(err.Error()).Inc()
+		return true
 	}
 
+	metrics.KubernetesRequestsTotal.WithLabelValues("OK").Inc()
 	for _, condition := range node.Status.Conditions {
 		if condition.Type == "Ready" && condition.Status == "True" {
 			return !isInMaintenance(node)
