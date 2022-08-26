@@ -1,6 +1,8 @@
 package health
 
-import "golang.org/x/net/context"
+import (
+	"golang.org/x/net/context"
+)
 
 // Checker checks the health of a local experiment instance.
 type Checker struct {
