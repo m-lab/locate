@@ -18,8 +18,13 @@ func Test_main(t *testing.T) {
 	flag.Set("heartbeat-url", s.URL)
 	flag.Set("hostname", "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org")
 	flag.Set("experiment", "ndt")
+	flag.Set("pod", "ndt-abcde")
+	flag.Set("node", "mlab0-lga00.mlab-sandbox.measurement-lab.org")
+	flag.Set("namespace", "default")
+	flag.Set("kubernetes-url", "https://localhost:1234")
 	flag.Set("registration-url", "file:./testdata/registration.json")
 	flag.Set("services", "ndt/ndt7=ws:///ndt/v7/download,ws:///ndt/v7/upload")
+	kubernetesAuth = "health/testdata"
 
 	heartbeatPeriod = 2 * time.Second
 	timer := time.NewTimer(2 * heartbeatPeriod)

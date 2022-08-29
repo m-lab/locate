@@ -1,10 +1,11 @@
 package health
 
 import (
-	"log"
 	"net"
 	"net/url"
 	"time"
+
+	"github.com/m-lab/locate/metrics"
 )
 
 const (
@@ -31,10 +32,12 @@ func (ps *PortProbe) checkPorts() bool {
 	for p := range ps.ports {
 		conn, err := net.DialTimeout("tcp", "localhost:"+p, time.Second)
 		if err != nil {
-			log.Printf("Failed to reach port %s", p)
+			metrics.PortChecksTotal.WithLabelValues(err.Error()).Inc()
 			return false
 		}
+
 		conn.Close()
+		metrics.PortChecksTotal.WithLabelValues("OK").Inc()
 	}
 	return true
 }
