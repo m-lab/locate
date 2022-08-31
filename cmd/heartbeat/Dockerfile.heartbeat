@@ -4,7 +4,7 @@ RUN apk add git
 ADD . /go/src/github.com/m-lab/locate
 RUN go install -v \
     -ldflags "-X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h)" \
-    github.com/m-lab/locate/cmd/heartbeat
+    github.com/m-lab/locate/cmd/heartbeat@latest
 
 # Now copy the resulting command into the minimal base image.
 FROM alpine:3.16
