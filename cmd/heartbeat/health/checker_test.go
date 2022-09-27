@@ -2,6 +2,7 @@ package health
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -10,9 +11,10 @@ import (
 
 func TestChecker_getHealth(t *testing.T) {
 	tests := []struct {
-		name    string
-		checker *Checker
-		want    float64
+		name      string
+		checker   *Checker
+		healthSrv bool
+		want      float64
 	}{
 		{
 			name: "health-1",
@@ -22,14 +24,16 @@ func TestChecker_getHealth(t *testing.T) {
 					clientset: healthyClientset,
 				},
 			),
-			want: 1,
+			healthSrv: true,
+			want:      1,
 		},
 		{
 			name: "health-1-k8s-nil",
 			checker: NewChecker(
 				&PortProbe{},
 			),
-			want: 1,
+			healthSrv: true,
+			want:      1,
 		},
 		{
 			name: "ports-unhealthy",
@@ -41,7 +45,8 @@ func TestChecker_getHealth(t *testing.T) {
 					clientset: healthyClientset,
 				},
 			),
-			want: 0,
+			healthSrv: true,
+			want:      0,
 		},
 		{
 			name: "kubernetes-call-fail",
@@ -51,7 +56,8 @@ func TestChecker_getHealth(t *testing.T) {
 					clientset: fake.NewSimpleClientset(),
 				},
 			),
-			want: 1,
+			healthSrv: true,
+			want:      1,
 		},
 		{
 			name: "kubernetes-unhealthy",
@@ -74,7 +80,8 @@ func TestChecker_getHealth(t *testing.T) {
 					),
 				},
 			),
-			want: 0,
+			healthSrv: true,
+			want:      0,
 		},
 		{
 			name: "all-unhealthy",
@@ -99,7 +106,8 @@ func TestChecker_getHealth(t *testing.T) {
 					),
 				},
 			),
-			want: 0,
+			want:      0,
+			healthSrv: false,
 		},
 		{
 			name: "all-unhealthy-k8s-nil",
@@ -108,12 +116,18 @@ func TestChecker_getHealth(t *testing.T) {
 					ports: map[string]bool{"65536": true},
 				},
 			),
-			want: 0,
+			healthSrv: false,
+			want:      0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.healthSrv {
+				srv := testHealthServer(http.StatusOK)
+				defer srv.Close()
+			}
+
 			got := tt.checker.GetHealth(context.Background())
 			if got != tt.want {
 				t.Errorf("Checker.GetHealth() = %v, want %v", got, tt.want)

@@ -64,6 +64,16 @@ var (
 		[]string{"status"},
 	)
 
+	// HealthEndpointChecksTotal counts the number of local /health endpoint
+	// checks performed by the Heartbeat Service.
+	HealthEndpointChecksTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "heartbeat_health_endpoint_checks_total",
+			Help: "Number of local /health endpoint checks the HBS has done",
+		},
+		[]string{"status"},
+	)
+
 	// KubernetesRequestTimeHistogram tracks the request latency from the Heartbeat
 	// Service to the Kubernetes API server (in seconds).
 	KubernetesRequestTimeHistogram = promauto.NewHistogramVec(
