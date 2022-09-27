@@ -34,7 +34,7 @@ func (hc *Checker) GetHealth(ctx context.Context) float64 {
 		return 0
 	}
 	status, err := checkHealthEndpoint()
-	if err != nil && !status {
+	if err == nil && !status {
 		return 0
 	}
 	return 1

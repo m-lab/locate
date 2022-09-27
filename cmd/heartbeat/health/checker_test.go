@@ -2,7 +2,6 @@ package health
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -11,10 +10,10 @@ import (
 
 func TestChecker_getHealth(t *testing.T) {
 	tests := []struct {
-		name      string
-		checker   *Checker
-		healthSrv bool
-		want      float64
+		name           string
+		checker        *Checker
+		endpointStatus int
+		want           float64
 	}{
 		{
 			name: "health-1",
@@ -24,16 +23,16 @@ func TestChecker_getHealth(t *testing.T) {
 					clientset: healthyClientset,
 				},
 			),
-			healthSrv: true,
-			want:      1,
+			endpointStatus: 200,
+			want:           1,
 		},
 		{
 			name: "health-1-k8s-nil",
 			checker: NewChecker(
 				&PortProbe{},
 			),
-			healthSrv: true,
-			want:      1,
+			endpointStatus: 200,
+			want:           1,
 		},
 		{
 			name: "ports-unhealthy",
@@ -45,8 +44,8 @@ func TestChecker_getHealth(t *testing.T) {
 					clientset: healthyClientset,
 				},
 			),
-			healthSrv: true,
-			want:      0,
+			endpointStatus: 200,
+			want:           0,
 		},
 		{
 			name: "kubernetes-call-fail",
@@ -56,8 +55,8 @@ func TestChecker_getHealth(t *testing.T) {
 					clientset: fake.NewSimpleClientset(),
 				},
 			),
-			healthSrv: true,
-			want:      1,
+			endpointStatus: 200,
+			want:           1,
 		},
 		{
 			name: "kubernetes-unhealthy",
@@ -80,8 +79,19 @@ func TestChecker_getHealth(t *testing.T) {
 					),
 				},
 			),
-			healthSrv: true,
-			want:      0,
+			endpointStatus: 200,
+			want:           0,
+		},
+		{
+			name: "endpoint-unhealthy",
+			checker: NewCheckerK8S(
+				&PortProbe{},
+				&KubernetesClient{
+					clientset: healthyClientset,
+				},
+			),
+			endpointStatus: 500,
+			want:           0,
 		},
 		{
 			name: "all-unhealthy",
@@ -106,8 +116,7 @@ func TestChecker_getHealth(t *testing.T) {
 					),
 				},
 			),
-			want:      0,
-			healthSrv: false,
+			want: 0,
 		},
 		{
 			name: "all-unhealthy-k8s-nil",
@@ -116,15 +125,14 @@ func TestChecker_getHealth(t *testing.T) {
 					ports: map[string]bool{"65536": true},
 				},
 			),
-			healthSrv: false,
-			want:      0,
+			want: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.healthSrv {
-				srv := testHealthServer(http.StatusOK)
+			if tt.endpointStatus != 0 {
+				srv := testHealthServer(tt.endpointStatus)
 				defer srv.Close()
 			}
 
