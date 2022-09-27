@@ -55,7 +55,7 @@ var Configs = map[string]Ports{
 		URL("wss", ":3010", "/ndt_protocol"),
 	},
 	"neubot/dash": {
-		URL("https", "", "/"),
+		URL("https", "", "/negotiate/dash"),
 	},
 	"wehe/replay": {
 		URL("wss", ":4443", "/v0/envelope/access"),
