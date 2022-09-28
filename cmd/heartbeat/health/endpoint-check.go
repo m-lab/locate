@@ -16,7 +16,7 @@ var (
 func checkHealthEndpoint() (bool, error) {
 	resp, err := http.Get(healthAddress)
 	if err != nil {
-		metrics.HealthEndpointChecksTotal.WithLabelValues(err.Error()).Inc()
+		metrics.HealthEndpointChecksTotal.WithLabelValues("HTTP protocol error").Inc()
 		return false, err
 	}
 

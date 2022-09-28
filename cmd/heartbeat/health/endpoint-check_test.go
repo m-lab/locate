@@ -2,8 +2,9 @@ package health
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	"github.com/m-lab/locate/cmd/heartbeat/health/healthtest"
 )
 
 func Test_checkHealthEndpoint(t *testing.T) {
@@ -34,7 +35,8 @@ func Test_checkHealthEndpoint(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if !tt.wantErr {
-				srv := testHealthServer(tt.code)
+				srv := healthtest.TestHealthServer(tt.code)
+				healthAddress = srv.URL + "/health"
 				defer srv.Close()
 			}
 
@@ -49,14 +51,4 @@ func Test_checkHealthEndpoint(t *testing.T) {
 			}
 		})
 	}
-}
-
-func testHealthServer(code int) *httptest.Server {
-	mux := http.NewServeMux()
-	mux.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(code)
-	}))
-	s := httptest.NewServer(mux)
-	healthAddress = s.URL + "/health"
-	return s
 }

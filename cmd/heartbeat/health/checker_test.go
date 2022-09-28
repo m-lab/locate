@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/m-lab/locate/cmd/heartbeat/health/healthtest"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -132,7 +133,8 @@ func TestChecker_getHealth(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.endpointStatus != 0 {
-				srv := testHealthServer(tt.endpointStatus)
+				srv := healthtest.TestHealthServer(tt.endpointStatus)
+				healthAddress = srv.URL + "/health"
 				defer srv.Close()
 			}
 
