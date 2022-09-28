@@ -222,7 +222,7 @@ func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp strin
 // the intended audience and the subject as the target service.
 func (c *Client) getAccessToken(machine, subject string) string {
 	// Create the token. The same access token is reused for every URL of a
-	// target machine.
+	// target port.
 	// A uuid is added to the claims so that each new token is unique.
 	cl := jwt.Claims{
 		Issuer:   static.IssuerLocate,
