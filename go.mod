@@ -8,6 +8,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/go-test/deep v1.0.8
 	github.com/gomodule/redigo v1.8.8
+	github.com/google/uuid v1.1.2
 	github.com/googleapis/gax-go v1.0.3
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/go-multierror v1.1.1
@@ -19,6 +20,7 @@ require (
 	github.com/prometheus/client_golang v1.13.0
 	github.com/rafaeljusto/redigomock v2.4.0+incompatible
 	github.com/sirupsen/logrus v1.8.1
+	golang.org/x/net v0.0.0-20220325170049-de3da57026de
 	google.golang.org/api v0.74.0
 	google.golang.org/genproto v0.0.0-20220405205423-9d709892a2bf
 	gopkg.in/square/go-jose.v2 v2.6.0
@@ -68,7 +70,6 @@ require (
 	golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.4.2 // indirect
-	golang.org/x/net v0.0.0-20220325170049-de3da57026de // indirect
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a // indirect
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
