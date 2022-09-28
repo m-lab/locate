@@ -30,7 +30,16 @@ func (hc *Checker) GetHealth(ctx context.Context) float64 {
 	if !hc.pp.checkPorts() {
 		return 0
 	}
+
 	if hc.k8s != nil && !hc.k8s.isHealthy(ctx) {
+		return 0
+	}
+
+	// Some experiments might not support a /health endpoint, so
+	// the result is only taken into account if the request error
+	// is nil.
+	status, err := checkHealthEndpoint()
+	if err == nil && !status {
 		return 0
 	}
 	return 1

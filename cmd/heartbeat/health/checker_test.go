@@ -4,15 +4,17 @@ import (
 	"context"
 	"testing"
 
+	"github.com/m-lab/locate/cmd/heartbeat/health/healthtest"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestChecker_getHealth(t *testing.T) {
 	tests := []struct {
-		name    string
-		checker *Checker
-		want    float64
+		name           string
+		checker        *Checker
+		endpointStatus int
+		want           float64
 	}{
 		{
 			name: "health-1",
@@ -22,14 +24,16 @@ func TestChecker_getHealth(t *testing.T) {
 					clientset: healthyClientset,
 				},
 			),
-			want: 1,
+			endpointStatus: 200,
+			want:           1,
 		},
 		{
 			name: "health-1-k8s-nil",
 			checker: NewChecker(
 				&PortProbe{},
 			),
-			want: 1,
+			endpointStatus: 200,
+			want:           1,
 		},
 		{
 			name: "ports-unhealthy",
@@ -41,7 +45,8 @@ func TestChecker_getHealth(t *testing.T) {
 					clientset: healthyClientset,
 				},
 			),
-			want: 0,
+			endpointStatus: 200,
+			want:           0,
 		},
 		{
 			name: "kubernetes-call-fail",
@@ -51,7 +56,8 @@ func TestChecker_getHealth(t *testing.T) {
 					clientset: fake.NewSimpleClientset(),
 				},
 			),
-			want: 1,
+			endpointStatus: 200,
+			want:           1,
 		},
 		{
 			name: "kubernetes-unhealthy",
@@ -74,7 +80,19 @@ func TestChecker_getHealth(t *testing.T) {
 					),
 				},
 			),
-			want: 0,
+			endpointStatus: 200,
+			want:           0,
+		},
+		{
+			name: "endpoint-unhealthy",
+			checker: NewCheckerK8S(
+				&PortProbe{},
+				&KubernetesClient{
+					clientset: healthyClientset,
+				},
+			),
+			endpointStatus: 500,
+			want:           0,
 		},
 		{
 			name: "all-unhealthy",
@@ -114,6 +132,12 @@ func TestChecker_getHealth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.endpointStatus != 0 {
+				srv := healthtest.TestHealthServer(tt.endpointStatus)
+				healthAddress = srv.URL + "/health"
+				defer srv.Close()
+			}
+
 			got := tt.checker.GetHealth(context.Background())
 			if got != tt.want {
 				t.Errorf("Checker.GetHealth() = %v, want %v", got, tt.want)
