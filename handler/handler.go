@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/square/go-jose.v2/jwt"
 
@@ -220,12 +221,15 @@ func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp strin
 // getAccessToken allocates a new access token using the given machine name as
 // the intended audience and the subject as the target service.
 func (c *Client) getAccessToken(machine, subject string) string {
-	// Create the token. The same access token is used for each target port.
+	// Create the token. The same access token is reused for every URL of a
+	// target port.
+	// A uuid is added to the claims so that each new token is unique.
 	cl := jwt.Claims{
 		Issuer:   static.IssuerLocate,
 		Subject:  subject,
 		Audience: jwt.Audience{machine},
 		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Minute)),
+		ID:       uuid.NewString(),
 	}
 	token, err := c.Sign(cl)
 	// Sign errors can only happen due to a misconfiguration of the key.
