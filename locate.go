@@ -25,23 +25,26 @@ import (
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/memorystore"
+	"github.com/m-lab/locate/prometheus"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/secrets"
 	"github.com/m-lab/locate/static"
 )
 
 var (
-	listenPort       string
-	project          string
-	platform         string
-	locatorAE        bool
-	locatorMM        bool
-	legacyServer     string
-	signerSecretName string
-	maxmind          = flagx.URL{}
-	verifySecretName string
-	redisAddr        string
-	keySource        = flagx.Enum{
+	listenPort         string
+	project            string
+	platform           string
+	locatorAE          bool
+	locatorMM          bool
+	legacyServer       string
+	signerSecretName   string
+	maxmind            = flagx.URL{}
+	verifySecretName   string
+	redisAddr          string
+	promUserSecretName string
+	promPassSecretName string
+	keySource          = flagx.Enum{
 		Options: []string{"secretmanager", "local"},
 		Value:   "secretmanager",
 	}
@@ -56,6 +59,10 @@ func init() {
 	flag.StringVar(&signerSecretName, "signer-secret-name", "locate-service-signer-key", "Name of secret for locate signer key in Secret Manager")
 	flag.StringVar(&verifySecretName, "verify-secret-name", "locate-monitoring-service-verify-key", "Name of secret for monitoring verifier key in Secret Manager")
 	flag.StringVar(&redisAddr, "redis-address", "", "Primary endpoint for Redis instance")
+	flag.StringVar(&promUserSecretName, "prometheus-username-secret-name", "prometheus-support-build-prom-auth-user",
+		"Name of secret for Prometheus username")
+	flag.StringVar(&promPassSecretName, "prometheus-password-secret-name", "prometheus-support-build-prom-auth-pass",
+		"Name of secret for Prometheus password")
 	flag.BoolVar(&locatorAE, "locator-appengine", true, "Use the AppEngine clientgeo locator")
 	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
@@ -67,6 +74,7 @@ var mainCtx, mainCancel = context.WithCancel(context.Background())
 type loader interface {
 	LoadSigner(ctx context.Context, client secrets.SecretClient, name string) (*token.Signer, error)
 	LoadVerifier(ctx context.Context, client secrets.SecretClient, name string) (*token.Verifier, error)
+	LoadPrometheus(ctx context.Context, client secrets.SecretClient, user, pass string) (*prometheus.Credentials, error)
 }
 
 func main() {
@@ -131,6 +139,10 @@ func main() {
 			locators.Reload(mainCtx)
 		}
 	}()
+
+	// TODO(cristinaleon): Use credentials to start Prometheus client.
+	_, err = cfg.LoadPrometheus(mainCtx, client, promUserSecretName, promPassSecretName)
+	rtx.Must(err, "failed to load Prometheus credentials")
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
 	// The `verifier` returned by cfg.LoadVerifier() is a single object, but may

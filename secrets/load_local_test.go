@@ -74,3 +74,48 @@ func TestLocalConfig_LoadVerifier(t *testing.T) {
 		})
 	}
 }
+
+func TestLocalConfig_LoadPrometheus(t *testing.T) {
+	tests := []struct {
+		name     string
+		userFile string
+		passFile string
+		wantErr  bool
+	}{
+		{
+			name:     "success",
+			userFile: "testdata/prom-auth-user",
+			passFile: "testdata/prom-auth-pass",
+			wantErr:  false,
+		},
+		{
+			name:     "error-bad-user-file",
+			userFile: "file-does-not-exist",
+			passFile: "testdata/prom-auth-pass",
+			wantErr:  true,
+		},
+		{
+			name:     "error-bad-pass-file",
+			userFile: "testdata/prom-auth-user",
+			passFile: "file-does-not-exist",
+			wantErr:  true,
+		},
+		{
+			name:     "error-bad-user-and-pass-files",
+			userFile: "file-does-not-exist",
+			passFile: "file-does-not-exist",
+			wantErr:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := secrets.NewLocalConfig()
+			ctx := context.Background()
+			_, err := c.LoadPrometheus(ctx, nil, tt.userFile, tt.passFile)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("LocalConfig.LoadPrometheus() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
+}
