@@ -44,6 +44,7 @@ var (
 	redisAddr          string
 	promUserSecretName string
 	promPassSecretName string
+	promURL            string
 	keySource          = flagx.Enum{
 		Options: []string{"secretmanager", "local"},
 		Value:   "secretmanager",
@@ -63,6 +64,7 @@ func init() {
 		"Name of secret for Prometheus username")
 	flag.StringVar(&promPassSecretName, "prometheus-password-secret-name", "prometheus-support-build-prom-auth-pass",
 		"Name of secret for Prometheus password")
+	flag.StringVar(&promURL, "prometheus-url", "", "Base URL to query prometheus")
 	flag.BoolVar(&locatorAE, "locator-appengine", true, "Use the AppEngine clientgeo locator")
 	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
@@ -140,9 +142,12 @@ func main() {
 		}
 	}()
 
-	// TODO(cristinaleon): Use credentials to start Prometheus client.
-	_, err = cfg.LoadPrometheus(mainCtx, client, promUserSecretName, promPassSecretName)
+	creds, err := cfg.LoadPrometheus(mainCtx, client, promUserSecretName, promPassSecretName)
 	rtx.Must(err, "failed to load Prometheus credentials")
+	// TODO(cristinaleon): Use the Prometheus client to serve periodic requests
+	// from a cron job.
+	_, err = prometheus.NewClient(creds, promURL)
+	rtx.Must(err, "failed to create Prometheus client")
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
 	// The `verifier` returned by cfg.LoadVerifier() is a single object, but may

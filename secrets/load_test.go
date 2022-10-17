@@ -417,8 +417,6 @@ func TestConfig_LoadPrometheus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := cfg.LoadPrometheus(ctx, tt.client, "fake-user", "fake-pass")
 
-			fmt.Printf("%+v\n", got)
-
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Config.LoadPrometheus() error = %v, wantErr %v", err, tt.wantErr)
 				return

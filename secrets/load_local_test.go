@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/m-lab/locate/prometheus"
 	"github.com/m-lab/locate/secrets"
 )
 
@@ -80,13 +81,18 @@ func TestLocalConfig_LoadPrometheus(t *testing.T) {
 		name     string
 		userFile string
 		passFile string
+		want     *prometheus.Credentials
 		wantErr  bool
 	}{
 		{
 			name:     "success",
 			userFile: "testdata/prom-auth-user",
 			passFile: "testdata/prom-auth-pass",
-			wantErr:  false,
+			want: &prometheus.Credentials{
+				Username: "username",
+				Password: "password",
+			},
+			wantErr: false,
 		},
 		{
 			name:     "error-bad-user-file",
@@ -111,10 +117,16 @@ func TestLocalConfig_LoadPrometheus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := secrets.NewLocalConfig()
 			ctx := context.Background()
-			_, err := c.LoadPrometheus(ctx, nil, tt.userFile, tt.passFile)
+			got, err := c.LoadPrometheus(ctx, nil, tt.userFile, tt.passFile)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LocalConfig.LoadPrometheus() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+
+			if !tt.wantErr {
+				if got.Username != tt.want.Username && got.Password != tt.want.Password {
+					t.Errorf("LocalConfig.LoadPrometheus() got = %v, want= %v", got, tt.want)
+				}
 			}
 		})
 	}

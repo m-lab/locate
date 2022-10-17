@@ -29,3 +29,4 @@ env_variables:
   MAXMIND_URL: gs://downloader-{{PLATFORM_PROJECT}}/Maxmind/current/GeoLite2-City.tar.gz
   REDIS_ADDRESS: {{REDIS_ADDRESS}}
   PROMETHEUSX_LISTEN_ADDRESS: ':9090' # Must match one of the forwarded_ports above.
+  PROMETHEUS_URL: 'https://prometheus-basicauth.{{PLATFORM_PROJECT}}.measurementlab.net/'
