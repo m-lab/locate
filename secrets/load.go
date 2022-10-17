@@ -5,12 +5,20 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/googleapis/gax-go"
 	"github.com/m-lab/access/token"
+	"github.com/m-lab/locate/prometheus"
+	"github.com/prometheus/common/config"
 	"google.golang.org/api/iterator"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+)
+
+// Constants used by the secrets loader.
+const (
+	latestVersion = "/versions/latest"
 )
 
 // SecretClient wraps the AccessSecretVersion function provided by the
@@ -125,6 +133,27 @@ func (c *Config) LoadVerifier(ctx context.Context, client SecretClient, name str
 		keys = append(keys, key)
 	}
 	return token.NewVerifier(keys...)
+}
+
+// LoadPrometheus fetches the latest version of the named secrets containing the
+// Prometheus username and password. It returns a *prometheus.Credentials object.
+func (c *Config) LoadPrometheus(ctx context.Context, client SecretClient, user, pass string) (*prometheus.Credentials, error) {
+	userPath := path.Join(c.path(user), latestVersion)
+	u, err := c.getSecret(ctx, client, userPath)
+	if err != nil {
+		return nil, err
+	}
+
+	passPath := path.Join(c.path(pass), latestVersion)
+	p, err := c.getSecret(ctx, client, passPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &prometheus.Credentials{
+		Username: string(u),
+		Password: config.Secret(p),
+	}, nil
 }
 
 func (c *Config) path(name string) string {

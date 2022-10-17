@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/m-lab/locate/prometheus"
 	"github.com/m-lab/locate/secrets"
 )
 
@@ -70,6 +71,62 @@ func TestLocalConfig_LoadVerifier(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LocalConfig.LoadVerifier() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+		})
+	}
+}
+
+func TestLocalConfig_LoadPrometheus(t *testing.T) {
+	tests := []struct {
+		name     string
+		userFile string
+		passFile string
+		want     *prometheus.Credentials
+		wantErr  bool
+	}{
+		{
+			name:     "success",
+			userFile: "testdata/prom-auth-user",
+			passFile: "testdata/prom-auth-pass",
+			want: &prometheus.Credentials{
+				Username: "username",
+				Password: "password",
+			},
+			wantErr: false,
+		},
+		{
+			name:     "error-bad-user-file",
+			userFile: "file-does-not-exist",
+			passFile: "testdata/prom-auth-pass",
+			wantErr:  true,
+		},
+		{
+			name:     "error-bad-pass-file",
+			userFile: "testdata/prom-auth-user",
+			passFile: "file-does-not-exist",
+			wantErr:  true,
+		},
+		{
+			name:     "error-bad-user-and-pass-files",
+			userFile: "file-does-not-exist",
+			passFile: "file-does-not-exist",
+			wantErr:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := secrets.NewLocalConfig()
+			ctx := context.Background()
+			got, err := c.LoadPrometheus(ctx, nil, tt.userFile, tt.passFile)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("LocalConfig.LoadPrometheus() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr {
+				if got.Username != tt.want.Username && got.Password != tt.want.Password {
+					t.Errorf("LocalConfig.LoadPrometheus() got = %v, want= %v", got, tt.want)
+				}
 			}
 		})
 	}

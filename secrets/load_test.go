@@ -7,6 +7,8 @@ import (
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/googleapis/gax-go"
+	"github.com/m-lab/locate/prometheus"
+	"github.com/prometheus/common/config"
 	"google.golang.org/api/iterator"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 )
@@ -372,5 +374,59 @@ func Test_LoadVerifier(t *testing.T) {
 		if (err != nil) != tt.wantErr {
 			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
 		}
+	}
+}
+
+func TestConfig_LoadPrometheus(t *testing.T) {
+	ctx := context.Background()
+
+	cfg := NewConfig("mlab-sandbox")
+
+	secretUser := "fake-user"
+	secretPass := "fake-pass"
+	secretData := [][]byte{
+		[]byte(secretUser), []byte(secretPass),
+	}
+
+	tests := []struct {
+		name    string
+		client  SecretClient
+		want    *prometheus.Credentials
+		wantErr bool
+	}{
+		{
+			name: "success",
+			client: &fakeSecretClient{
+				data: secretData,
+			},
+			want: &prometheus.Credentials{
+				Username: secretUser,
+				Password: config.Secret(secretPass),
+			},
+			wantErr: false,
+		},
+		{
+			name: "get-secret-error",
+			client: &fakeSecretClient{
+				wantErr: true,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := cfg.LoadPrometheus(ctx, tt.client, "fake-user", "fake-pass")
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Config.LoadPrometheus() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr {
+				if got.Username != tt.want.Username || got.Password != tt.want.Password {
+					t.Errorf("Config.LoadPrometheus() got = %v, want = %v", got, tt.want)
+				}
+			}
+		})
 	}
 }
