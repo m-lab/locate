@@ -18,6 +18,7 @@ import (
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
+	prom "github.com/prometheus/client_golang/api/prometheus/v1"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
@@ -177,7 +178,7 @@ func TestClient_TranslatedQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cl := clientgeo.NewAppEngineLocator()
-			c := NewClient(tt.project, tt.signer, tt.locator, &fakeLocatorV2{}, cl)
+			c := NewClient(tt.project, tt.signer, tt.locator, &fakeLocatorV2{}, cl, prom.NewAPI(nil))
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.TranslatedQuery)
@@ -358,7 +359,7 @@ func TestClient_Nearest(t *testing.T) {
 			if tt.cl == nil {
 				tt.cl = clientgeo.NewAppEngineLocator()
 			}
-			c := NewClient(tt.project, tt.signer, &fakeLocator{}, tt.locator, tt.cl)
+			c := NewClient(tt.project, tt.signer, &fakeLocator{}, tt.locator, tt.cl, prom.NewAPI(nil))
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2beta2/nearest/", c.Nearest)
@@ -412,7 +413,7 @@ func TestClient_Nearest(t *testing.T) {
 
 func TestNewClientDirect(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		c := NewClientDirect("fake-project", nil, nil, nil, nil)
+		c := NewClientDirect("fake-project", nil, nil, nil, nil, nil)
 		if c == nil {
 			t.Error("got nil client!")
 		}

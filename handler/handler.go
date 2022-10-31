@@ -25,6 +25,7 @@ import (
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
+	prom "github.com/prometheus/client_golang/api/prometheus/v1"
 )
 
 var errFailedToLookupClient = errors.New("Failed to look up client location")
@@ -41,6 +42,7 @@ type Client struct {
 	Locator
 	LocatorV2
 	ClientLocator
+	Prom       prom.API
 	targetTmpl *template.Template
 }
 
@@ -68,25 +70,27 @@ func init() {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator) *Client {
+func NewClient(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator, prom prom.API) *Client {
 	return &Client{
 		Signer:        private,
 		project:       project,
 		Locator:       locator,
 		LocatorV2:     locatorV2,
 		ClientLocator: client,
+		Prom:          prom,
 		targetTmpl:    template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
 	}
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
-func NewClientDirect(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator) *Client {
+func NewClientDirect(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator, prom prom.API) *Client {
 	return &Client{
 		Signer:        private,
 		project:       project,
 		Locator:       locator,
 		LocatorV2:     locatorV2,
 		ClientLocator: client,
+		Prom:          prom,
 		// Useful for the locatetest package when running a local server.
 		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
 	}

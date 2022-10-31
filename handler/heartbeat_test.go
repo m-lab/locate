@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/locate/clientgeo"
+	prom "github.com/prometheus/client_golang/api/prometheus/v1"
 )
 
 func init() {
@@ -64,5 +65,5 @@ func TestClient_Heartbeat_Timeout(t *testing.T) {
 
 func fakeClient() *Client {
 	return NewClient("mlab-sandbox", &fakeSigner{}, &fakeLocator{}, &fakeLocatorV2{},
-		clientgeo.NewAppEngineLocator())
+		clientgeo.NewAppEngineLocator(), prom.NewAPI(nil))
 }

@@ -24,6 +24,7 @@ const (
 	MaxReconnectionsTime       = time.Hour
 	HeartbeatPeriod            = 10 * time.Second
 	MemorystoreExportPeriod    = 10 * time.Second
+	PrometheusCheckPeriod      = time.Minute
 	RedisKeyExpirySecs         = 30
 	EarthHalfCircumferenceKm   = 20038
 )

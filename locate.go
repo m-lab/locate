@@ -126,7 +126,12 @@ func main() {
 	defer tracker.StopImport()
 	srvLocatorV2 := heartbeat.NewServerLocator(tracker)
 
-	c := handler.NewClient(project, signer, srvLocator, srvLocatorV2, locators)
+	creds, err := cfg.LoadPrometheus(mainCtx, client, promUserSecretName, promPassSecretName)
+	rtx.Must(err, "failed to load Prometheus credentials")
+	promClient, err := prometheus.NewClient(creds, promURL)
+	rtx.Must(err, "failed to create Prometheus client")
+
+	c := handler.NewClient(project, signer, srvLocator, srvLocatorV2, locators, promClient)
 
 	go func() {
 		// Check and reload db at least once a day.
@@ -141,13 +146,6 @@ func main() {
 			locators.Reload(mainCtx)
 		}
 	}()
-
-	creds, err := cfg.LoadPrometheus(mainCtx, client, promUserSecretName, promPassSecretName)
-	rtx.Must(err, "failed to load Prometheus credentials")
-	// TODO(cristinaleon): Use the Prometheus client to serve periodic requests
-	// from a cron job.
-	_, err = prometheus.NewClient(creds, promURL)
-	rtx.Must(err, "failed to create Prometheus client")
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
 	// The `verifier` returned by cfg.LoadVerifier() is a single object, but may
@@ -177,6 +175,8 @@ func main() {
 	// PLATFORM APIs
 	// Services report their health to the heartbeat service.
 	mux.HandleFunc("/v2/platform/heartbeat", http.HandlerFunc(c.Heartbeat))
+	// Prometheus requests for health signals.
+	mux.HandleFunc("/v2/platform/prometheus", http.HandlerFunc(c.Prometheus))
 	// End to end monitoring requests access tokens for specific targets.
 	mux.Handle("/v2/platform/monitoring/", monitoringChain)
 

@@ -40,6 +40,7 @@ type site struct {
 type StatusTracker interface {
 	RegisterInstance(rm v2.Registration) error
 	UpdateHealth(hostname string, hm v2.Health) error
+	UpdatePrometheus(hostnames, machines map[string]bool) error
 	Instances() map[string]v2.HeartbeatMessage
 	StopImport()
 }
