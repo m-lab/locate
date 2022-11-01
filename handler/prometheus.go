@@ -25,7 +25,7 @@ var (
 
 	// GMX query parameters.
 	gmxQuery = "gmx_machine_maintenance"
-	gmxLabel = model.LabelName("hostname")
+	gmxLabel = model.LabelName("machine")
 	// The machine is not in maintenance if the value = 0.
 	gmxFunction = func(v float64) bool {
 		return v == 0
