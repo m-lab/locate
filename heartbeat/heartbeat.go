@@ -11,7 +11,10 @@ import (
 	"github.com/m-lab/locate/static"
 )
 
-var errInvalidArgument = errors.New("argument is invalid")
+var (
+	errInvalidArgument = errors.New("argument is invalid")
+	errPrometheus      = errors.New("error saving Prometheus entry")
+)
 
 type heartbeatStatusTracker struct {
 	MemorystoreClient[v2.HeartbeatMessage]
@@ -79,9 +82,33 @@ func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) err
 
 // UpdatePrometheus updates the v2.Prometheus field for all instances in Memorystore and
 // locally.
-// TODO(cristinaleon): Add functionality in next PR. This one is already becoming too big.
 func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string]bool) error {
-	return nil
+	var err error
+
+	for hostname, instance := range h.instances {
+		if instance.Registration == nil {
+			continue
+		}
+
+		pm := getPrometheusMessage(instance, hostnames, machines)
+
+		if pm != nil {
+			// Update in Memorystore.
+			memorystoreErr := h.Put(hostname, "Prometheus", pm)
+			if memorystoreErr != nil {
+				err = errPrometheus
+				continue
+			}
+
+			// Update locally.
+			localErr := h.updatePrometheus(hostname, *pm)
+			if localErr != nil {
+				err = errPrometheus
+			}
+		}
+	}
+
+	return err
 }
 
 // Instances returns a mapping of all the v2.HeartbeatMessage instance keys to
@@ -119,10 +146,38 @@ func (h *heartbeatStatusTracker) updateHealth(hostname string, hm v2.Health) err
 	return fmt.Errorf("failed to find %s instance for health update", hostname)
 }
 
+func (h *heartbeatStatusTracker) updatePrometheus(hostname string, pm v2.Prometheus) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if instance, found := h.instances[hostname]; found {
+		instance.Prometheus = &pm
+		h.instances[hostname] = instance
+		return nil
+	}
+
+	return fmt.Errorf("failed to find %s instance for Prometheus update", hostname)
+}
+
 func (h *heartbeatStatusTracker) importMemorystore() {
 	values, err := h.GetAll()
 
 	if err == nil {
 		h.instances = values
 	}
+}
+
+// getPrometheusMessage constructs a v2.Prometheus message for a specific instance
+// from a map of hostname/machine Prometheus data.
+// If no information is available for the instance, it returns nil.
+func getPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machines map[string]bool) *v2.Prometheus {
+	hostHealthy, hostFound := hostnames[instance.Registration.Hostname]
+	machineHealthy, machineFound := machines[instance.Registration.Machine]
+
+	if hostFound || machineFound {
+		health := (!hostFound || hostHealthy) && (!machineFound || machineHealthy)
+		return &v2.Prometheus{Health: health}
+	}
+
+	return nil
 }

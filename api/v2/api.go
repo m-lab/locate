@@ -6,11 +6,11 @@
 // safegaurd measurement quality of your measurements and those of others. The
 // v2 API classifies user requests into three priorities.
 //
-//  API-key | Access Token | Priority
-//  --------------------------------------------------------
-//  YES     | YES          | API-Key, High Availability Pool
-//  YES     | NO           | API-Key, Best Effort Pool
-//  NO      | NO           | Global Best Effort Pool
+//	API-key | Access Token | Priority
+//	--------------------------------------------------------
+//	YES     | YES          | API-Key, High Availability Pool
+//	YES     | NO           | API-Key, Best Effort Pool
+//	NO      | NO           | Global Best Effort Pool
 //
 // For highest priority access to the platform, register an API key and use the
 // NearestResult.NextRequest.URL when provided.
@@ -138,6 +138,7 @@ func NewError(typ, title string, status int) *Error {
 type HeartbeatMessage struct {
 	Health       *Health
 	Registration *Registration
+	Prometheus   *Prometheus
 }
 
 // Registration contains a set of identifying fields
@@ -163,4 +164,9 @@ type Registration struct {
 // to report health updates.
 type Health struct {
 	Score float64 // Health score.
+}
+
+// Prometheus contains the health data reported by Prometheus.
+type Prometheus struct {
+	Health bool // Health (e.g., true = healthy).
 }

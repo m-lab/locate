@@ -48,6 +48,13 @@ var tests = []struct {
 			Score: 1.0,
 		},
 	},
+	{
+		name:     "prometheus-success",
+		receiver: &Prometheus{},
+		scanObj: &Prometheus{
+			Health: true,
+		},
+	},
 }
 
 func TestRedisScan_Success(t *testing.T) {

@@ -24,3 +24,13 @@ func (h *Health) RedisScan(x interface{}) error {
 	}
 	return json.Unmarshal(v, h)
 }
+
+// RedisScan determines how Prometheus objects will be interpreted when read
+// from Redis.
+func (h *Prometheus) RedisScan(x interface{}) error {
+	v, ok := x.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to convert %T to []byte", x)
+	}
+	return json.Unmarshal(v, h)
+}
