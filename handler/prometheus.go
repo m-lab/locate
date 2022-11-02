@@ -32,20 +32,19 @@ var (
 	}
 )
 
-// Prometheus implements /v2/platform/prometheus requests.
+// Prometheus is a handler that collects Prometheus health signals.
 // The requests are made through a job set up on Cloud Scheduler. The job
-// is acknowledged by means of an HTTP response code in the range [200-299].
-// TODO(cristinaleon): add metrics to track Prometheus calls.
+// is acknowledged by means of an HTTP response code.
 func (c *Client) Prometheus(rw http.ResponseWriter, req *http.Request) {
 	hostnames, err := c.query(req.Context(), e2eQuery, e2eLabel, e2eFunction)
 	if err != nil {
-		rw.WriteHeader(http.StatusAccepted)
+		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	machines, err := c.query(req.Context(), gmxQuery, gmxLabel, gmxFunction)
 	if err != nil {
-		rw.WriteHeader(http.StatusAccepted)
+		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -55,7 +54,7 @@ func (c *Client) Prometheus(rw http.ResponseWriter, req *http.Request) {
 
 // query performs the provided PromQL query.
 func (c *Client) query(ctx context.Context, query string, labelName model.LabelName, f func(v float64) bool) (map[string]bool, error) {
-	result, _, err := c.Prom.Query(ctx, query, time.Now(), prom.WithTimeout(timeout))
+	result, _, err := c.PrometheusClient.Query(ctx, query, time.Now(), prom.WithTimeout(timeout))
 	if err != nil {
 		return nil, err
 	}

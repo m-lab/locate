@@ -10,6 +10,7 @@ import (
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/gomodule/redigo/redis"
 	"github.com/justinas/alice"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/access/controller"
@@ -25,6 +26,7 @@ import (
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/memorystore"
+	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/prometheus"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/secrets"
@@ -175,8 +177,10 @@ func main() {
 	// PLATFORM APIs
 	// Services report their health to the heartbeat service.
 	mux.HandleFunc("/v2/platform/heartbeat", http.HandlerFunc(c.Heartbeat))
-	// Prometheus requests for health signals.
-	mux.HandleFunc("/v2/platform/prometheus", http.HandlerFunc(c.Prometheus))
+	// Collect Prometheus health signals.
+	mux.HandleFunc("/v2/platform/prometheus",
+		promhttp.InstrumentHandlerDuration(metrics.PrometheusHealthCollectionDuration,
+			http.HandlerFunc(c.Prometheus)))
 	// End to end monitoring requests access tokens for specific targets.
 	mux.Handle("/v2/platform/monitoring/", monitoringChain)
 

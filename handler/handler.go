@@ -26,6 +26,7 @@ import (
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/model"
 )
 
 var errFailedToLookupClient = errors.New("Failed to look up client location")
@@ -42,7 +43,7 @@ type Client struct {
 	Locator
 	LocatorV2
 	ClientLocator
-	Prom       prom.API
+	PrometheusClient
 	targetTmpl *template.Template
 }
 
@@ -64,33 +65,38 @@ type ClientLocator interface {
 	Locate(req *http.Request) (*clientgeo.Location, error)
 }
 
+// PrometheusClient defines the interface to query Prometheus.
+type PrometheusClient interface {
+	Query(ctx context.Context, query string, ts time.Time, opts ...prom.Option) (model.Value, prom.Warnings, error)
+}
+
 func init() {
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator, prom prom.API) *Client {
+func NewClient(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient) *Client {
 	return &Client{
-		Signer:        private,
-		project:       project,
-		Locator:       locator,
-		LocatorV2:     locatorV2,
-		ClientLocator: client,
-		Prom:          prom,
-		targetTmpl:    template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
+		Signer:           private,
+		project:          project,
+		Locator:          locator,
+		LocatorV2:        locatorV2,
+		ClientLocator:    client,
+		PrometheusClient: prom,
+		targetTmpl:       template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
 	}
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
-func NewClientDirect(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator, prom prom.API) *Client {
+func NewClientDirect(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient) *Client {
 	return &Client{
-		Signer:        private,
-		project:       project,
-		Locator:       locator,
-		LocatorV2:     locatorV2,
-		ClientLocator: client,
-		Prom:          prom,
+		Signer:           private,
+		project:          project,
+		Locator:          locator,
+		LocatorV2:        locatorV2,
+		ClientLocator:    client,
+		PrometheusClient: prom,
 		// Useful for the locatetest package when running a local server.
 		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
 	}

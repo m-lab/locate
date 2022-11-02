@@ -44,6 +44,16 @@ var (
 		},
 	)
 
+	// PrometheusHealthCollectionDuration is a historgram that tracks the latency of the
+	// handler that collects Prometheus health signals.
+	PrometheusHealthCollectionDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "prometheus_health_collection_duration",
+			Help: "A histogram of request latencies to the Prometheus health signal handler.",
+		},
+		[]string{"code"},
+	)
+
 	// PortChecksTotal counts the number of port checks performed by the Heartbeat
 	// Service.
 	PortChecksTotal = promauto.NewCounterVec(

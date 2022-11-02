@@ -18,31 +18,31 @@ import (
 func TestClient_Prometheus(t *testing.T) {
 	tests := []struct {
 		name string
-		prom prom.API
+		prom PrometheusClient
 		want int
 	}{
 		{
 			name: "success",
-			prom: &fakePromAPI{
+			prom: &fakePromClient{
 				queryResult: model.Vector{},
 			},
 			want: http.StatusOK,
 		},
 		{
 			name: "e2e error",
-			prom: &fakePromAPI{
+			prom: &fakePromClient{
 				queryErr:    e2eQuery,
 				queryResult: model.Vector{},
 			},
-			want: http.StatusAccepted,
+			want: http.StatusInternalServerError,
 		},
 		{
 			name: "gmx error",
-			prom: &fakePromAPI{
+			prom: &fakePromClient{
 				queryErr:    gmxQuery,
 				queryResult: model.Vector{},
 			},
-			want: http.StatusAccepted,
+			want: http.StatusInternalServerError,
 		},
 	}
 	for _, tt := range tests {
@@ -53,8 +53,8 @@ func TestClient_Prometheus(t *testing.T) {
 			locator.StopImport()
 
 			c := &Client{
-				LocatorV2: locator,
-				Prom:      tt.prom,
+				LocatorV2:        locator,
+				PrometheusClient: tt.prom,
 			}
 			rw := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/v2/platform/prometheus", nil)
@@ -70,7 +70,7 @@ func TestClient_Prometheus(t *testing.T) {
 func TestClient_query(t *testing.T) {
 	tests := []struct {
 		name    string
-		prom    prom.API
+		prom    PrometheusClient
 		query   string
 		label   model.LabelName
 		f       func(float64) bool
@@ -79,7 +79,7 @@ func TestClient_query(t *testing.T) {
 	}{
 		{
 			name: "query-error",
-			prom: &fakePromAPI{
+			prom: &fakePromClient{
 				queryErr: "error",
 			},
 			query:   "error",
@@ -87,7 +87,7 @@ func TestClient_query(t *testing.T) {
 		},
 		{
 			name: "cast-error",
-			prom: &fakePromAPI{
+			prom: &fakePromClient{
 				queryResult: model.Matrix{},
 			},
 			query:   "query",
@@ -95,7 +95,7 @@ func TestClient_query(t *testing.T) {
 		},
 		{
 			name: "e2e",
-			prom: &fakePromAPI{
+			prom: &fakePromClient{
 				queryResult: model.Vector{
 					{
 						Metric: map[model.LabelName]model.LabelValue{
@@ -122,7 +122,7 @@ func TestClient_query(t *testing.T) {
 		},
 		{
 			name: "gmx",
-			prom: &fakePromAPI{
+			prom: &fakePromClient{
 				queryResult: model.Vector{
 					{
 						Metric: map[model.LabelName]model.LabelValue{
@@ -151,7 +151,7 @@ func TestClient_query(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Client{
-				Prom: tt.prom,
+				PrometheusClient: tt.prom,
 			}
 
 			got, err := c.query(context.TODO(), tt.query, tt.label, tt.f)
@@ -169,95 +169,15 @@ func TestClient_query(t *testing.T) {
 
 var errFakeQuery = errors.New("fake query error")
 
-type fakePromAPI struct {
+type fakePromClient struct {
 	queryErr    string
 	queryResult model.Value
 }
 
-func (p *fakePromAPI) Query(ctx context.Context, query string, ts time.Time, opts ...prom.Option) (model.Value, prom.Warnings, error) {
+func (p *fakePromClient) Query(ctx context.Context, query string, ts time.Time, opts ...prom.Option) (model.Value, prom.Warnings, error) {
 	if query == p.queryErr {
 		return nil, prom.Warnings{}, errFakeQuery
 	}
 
 	return p.queryResult, prom.Warnings{}, nil
-}
-
-func (p *fakePromAPI) Alerts(ctx context.Context) (prom.AlertsResult, error) {
-	return prom.AlertsResult{}, nil
-}
-
-func (p *fakePromAPI) AlertManagers(ctx context.Context) (prom.AlertManagersResult, error) {
-	return prom.AlertManagersResult{}, nil
-}
-
-func (p *fakePromAPI) CleanTombstones(ctx context.Context) error {
-	return nil
-}
-
-func (p *fakePromAPI) Config(ctx context.Context) (prom.ConfigResult, error) {
-	return prom.ConfigResult{}, nil
-}
-
-func (p *fakePromAPI) DeleteSeries(ctx context.Context, matches []string, startTime, endTime time.Time) error {
-	return nil
-}
-
-func (p *fakePromAPI) Flags(ctx context.Context) (prom.FlagsResult, error) {
-	return prom.FlagsResult{}, nil
-}
-
-func (p *fakePromAPI) LabelNames(ctx context.Context, matches []string, startTime, endTime time.Time) ([]string, prom.Warnings, error) {
-	return []string{}, prom.Warnings{}, nil
-}
-
-func (p *fakePromAPI) LabelValues(ctx context.Context, label string, matches []string, startTime, endTime time.Time) (model.LabelValues, prom.Warnings, error) {
-	return model.LabelValues{}, prom.Warnings{}, nil
-}
-
-func (p *fakePromAPI) QueryRange(ctx context.Context, query string, r prom.Range, opts ...prom.Option) (model.Value, prom.Warnings, error) {
-	return nil, prom.Warnings{}, nil
-}
-
-func (p *fakePromAPI) QueryExemplars(ctx context.Context, query string, startTime, endTime time.Time) ([]prom.ExemplarQueryResult, error) {
-	return []prom.ExemplarQueryResult{}, nil
-}
-
-func (p *fakePromAPI) Buildinfo(ctx context.Context) (prom.BuildinfoResult, error) {
-	return prom.BuildinfoResult{}, nil
-}
-
-func (p *fakePromAPI) Runtimeinfo(ctx context.Context) (prom.RuntimeinfoResult, error) {
-	return prom.RuntimeinfoResult{}, nil
-}
-
-func (p *fakePromAPI) Series(ctx context.Context, matches []string, startTime, endTime time.Time) ([]model.LabelSet, prom.Warnings, error) {
-	return []model.LabelSet{}, prom.Warnings{}, nil
-}
-
-func (p *fakePromAPI) Snapshot(ctx context.Context, skipHead bool) (prom.SnapshotResult, error) {
-	return prom.SnapshotResult{}, nil
-}
-
-func (p *fakePromAPI) Rules(ctx context.Context) (prom.RulesResult, error) {
-	return prom.RulesResult{}, nil
-}
-
-func (p *fakePromAPI) Targets(ctx context.Context) (prom.TargetsResult, error) {
-	return prom.TargetsResult{}, nil
-}
-
-func (p *fakePromAPI) TargetsMetadata(ctx context.Context, matchTarget, metric, limit string) ([]prom.MetricMetadata, error) {
-	return []prom.MetricMetadata{}, nil
-}
-
-func (p *fakePromAPI) Metadata(ctx context.Context, metric, limit string) (map[string][]prom.Metadata, error) {
-	return map[string][]prom.Metadata{}, nil
-}
-
-func (p *fakePromAPI) TSDB(ctx context.Context) (prom.TSDBResult, error) {
-	return prom.TSDBResult{}, nil
-}
-
-func (p *fakePromAPI) WalReplay(ctx context.Context) (prom.WalReplayStatus, error) {
-	return prom.WalReplayStatus{}, nil
 }
