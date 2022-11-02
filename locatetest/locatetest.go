@@ -15,6 +15,7 @@ import (
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/heartbeat"
+	prom "github.com/prometheus/client_golang/api/prometheus/v1"
 )
 
 // Signer implements the Signer interface for unit tests.
@@ -70,7 +71,7 @@ func (l *LocatorV2) Nearest(service, typ string, lat, lon float64) ([]v2.Target,
 func NewLocateServer(loc *Locator) *httptest.Server {
 	// fake signer, fake locator.
 	s := &Signer{}
-	c := handler.NewClientDirect("fake-project", s, loc, &LocatorV2{}, &clientgeo.NullLocator{})
+	c := handler.NewClientDirect("fake-project", s, loc, &LocatorV2{}, &clientgeo.NullLocator{}, prom.NewAPI(nil))
 
 	// USER APIs
 	mux := http.NewServeMux()
@@ -88,7 +89,7 @@ func NewLocateServer(loc *Locator) *httptest.Server {
 func NewLocateServerV2(loc *LocatorV2) *httptest.Server {
 	// fake signer, fake locator.
 	s := &Signer{}
-	c := handler.NewClientDirect("fake-project", s, &Locator{}, loc, &clientgeo.NullLocator{})
+	c := handler.NewClientDirect("fake-project", s, &Locator{}, loc, &clientgeo.NullLocator{}, prom.NewAPI(nil))
 
 	// USER APIs
 	mux := http.NewServeMux()

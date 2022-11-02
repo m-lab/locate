@@ -16,6 +16,7 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/static"
+	prom "github.com/prometheus/client_golang/api/prometheus/v1"
 )
 
 func TestClient_Monitoring(t *testing.T) {
@@ -91,7 +92,7 @@ func TestClient_Monitoring(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cl := clientgeo.NewAppEngineLocator()
-			c := NewClient("mlab-sandbox", tt.signer, tt.locator, &fakeLocatorV2{}, cl)
+			c := NewClient("mlab-sandbox", tt.signer, tt.locator, &fakeLocatorV2{}, cl, prom.NewAPI(nil))
 			rw := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/v2/monitoring/"+tt.path, nil)
 			req = req.Clone(controller.SetClaim(req.Context(), tt.claim))

@@ -207,6 +207,19 @@ paths:
       tags:
         - platform
 
+  "/v2/platform/prometheus":
+    get:
+      description: |-
+        Platform-specific path.
+      operationId: "v2-platform-prometheus"
+      responses:
+        '200':
+          description: OK.
+      security:
+      - api_key: []
+      tags:
+        - platform
+
   "/v2/platform/monitoring/{name}/{type}":
     get:
       description: |-

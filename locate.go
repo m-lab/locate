@@ -10,6 +10,7 @@ import (
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/gomodule/redigo/redis"
 	"github.com/justinas/alice"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/access/controller"
@@ -25,6 +26,7 @@ import (
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/memorystore"
+	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/prometheus"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/secrets"
@@ -126,7 +128,12 @@ func main() {
 	defer tracker.StopImport()
 	srvLocatorV2 := heartbeat.NewServerLocator(tracker)
 
-	c := handler.NewClient(project, signer, srvLocator, srvLocatorV2, locators)
+	creds, err := cfg.LoadPrometheus(mainCtx, client, promUserSecretName, promPassSecretName)
+	rtx.Must(err, "failed to load Prometheus credentials")
+	promClient, err := prometheus.NewClient(creds, promURL)
+	rtx.Must(err, "failed to create Prometheus client")
+
+	c := handler.NewClient(project, signer, srvLocator, srvLocatorV2, locators, promClient)
 
 	go func() {
 		// Check and reload db at least once a day.
@@ -141,13 +148,6 @@ func main() {
 			locators.Reload(mainCtx)
 		}
 	}()
-
-	creds, err := cfg.LoadPrometheus(mainCtx, client, promUserSecretName, promPassSecretName)
-	rtx.Must(err, "failed to load Prometheus credentials")
-	// TODO(cristinaleon): Use the Prometheus client to serve periodic requests
-	// from a cron job.
-	_, err = prometheus.NewClient(creds, promURL)
-	rtx.Must(err, "failed to create Prometheus client")
 
 	// MONITORING VERIFIER - for access tokens provided by monitoring.
 	// The `verifier` returned by cfg.LoadVerifier() is a single object, but may
@@ -177,6 +177,10 @@ func main() {
 	// PLATFORM APIs
 	// Services report their health to the heartbeat service.
 	mux.HandleFunc("/v2/platform/heartbeat", http.HandlerFunc(c.Heartbeat))
+	// Collect Prometheus health signals.
+	mux.HandleFunc("/v2/platform/prometheus",
+		promhttp.InstrumentHandlerDuration(metrics.PrometheusHealthCollectionDuration,
+			http.HandlerFunc(c.Prometheus)))
 	// End to end monitoring requests access tokens for specific targets.
 	mux.Handle("/v2/platform/monitoring/", monitoringChain)
 

@@ -77,6 +77,13 @@ func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) err
 	return h.updateHealth(hostname, hm)
 }
 
+// UpdatePrometheus updates the v2.Prometheus field for all instances in Memorystore and
+// locally.
+// TODO(cristinaleon): Add functionality in next PR. This one is already becoming too big.
+func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string]bool) error {
+	return nil
+}
+
 // Instances returns a mapping of all the v2.HeartbeatMessage instance keys to
 // their values.
 func (h *heartbeatStatusTracker) Instances() map[string]v2.HeartbeatMessage {
