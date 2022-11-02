@@ -44,7 +44,7 @@ var (
 		},
 	)
 
-	// PrometheusHealthCollectionDuration is a historgram that tracks the latency of the
+	// PrometheusHealthCollectionDuration is a histogram that tracks the latency of the
 	// handler that collects Prometheus health signals.
 	PrometheusHealthCollectionDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
