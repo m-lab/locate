@@ -33,8 +33,6 @@ var (
 )
 
 // Prometheus is a handler that collects Prometheus health signals.
-// The requests are made through a job set up on Cloud Scheduler. The job
-// is acknowledged by means of an HTTP response code.
 func (c *Client) Prometheus(rw http.ResponseWriter, req *http.Request) {
 	hostnames, err := c.query(req.Context(), e2eQuery, e2eLabel, e2eFunction)
 	if err != nil {
