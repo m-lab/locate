@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/m-lab/go/host"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
 )
@@ -171,9 +172,19 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 // from a map of hostname/machine Prometheus data.
 // If no information is available for the instance, it returns nil.
 func getPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machines map[string]bool) *v2.Prometheus {
-	hostHealthy, hostFound := hostnames[instance.Registration.Hostname]
-	machineHealthy, machineFound := machines[instance.Registration.Machine]
+	var hostHealthy, hostFound, machineHealthy, machineFound bool
 
+	// Get Prometheus health data for the service hostname.
+	hostname := instance.Registration.Hostname
+	hostHealthy, hostFound = hostnames[hostname]
+
+	// Get Prometheus health data for the machine.
+	parts, err := host.Parse(hostname)
+	if err == nil {
+		machineHealthy, machineFound = machines[parts.String()]
+	}
+
+	// Create Prometheus health message.
 	if hostFound || machineFound {
 		health := (!hostFound || hostHealthy) && (!machineFound || machineHealthy)
 		return &v2.Prometheus{Health: health}
