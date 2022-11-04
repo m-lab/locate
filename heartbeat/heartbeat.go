@@ -105,8 +105,8 @@ func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string
 	log.Printf("UpdatePrometheus: hostnames %+v", hostnames)
 	log.Printf("UpdatePrometheus: machines %+v", machines)
 
-	for _, i := range h.instances {
-		log.Printf("UpdatePrometheus: instances %+v", i.Prometheus)
+	for h, i := range h.instances {
+		log.Printf("UpdatePrometheus: instances %s %+v", h, i.Prometheus)
 	}
 
 	return err
