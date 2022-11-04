@@ -150,8 +150,10 @@ func (h *heartbeatStatusTracker) updateHealthLocally(hostname string, hm v2.Heal
 func (h *heartbeatStatusTracker) updatePrometheusLocally(instance v2.HeartbeatMessage, pm *v2.Prometheus) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
 	instance.Prometheus = pm
-	h.instances[instance.Registration.Hostname] = instance
+	hostname := instance.Registration.Hostname
+	h.instances[hostname] = instance
 }
 
 func (h *heartbeatStatusTracker) importMemorystore() {
@@ -166,9 +168,9 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 // from a map of hostname/machine Prometheus data.
 // If no information is available for the instance, it returns nil.
 func getPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machines map[string]bool) *v2.Prometheus {
-	if instance.Registration == nil {
-		return nil
-	}
+	// if instance.Registration == nil {
+	// 	return nil
+	// }
 
 	var hostHealthy, hostFound, machineHealthy, machineFound bool
 
