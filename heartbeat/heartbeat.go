@@ -106,6 +106,7 @@ func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string
 	log.Printf("UpdatePrometheus: machines %+v", machines)
 
 	for h, i := range h.instances {
+		log.Printf("UpdatePrometheus: registration %s %+v", h, i.Registration)
 		log.Printf("UpdatePrometheus: instances %s %+v", h, i.Prometheus)
 	}
 
@@ -168,9 +169,9 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 // from a map of hostname/machine Prometheus data.
 // If no information is available for the instance, it returns nil.
 func getPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machines map[string]bool) *v2.Prometheus {
-	// if instance.Registration == nil {
-	// 	return nil
-	// }
+	if instance.Registration == nil {
+		return nil
+	}
 
 	var hostHealthy, hostFound, machineHealthy, machineFound bool
 
