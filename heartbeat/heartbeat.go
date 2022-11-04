@@ -151,6 +151,7 @@ func (h *heartbeatStatusTracker) updatePrometheusLocally(instance v2.HeartbeatMe
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	instance.Prometheus = pm
+	h.instances[instance.Registration.Hostname] = instance
 }
 
 func (h *heartbeatStatusTracker) importMemorystore() {
