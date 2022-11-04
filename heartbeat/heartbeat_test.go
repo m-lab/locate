@@ -113,7 +113,7 @@ func TestUpdatePrometheus_PutError(t *testing.T) {
 	}
 }
 
-func TestUpdatePrometheusSuccess(t *testing.T) {
+func TestUpdatePrometheus_Success(t *testing.T) {
 	h := heartbeatStatusTracker{
 		MemorystoreClient: fakeDC,
 		instances: map[string]v2.HeartbeatMessage{
