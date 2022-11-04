@@ -69,7 +69,7 @@ func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 		return err
 	}
 
-	h.registerInstanceLocally(hostname, rm)
+	h.registerInstance(hostname, rm)
 	return nil
 }
 
@@ -79,26 +79,21 @@ func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) err
 	if err := h.Put(hostname, "Health", &hm, true); err != nil {
 		return err
 	}
-	return h.updateHealthLocally(hostname, hm)
+	return h.updateHealth(hostname, hm)
 }
 
-// UpdatePrometheus updates the v2.Prometheus field for all instances in Memorystore and
-// locally.
+// UpdatePrometheus updates the v2.Prometheus field for the instances.
 func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string]bool) error {
 	var err error
 
-	for hostname, instance := range h.instances {
+	for _, instance := range h.instances {
 		pm := getPrometheusMessage(instance, hostnames, machines)
 		if pm != nil {
-			// Update in Memorystore.
-			memorystoreErr := h.Put(hostname, "Prometheus", pm, false)
-			if memorystoreErr != nil {
-				err = errPrometheus
-				continue
-			}
+			updateErr := h.updatePrometheusInstance(instance, pm)
 
-			// Update locally.
-			h.updatePrometheusLocally(instance, pm)
+			if updateErr != nil {
+				err = errPrometheus
+			}
 		}
 	}
 
@@ -129,13 +124,13 @@ func (h *heartbeatStatusTracker) StopImport() {
 	h.stop <- true
 }
 
-func (h *heartbeatStatusTracker) registerInstanceLocally(hostname string, rm v2.Registration) {
+func (h *heartbeatStatusTracker) registerInstance(hostname string, rm v2.Registration) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.instances[hostname] = v2.HeartbeatMessage{Registration: &rm}
 }
 
-func (h *heartbeatStatusTracker) updateHealthLocally(hostname string, hm v2.Health) error {
+func (h *heartbeatStatusTracker) updateHealth(hostname string, hm v2.Health) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -146,6 +141,18 @@ func (h *heartbeatStatusTracker) updateHealthLocally(hostname string, hm v2.Heal
 	}
 
 	return fmt.Errorf("failed to find %s instance for health update", hostname)
+}
+
+// updatePrometheusInstance updates the v2.Prometheus field for an instance in Memorystore
+// and locally.
+func (h *heartbeatStatusTracker) updatePrometheusInstance(instance v2.HeartbeatMessage, pm *v2.Prometheus) error {
+	err := h.Put(instance.Registration.Hostname, "Prometheus", pm, false)
+	if err != nil {
+		return err
+	}
+
+	h.updatePrometheusLocally(instance, pm)
+	return nil
 }
 
 func (h *heartbeatStatusTracker) updatePrometheusLocally(instance v2.HeartbeatMessage, pm *v2.Prometheus) {

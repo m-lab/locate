@@ -108,8 +108,29 @@ func TestUpdatePrometheus_PutError(t *testing.T) {
 
 	err := h.UpdatePrometheus(hostnames, machines)
 
-	if err == nil {
-		t.Errorf("UpdatePrometheus() err: nil, want: %v", errPrometheus)
+	if !errors.Is(err, errPrometheus) {
+		t.Errorf("UpdatePrometheus() err: %v, want: %v", err, errPrometheus)
+	}
+}
+
+func TestUpdatePrometheusSuccess(t *testing.T) {
+	h := heartbeatStatusTracker{
+		MemorystoreClient: fakeDC,
+		instances: map[string]v2.HeartbeatMessage{
+			testHostname: {
+				Registration: &v2.Registration{
+					Hostname: testHostname,
+				},
+			},
+		},
+	}
+	hostnames := map[string]bool{testHostname: true}
+	machines := map[string]bool{testMachine: true}
+
+	err := h.UpdatePrometheus(hostnames, machines)
+
+	if err != nil {
+		t.Errorf("UpdatePrometheus() err: %v, want: nil", err)
 	}
 }
 
@@ -187,57 +208,84 @@ func TestGetPrometheusMessage(t *testing.T) {
 		name      string
 		hostnames map[string]bool
 		machines  map[string]bool
+		reg       *v2.Registration
 		want      *v2.Prometheus
 	}{
 		{
-			name:      "all-empty",
+			name:      "nil-registration",
+			hostnames: map[string]bool{testHostname: true},
+			machines:  map[string]bool{testMachine: true},
+			reg:       nil,
+			want:      nil,
+		},
+		{
+			name:      "both-empty",
 			hostnames: map[string]bool{},
 			machines:  map[string]bool{},
-			want:      nil,
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: nil,
 		},
 		{
 			name:      "only-hostnames",
 			hostnames: map[string]bool{testHostname: true},
 			machines:  map[string]bool{},
-			want:      &v2.Prometheus{Health: true},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: true},
 		},
 		{
 			name:      "only-machines",
 			hostnames: map[string]bool{},
 			machines:  map[string]bool{testMachine: true},
-			want:      &v2.Prometheus{Health: true},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: true},
 		},
 		{
 			name:      "both-unhealthy",
 			hostnames: map[string]bool{testHostname: false},
 			machines:  map[string]bool{testMachine: false},
-			want:      &v2.Prometheus{Health: false},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: false},
 		},
 		{
 			name:      "only-hostname-unhealthy",
 			hostnames: map[string]bool{testHostname: false},
 			machines:  map[string]bool{testMachine: true},
-			want:      &v2.Prometheus{Health: false},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: false},
 		},
 		{
 			name:      "only-machine-unhealthy",
 			hostnames: map[string]bool{testHostname: true},
 			machines:  map[string]bool{testMachine: false},
-			want:      &v2.Prometheus{Health: false},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: false},
 		},
 		{
 			name:      "both-healthy",
 			hostnames: map[string]bool{testHostname: true},
 			machines:  map[string]bool{testMachine: true},
-			want:      &v2.Prometheus{Health: true},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: true},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := v2.HeartbeatMessage{Registration: &v2.Registration{
-				Hostname: testHostname,
-			}}
+			i := v2.HeartbeatMessage{Registration: tt.reg}
 			pm := getPrometheusMessage(i, tt.hostnames, tt.machines)
 
 			if !reflect.DeepEqual(pm, tt.want) {
