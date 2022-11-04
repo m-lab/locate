@@ -17,16 +17,18 @@ import (
 
 func TestClient_Prometheus(t *testing.T) {
 	tests := []struct {
-		name string
-		prom PrometheusClient
-		want int
+		name    string
+		prom    PrometheusClient
+		tracker heartbeat.StatusTracker
+		want    int
 	}{
 		{
 			name: "success",
 			prom: &fakePromClient{
 				queryResult: model.Vector{},
 			},
-			want: http.StatusOK,
+			tracker: &heartbeattest.FakeStatusTracker{},
+			want:    http.StatusOK,
 		},
 		{
 			name: "e2e error",
@@ -34,7 +36,8 @@ func TestClient_Prometheus(t *testing.T) {
 				queryErr:    e2eQuery,
 				queryResult: model.Vector{},
 			},
-			want: http.StatusInternalServerError,
+			tracker: &heartbeattest.FakeStatusTracker{},
+			want:    http.StatusInternalServerError,
 		},
 		{
 			name: "gmx error",
@@ -42,14 +45,23 @@ func TestClient_Prometheus(t *testing.T) {
 				queryErr:    gmxQuery,
 				queryResult: model.Vector{},
 			},
+			tracker: &heartbeattest.FakeStatusTracker{},
+			want:    http.StatusInternalServerError,
+		},
+		{
+			name: "tracker error",
+			prom: &fakePromClient{
+				queryResult: model.Vector{},
+			},
+			tracker: &heartbeattest.FakeStatusTracker{
+				Err: errors.New("error"),
+			},
 			want: http.StatusInternalServerError,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			memorystore := heartbeattest.FakeMemorystoreClient
-			tracker := heartbeat.NewHeartbeatStatusTracker(&memorystore)
-			locator := heartbeat.NewServerLocator(tracker)
+			locator := heartbeat.NewServerLocator(tt.tracker)
 			locator.StopImport()
 
 			c := &Client{

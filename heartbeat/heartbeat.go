@@ -3,7 +3,6 @@ package heartbeat
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -95,14 +94,6 @@ func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string
 				err = errPrometheus
 			}
 		}
-	}
-
-	log.Printf("UpdatePrometheus: hostnames %+v", hostnames)
-	log.Printf("UpdatePrometheus: machines %+v", machines)
-
-	for h, i := range h.instances {
-		log.Printf("UpdatePrometheus: registration %s %+v", h, i.Registration)
-		log.Printf("UpdatePrometheus: instances %s %+v", h, i.Prometheus)
 	}
 
 	return err

@@ -415,6 +415,7 @@ func TestIsValidInstance(t *testing.T) {
 		instanceType string
 		services     map[string][]string
 		score        float64
+		prom         *v2.Prometheus
 		expected     bool
 		expectedHost host.Name
 		expectedDist float64
@@ -428,6 +429,22 @@ func TestIsValidInstance(t *testing.T) {
 			services:     validNDT7Services,
 			instanceType: validType,
 			score:        0,
+			expected:     false,
+			expectedHost: host.Name{},
+			expectedDist: 0,
+		},
+		{
+			name:         "prometheus-unhealthy",
+			typ:          "",
+			host:         validHost,
+			lat:          validLat,
+			lon:          validLon,
+			services:     validNDT7Services,
+			instanceType: validType,
+			score:        validScore,
+			prom: &v2.Prometheus{
+				Health: false,
+			},
 			expected:     false,
 			expectedHost: host.Name{},
 			expectedDist: 0,
@@ -532,6 +549,7 @@ func TestIsValidInstance(t *testing.T) {
 				Health: &v2.Health{
 					Score: tt.score,
 				},
+				Prometheus: tt.prom,
 			}
 			got, gotHost, gotDist := isValidInstance("ndt/ndt7", tt.typ, 43.1988, -75.3242, v)
 
