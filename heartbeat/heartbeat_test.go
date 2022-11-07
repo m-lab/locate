@@ -286,7 +286,7 @@ func TestGetPrometheusMessage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			i := v2.HeartbeatMessage{Registration: tt.reg}
-			pm := getPrometheusMessage(i, tt.hostnames, tt.machines)
+			pm := constructPrometheusMessage(i, tt.hostnames, tt.machines)
 
 			if !reflect.DeepEqual(pm, tt.want) {
 				t.Errorf("getPrometheusMessage() got: %v, want: %v", pm, tt.want)

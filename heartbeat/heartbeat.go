@@ -86,7 +86,7 @@ func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string
 	var err error
 
 	for _, instance := range h.instances {
-		pm := getPrometheusMessage(instance, hostnames, machines)
+		pm := constructPrometheusMessage(instance, hostnames, machines)
 		if pm != nil {
 			updateErr := h.updatePrometheusInstance(instance, pm)
 
@@ -134,25 +134,23 @@ func (h *heartbeatStatusTracker) updateHealth(hostname string, hm v2.Health) err
 	return fmt.Errorf("failed to find %s instance for health update", hostname)
 }
 
-// updatePrometheusInstance updates the v2.Prometheus field for an instance in Memorystore
-// and locally.
+// updatePrometheusInstance updates the v2.Prometheus field for a specific instance
+// in Memorystore and locally.
 func (h *heartbeatStatusTracker) updatePrometheusInstance(instance v2.HeartbeatMessage, pm *v2.Prometheus) error {
-	err := h.Put(instance.Registration.Hostname, "Prometheus", pm, false)
+	hostname := instance.Registration.Hostname
+
+	// Update in Memorystore.
+	err := h.Put(hostname, "Prometheus", pm, false)
 	if err != nil {
 		return err
 	}
 
-	h.updatePrometheusLocally(instance, pm)
-	return nil
-}
-
-func (h *heartbeatStatusTracker) updatePrometheusLocally(instance v2.HeartbeatMessage, pm *v2.Prometheus) {
+	// Update locally.
 	h.mu.Lock()
 	defer h.mu.Unlock()
-
 	instance.Prometheus = pm
-	hostname := instance.Registration.Hostname
 	h.instances[hostname] = instance
+	return nil
 }
 
 func (h *heartbeatStatusTracker) importMemorystore() {
@@ -163,10 +161,10 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 	}
 }
 
-// getPrometheusMessage constructs a v2.Prometheus message for a specific instance
+// constructPrometheusMessage constructs a v2.Prometheus message for a specific instance
 // from a map of hostname/machine Prometheus data.
 // If no information is available for the instance, it returns nil.
-func getPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machines map[string]bool) *v2.Prometheus {
+func constructPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machines map[string]bool) *v2.Prometheus {
 	if instance.Registration == nil {
 		return nil
 	}
@@ -185,9 +183,13 @@ func getPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machines map[
 
 	// Create Prometheus health message.
 	if hostFound || machineFound {
+		// If Prometheus did not return any data about one of host or machine,
+		// treat it as healthy.
 		health := (!hostFound || hostHealthy) && (!machineFound || machineHealthy)
 		return &v2.Prometheus{Health: health}
 	}
 
+	// If no Prometheus data is available for either the host or machine (both missing),
+	// return nil. This case is treated the same way downstream as a healthy signal.
 	return nil
 }
