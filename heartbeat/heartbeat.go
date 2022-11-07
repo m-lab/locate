@@ -88,7 +88,7 @@ func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string
 	for _, instance := range h.instances {
 		pm := constructPrometheusMessage(instance, hostnames, machines)
 		if pm != nil {
-			updateErr := h.updatePrometheusInstance(instance, pm)
+			updateErr := h.updatePrometheusMessage(instance, pm)
 
 			if updateErr != nil {
 				err = errPrometheus
@@ -134,9 +134,9 @@ func (h *heartbeatStatusTracker) updateHealth(hostname string, hm v2.Health) err
 	return fmt.Errorf("failed to find %s instance for health update", hostname)
 }
 
-// updatePrometheusInstance updates the v2.Prometheus field for a specific instance
+// updatePrometheusMessage updates the v2.Prometheus field for a specific instance
 // in Memorystore and locally.
-func (h *heartbeatStatusTracker) updatePrometheusInstance(instance v2.HeartbeatMessage, pm *v2.Prometheus) error {
+func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMessage, pm *v2.Prometheus) error {
 	hostname := instance.Registration.Hostname
 
 	// Update in Memorystore.
