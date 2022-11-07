@@ -7,11 +7,15 @@ import (
 	"time"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/m-lab/go/host"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/static"
 )
 
-var errInvalidArgument = errors.New("argument is invalid")
+var (
+	errInvalidArgument = errors.New("argument is invalid")
+	errPrometheus      = errors.New("error saving Prometheus entry")
+)
 
 type heartbeatStatusTracker struct {
 	MemorystoreClient[v2.HeartbeatMessage]
@@ -24,7 +28,7 @@ type heartbeatStatusTracker struct {
 // The interface takes in a type argument which specifies the types of values
 // that are stored and can be retrived.
 type MemorystoreClient[V any] interface {
-	Put(key string, field string, value redis.Scanner) error
+	Put(key string, field string, value redis.Scanner, expire bool) error
 	GetAll() (map[string]V, error)
 }
 
@@ -60,7 +64,7 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 // locally.
 func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 	hostname := rm.Hostname
-	if err := h.Put(hostname, "Registration", &rm); err != nil {
+	if err := h.Put(hostname, "Registration", &rm, true); err != nil {
 		return err
 	}
 
@@ -71,17 +75,28 @@ func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 // UpdateHealth updates the v2.Health field for the instance in the Memorystore client and
 // updates it locally.
 func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) error {
-	if err := h.Put(hostname, "Health", &hm); err != nil {
+	if err := h.Put(hostname, "Health", &hm, true); err != nil {
 		return err
 	}
 	return h.updateHealth(hostname, hm)
 }
 
-// UpdatePrometheus updates the v2.Prometheus field for all instances in Memorystore and
-// locally.
-// TODO(cristinaleon): Add functionality in next PR. This one is already becoming too big.
+// UpdatePrometheus updates the v2.Prometheus field for the instances.
 func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string]bool) error {
-	return nil
+	var err error
+
+	for _, instance := range h.instances {
+		pm := constructPrometheusMessage(instance, hostnames, machines)
+		if pm != nil {
+			updateErr := h.updatePrometheusMessage(instance, pm)
+
+			if updateErr != nil {
+				err = errPrometheus
+			}
+		}
+	}
+
+	return err
 }
 
 // Instances returns a mapping of all the v2.HeartbeatMessage instance keys to
@@ -119,10 +134,62 @@ func (h *heartbeatStatusTracker) updateHealth(hostname string, hm v2.Health) err
 	return fmt.Errorf("failed to find %s instance for health update", hostname)
 }
 
+// updatePrometheusMessage updates the v2.Prometheus field for a specific instance
+// in Memorystore and locally.
+func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMessage, pm *v2.Prometheus) error {
+	hostname := instance.Registration.Hostname
+
+	// Update in Memorystore.
+	err := h.Put(hostname, "Prometheus", pm, false)
+	if err != nil {
+		return err
+	}
+
+	// Update locally.
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	instance.Prometheus = pm
+	h.instances[hostname] = instance
+	return nil
+}
+
 func (h *heartbeatStatusTracker) importMemorystore() {
 	values, err := h.GetAll()
 
 	if err == nil {
 		h.instances = values
 	}
+}
+
+// constructPrometheusMessage constructs a v2.Prometheus message for a specific instance
+// from a map of hostname/machine Prometheus data.
+// If no information is available for the instance, it returns nil.
+func constructPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machines map[string]bool) *v2.Prometheus {
+	if instance.Registration == nil {
+		return nil
+	}
+
+	var hostHealthy, hostFound, machineHealthy, machineFound bool
+
+	// Get Prometheus health data for the service hostname.
+	hostname := instance.Registration.Hostname
+	hostHealthy, hostFound = hostnames[hostname]
+
+	// Get Prometheus health data for the machine.
+	parts, err := host.Parse(hostname)
+	if err == nil {
+		machineHealthy, machineFound = machines[parts.String()]
+	}
+
+	// Create Prometheus health message.
+	if hostFound || machineFound {
+		// If Prometheus did not return any data about one of host or machine,
+		// treat it as healthy.
+		health := (!hostFound || hostHealthy) && (!machineFound || machineHealthy)
+		return &v2.Prometheus{Health: health}
+	}
+
+	// If no Prometheus data is available for either the host or machine (both missing),
+	// return nil. This case is treated the same way downstream as a healthy signal.
+	return nil
 }

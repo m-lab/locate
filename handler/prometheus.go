@@ -46,7 +46,12 @@ func (c *Client) Prometheus(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	c.UpdatePrometheus(hostnames, machines)
+	err = c.UpdatePrometheus(hostnames, machines)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	rw.WriteHeader(http.StatusOK)
 }
 

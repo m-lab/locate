@@ -19,7 +19,7 @@ func NewClient[V any](pool *redis.Pool) *client[V] {
 
 // Put sets a Redis Hash using the `HSET key field value` command.
 // If successful, it also sets a timeout on the key.
-func (c *client[V]) Put(key string, field string, value redis.Scanner) error {
+func (c *client[V]) Put(key string, field string, value redis.Scanner, expire bool) error {
 	conn := c.pool.Get()
 	defer conn.Close()
 
@@ -30,7 +30,7 @@ func (c *client[V]) Put(key string, field string, value redis.Scanner) error {
 
 	args := redis.Args{}.Add(key).Add(field).AddFlat(string(b))
 	_, err = conn.Do("HSET", args...)
-	if err == nil {
+	if expire && err == nil {
 		_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
 	}
 	return err

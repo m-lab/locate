@@ -2,6 +2,7 @@ package heartbeat
 
 import (
 	"errors"
+	"reflect"
 	"runtime"
 	"testing"
 
@@ -13,8 +14,10 @@ import (
 )
 
 var (
-	fakeDC    = &heartbeattest.FakeMemorystoreClient
-	fakeErrDC = &heartbeattest.FakeErrorMemorystoreClient
+	fakeDC       = &heartbeattest.FakeMemorystoreClient
+	fakeErrDC    = &heartbeattest.FakeErrorMemorystoreClient
+	testMachine  = "mlab1-lga00.mlab-sandbox.measurement-lab.org"
+	testHostname = "ndt-" + testMachine
 )
 
 func TestRegisterInstance_PutError(t *testing.T) {
@@ -89,6 +92,48 @@ func TestUpdateHealth_Success(t *testing.T) {
 	}
 }
 
+func TestUpdatePrometheus_PutError(t *testing.T) {
+	h := heartbeatStatusTracker{
+		MemorystoreClient: fakeErrDC,
+		instances: map[string]v2.HeartbeatMessage{
+			testHostname: {
+				Registration: &v2.Registration{
+					Hostname: testHostname,
+				},
+			},
+		},
+	}
+	hostnames := map[string]bool{testHostname: true}
+	machines := map[string]bool{testMachine: true}
+
+	err := h.UpdatePrometheus(hostnames, machines)
+
+	if !errors.Is(err, errPrometheus) {
+		t.Errorf("UpdatePrometheus() err: %v, want: %v", err, errPrometheus)
+	}
+}
+
+func TestUpdatePrometheus_Success(t *testing.T) {
+	h := heartbeatStatusTracker{
+		MemorystoreClient: fakeDC,
+		instances: map[string]v2.HeartbeatMessage{
+			testHostname: {
+				Registration: &v2.Registration{
+					Hostname: testHostname,
+				},
+			},
+		},
+	}
+	hostnames := map[string]bool{testHostname: true}
+	machines := map[string]bool{testMachine: true}
+
+	err := h.UpdatePrometheus(hostnames, machines)
+
+	if err != nil {
+		t.Errorf("UpdatePrometheus() err: %v, want: nil", err)
+	}
+}
+
 func TestInstances(t *testing.T) {
 	h := NewHeartbeatStatusTracker(fakeDC)
 	h.StopImport()
@@ -155,5 +200,97 @@ func TestImportMemorystore(t *testing.T) {
 	if diff := deep.Equal(h.instances, expected); diff != nil {
 		t.Errorf("importMemorystore() failed to import; got: %+v, want: %+v", h.instances,
 			expected)
+	}
+}
+
+func TestGetPrometheusMessage(t *testing.T) {
+	tests := []struct {
+		name      string
+		hostnames map[string]bool
+		machines  map[string]bool
+		reg       *v2.Registration
+		want      *v2.Prometheus
+	}{
+		{
+			name:      "nil-registration",
+			hostnames: map[string]bool{testHostname: true},
+			machines:  map[string]bool{testMachine: true},
+			reg:       nil,
+			want:      nil,
+		},
+		{
+			name:      "both-empty",
+			hostnames: map[string]bool{},
+			machines:  map[string]bool{},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: nil,
+		},
+		{
+			name:      "only-hostnames",
+			hostnames: map[string]bool{testHostname: true},
+			machines:  map[string]bool{},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: true},
+		},
+		{
+			name:      "only-machines",
+			hostnames: map[string]bool{},
+			machines:  map[string]bool{testMachine: true},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: true},
+		},
+		{
+			name:      "both-unhealthy",
+			hostnames: map[string]bool{testHostname: false},
+			machines:  map[string]bool{testMachine: false},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: false},
+		},
+		{
+			name:      "only-hostname-unhealthy",
+			hostnames: map[string]bool{testHostname: false},
+			machines:  map[string]bool{testMachine: true},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: false},
+		},
+		{
+			name:      "only-machine-unhealthy",
+			hostnames: map[string]bool{testHostname: true},
+			machines:  map[string]bool{testMachine: false},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: false},
+		},
+		{
+			name:      "both-healthy",
+			hostnames: map[string]bool{testHostname: true},
+			machines:  map[string]bool{testMachine: true},
+			reg: &v2.Registration{
+				Hostname: testHostname,
+			},
+			want: &v2.Prometheus{Health: true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := v2.HeartbeatMessage{Registration: tt.reg}
+			pm := constructPrometheusMessage(i, tt.hostnames, tt.machines)
+
+			if !reflect.DeepEqual(pm, tt.want) {
+				t.Errorf("getPrometheusMessage() got: %v, want: %v", pm, tt.want)
+			}
+		})
 	}
 }

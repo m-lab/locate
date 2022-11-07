@@ -24,7 +24,7 @@ type fakeMemorystoreClient[V any] struct {
 }
 
 // Put returns nil.
-func (c *fakeMemorystoreClient[V]) Put(key string, field string, value redis.Scanner) error {
+func (c *fakeMemorystoreClient[V]) Put(key string, field string, value redis.Scanner, expire bool) error {
 	return nil
 }
 
@@ -41,7 +41,7 @@ func (c *fakeMemorystoreClient[V]) FakeAdd(key string, value V) {
 type fakeErrorMemorystoreClient[V any] struct{}
 
 // Put returns a FakeError.
-func (c *fakeErrorMemorystoreClient[V]) Put(key string, field string, value redis.Scanner) error {
+func (c *fakeErrorMemorystoreClient[V]) Put(key string, field string, value redis.Scanner, expire bool) error {
 	return FakeError
 }
 
@@ -49,3 +49,31 @@ func (c *fakeErrorMemorystoreClient[V]) Put(key string, field string, value redi
 func (c *fakeErrorMemorystoreClient[V]) GetAll() (map[string]V, error) {
 	return map[string]V{}, FakeError
 }
+
+// FakeStatusTracker provides a fake implementation of HeartbeatStatusTracker.
+type FakeStatusTracker struct {
+	Err error
+}
+
+// RegisterInstance returns the FakeStatusTracker's Err field.
+func (t *FakeStatusTracker) RegisterInstance(rm v2.Registration) error {
+	return t.Err
+}
+
+// UpdateHealth returns the FakeStatusTracker's Err field.
+func (t *FakeStatusTracker) UpdateHealth(hostname string, hm v2.Health) error {
+	return t.Err
+}
+
+// UpdatePrometheus returns the FakeStatusTracker's Err field.
+func (t *FakeStatusTracker) UpdatePrometheus(hostnames, machines map[string]bool) error {
+	return t.Err
+}
+
+// Instances returns nil.
+func (t *FakeStatusTracker) Instances() map[string]v2.HeartbeatMessage {
+	return nil
+}
+
+// StopImport does nothing.
+func (t *FakeStatusTracker) StopImport() {}

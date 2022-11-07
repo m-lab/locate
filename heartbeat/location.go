@@ -113,6 +113,11 @@ func isValidInstance(service, typ string, lat, lon float64, v v2.HeartbeatMessag
 	if v.Registration == nil || v.Health == nil || v.Health.Score == 0 {
 		return false, host.Name{}, 0
 	}
+
+	if v.Prometheus != nil && !v.Prometheus.Health {
+		return false, host.Name{}, 0
+	}
+
 	r := v.Registration
 
 	machineName, err := host.Parse(r.Hostname)
