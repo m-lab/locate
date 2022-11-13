@@ -2,6 +2,7 @@ package health
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/url"
 	"path"
@@ -102,10 +103,10 @@ func (c *KubernetesClient) isHealthy(ctx context.Context) bool {
 }
 
 func (c *KubernetesClient) isPodRunning(ctx context.Context) bool {
-	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(ctx, c.pod, metav1.GetOptions{})
+	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(nil, c.pod, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("%s: %v", errKubernetesAPI, err)
-		metrics.KubernetesRequestsTotal.WithLabelValues(errKubernetesAPI).Inc()
+		metrics.KubernetesRequestsTotal.WithLabelValues(unwrap(err)).Inc()
 		return true
 	}
 
@@ -122,7 +123,7 @@ func (c *KubernetesClient) isNodeReady(ctx context.Context) bool {
 	node, err := c.clientset.CoreV1().Nodes().Get(ctx, c.node, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("%s: %v", errKubernetesAPI, err)
-		metrics.KubernetesRequestsTotal.WithLabelValues(errKubernetesAPI).Inc()
+		metrics.KubernetesRequestsTotal.WithLabelValues(unwrap(err)).Inc()
 		return true
 	}
 
@@ -144,4 +145,12 @@ func isInMaintenance(node *v1.Node) bool {
 	}
 
 	return false
+}
+
+func unwrap(err error) string {
+	e := errors.Unwrap(err)
+	if e != nil {
+		return e.Error()
+	}
+	return errKubernetesAPI
 }
