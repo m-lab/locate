@@ -103,7 +103,7 @@ func (c *KubernetesClient) isHealthy(ctx context.Context) bool {
 }
 
 func (c *KubernetesClient) isPodRunning(ctx context.Context) bool {
-	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(nil, c.pod, metav1.GetOptions{})
+	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(ctx, "hi", metav1.GetOptions{})
 	if err != nil {
 		log.Printf("%s: %v", errKubernetesAPI, err)
 		metrics.KubernetesRequestsTotal.WithLabelValues(unwrap(err)).Inc()
