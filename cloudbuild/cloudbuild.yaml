@@ -7,15 +7,15 @@ options:
 
 steps:
 # Run unit tests for environment.
-# - name: gcr.io/$PROJECT_ID/golang-cbif:1.18
-#   env:
-#   - GONOPROXY=github.com/m-lab/go/*
-#   args:
-#   - go version
-#   - go get -v -t ./...
-#   - go vet ./...
-#   - go test ./... -race
-#   - go test -v ./...
+- name: gcr.io/$PROJECT_ID/golang-cbif:1.18
+  env:
+  - GONOPROXY=github.com/m-lab/go/*
+  args:
+  - go version
+  - go get -v -t ./...
+  - go vet ./...
+  - go test ./... -race
+  - go test -v ./...
 
 # Deployment of APIs in sandbox & staging & mlab-ns.
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.18
