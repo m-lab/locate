@@ -159,10 +159,5 @@ func extractError(err error) string {
 
 	// For errors like "Get 'https://fake-url': context deadline exceeded",
 	// return the base error without the URL.
-	if len(parts) == 2 {
-		return parts[len(parts)-1]
-	}
-
-	// For unrecognized error formats, return a static message.
-	return errKubernetesAPI
+	return parts[len(parts)-1]
 }
