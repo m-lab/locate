@@ -2,9 +2,11 @@ package health
 
 import (
 	"context"
+	"log"
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/m-lab/go/rtx"
@@ -15,6 +17,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 )
+
+var errKubernetesAPI = "error making request to Kubernetes API server"
 
 // KubernetesClient manages requests to the Kubernetes API server.
 type KubernetesClient struct {
@@ -101,7 +105,8 @@ func (c *KubernetesClient) isHealthy(ctx context.Context) bool {
 func (c *KubernetesClient) isPodRunning(ctx context.Context) bool {
 	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(ctx, c.pod, metav1.GetOptions{})
 	if err != nil {
-		metrics.KubernetesRequestsTotal.WithLabelValues(err.Error()).Inc()
+		log.Printf("%s: %v", errKubernetesAPI, err)
+		metrics.KubernetesRequestsTotal.WithLabelValues(extractError(err)).Inc()
 		return true
 	}
 
@@ -117,7 +122,8 @@ func (c *KubernetesClient) isPodRunning(ctx context.Context) bool {
 func (c *KubernetesClient) isNodeReady(ctx context.Context) bool {
 	node, err := c.clientset.CoreV1().Nodes().Get(ctx, c.node, metav1.GetOptions{})
 	if err != nil {
-		metrics.KubernetesRequestsTotal.WithLabelValues(err.Error()).Inc()
+		log.Printf("%s: %v", errKubernetesAPI, err)
+		metrics.KubernetesRequestsTotal.WithLabelValues(extractError(err)).Inc()
 		return true
 	}
 
@@ -139,4 +145,11 @@ func isInMaintenance(node *v1.Node) bool {
 	}
 
 	return false
+}
+
+// extractError extracts the base error string from the error returned by the
+// the Kubernetes API.
+func extractError(err error) string {
+	parts := strings.Split(err.Error(), ": ")
+	return parts[len(parts)-1]
 }

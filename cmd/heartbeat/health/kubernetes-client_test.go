@@ -2,6 +2,7 @@ package health
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"testing"
 
@@ -134,6 +135,37 @@ func TestKubernetesClient_isHealthy(t *testing.T) {
 			}
 			if got := c.isHealthy(context.Background()); got != tt.want {
 				t.Errorf("KubernetesClient.isHealthy() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_extractError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{
+			name: "base-error-only",
+			err:  errors.New("context deadline exceeded"),
+			want: "context deadline exceeded",
+		},
+		{
+			name: "error-with-pod-info",
+			err:  errors.New("Get 'https://api-platform-cluster.mlab-sandbox.measurementlab.net:6443/api/v1/namespaces/default/pods/ndt-virtual-7qzzs': context deadline exceeded"),
+			want: "context deadline exceeded",
+		},
+		{
+			name: "unrecognized-error-format",
+			err:  errors.New("error 1: error 2: error 3"),
+			want: "error 3",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extractError(tt.err); got != tt.want {
+				t.Errorf("extractError() = %v, want %v", got, tt.want)
 			}
 		})
 	}
