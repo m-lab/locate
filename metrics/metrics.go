@@ -88,9 +88,8 @@ var (
 	// Service to the Kubernetes API server (in seconds).
 	KubernetesRequestTimeHistogram = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "heartbeat_kubernetes_request_time_histogram",
-			Help:    "Request time from the HBS to the Kubernetes API server (seconds)",
-			Buckets: []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			Name: "heartbeat_kubernetes_request_time_histogram",
+			Help: "Request time from the HBS to the Kubernetes API server (seconds)",
 		},
 		[]string{"healthy"},
 	)
