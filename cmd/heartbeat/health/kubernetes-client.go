@@ -151,13 +151,5 @@ func isInMaintenance(node *v1.Node) bool {
 // the Kubernetes API.
 func extractError(err error) string {
 	parts := strings.Split(err.Error(), ": ")
-
-	// For errors like "context deadline exceeded", return the error as is.
-	if len(parts) == 1 {
-		return err.Error()
-	}
-
-	// For errors like "Get 'https://fake-url': context deadline exceeded",
-	// return the base error without the URL.
 	return parts[len(parts)-1]
 }

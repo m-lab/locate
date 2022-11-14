@@ -156,6 +156,11 @@ func Test_extractError(t *testing.T) {
 			err:  errors.New("Get 'https://api-platform-cluster.mlab-sandbox.measurementlab.net:6443/api/v1/namespaces/default/pods/ndt-virtual-7qzzs': context deadline exceeded"),
 			want: "context deadline exceeded",
 		},
+		{
+			name: "unrecognized-error-format",
+			err:  errors.New("error 1: error 2: error 3"),
+			want: "error 3",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
