@@ -2,11 +2,11 @@ package health
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/m-lab/go/rtx"
@@ -103,10 +103,10 @@ func (c *KubernetesClient) isHealthy(ctx context.Context) bool {
 }
 
 func (c *KubernetesClient) isPodRunning(ctx context.Context) bool {
-	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(ctx, "hi", metav1.GetOptions{})
+	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(ctx, c.pod, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("%s: %v", errKubernetesAPI, err)
-		metrics.KubernetesRequestsTotal.WithLabelValues(unwrap(err)).Inc()
+		metrics.KubernetesRequestsTotal.WithLabelValues(extractError(err)).Inc()
 		return true
 	}
 
@@ -123,7 +123,7 @@ func (c *KubernetesClient) isNodeReady(ctx context.Context) bool {
 	node, err := c.clientset.CoreV1().Nodes().Get(ctx, c.node, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("%s: %v", errKubernetesAPI, err)
-		metrics.KubernetesRequestsTotal.WithLabelValues(unwrap(err)).Inc()
+		metrics.KubernetesRequestsTotal.WithLabelValues(extractError(err)).Inc()
 		return true
 	}
 
@@ -147,10 +147,22 @@ func isInMaintenance(node *v1.Node) bool {
 	return false
 }
 
-func unwrap(err error) string {
-	e := errors.Unwrap(err)
-	if e != nil {
-		return e.Error()
+// extractError extracts the base error string from the error returned by the
+// the Kubernetes API.
+func extractError(err error) string {
+	parts := strings.Split(err.Error(), ": ")
+
+	// For errors like "context deadline exceeded", return the error as is.
+	if len(parts) == 1 {
+		return err.Error()
 	}
+
+	// For errors like "Get 'https://fake-url': context deadline exceeded",
+	// return the base error without the URL.
+	if len(parts) == 2 {
+		return parts[1]
+	}
+
+	// For unrecognized error formats, return a static message.
 	return errKubernetesAPI
 }
