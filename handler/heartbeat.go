@@ -28,7 +28,6 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 		metrics.RequestsTotal.WithLabelValues("heartbeat", err.Error()).Inc()
 		return
 	}
-
 	metrics.RequestsTotal.WithLabelValues("heartbeat", "OK").Inc()
 	go c.handleHeartbeats(ws)
 }
@@ -58,8 +57,8 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 
 			switch {
 			case hbm.Registration != nil:
-				c.RegisterInstance(*hbm.Registration)
 				hostname = hbm.Registration.Hostname
+				c.RegisterInstance(*hbm.Registration)
 				experiment = hbm.Registration.Experiment
 				metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Inc()
 			case hbm.Health != nil:
