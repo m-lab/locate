@@ -29,8 +29,6 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// When the /heartbeat request is first received, the 'experiment' is not known.
-	metrics.CurrentHeartbeatConnections.WithLabelValues("").Inc()
 	metrics.RequestsTotal.WithLabelValues("heartbeat", "OK").Inc()
 	go c.handleHeartbeats(ws)
 }
@@ -60,27 +58,15 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 
 			switch {
 			case hbm.Registration != nil:
-				hostname, experiment = c.handleRegistration(hbm.Registration)
+				c.RegisterInstance(*hbm.Registration)
+				hostname = hbm.Registration.Hostname
+				experiment = hbm.Registration.Experiment
+				metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Inc()
 			case hbm.Health != nil:
 				c.UpdateHealth(hostname, *hbm.Health)
 			}
 		}
 	}
-}
-
-// handleRegistration registers the instance and updates the corresponding metrics
-// on receipt of a v2.Registration message.
-func (c *Client) handleRegistration(rm *v2.Registration) (string, string) {
-	c.RegisterInstance(*rm)
-
-	// Once the registration message is received, decrement the counter
-	// for the unknown experiment and increase it with the experiment in
-	// the registration.
-	experiment := rm.Experiment
-	metrics.CurrentHeartbeatConnections.WithLabelValues("").Dec()
-	metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Inc()
-
-	return rm.Hostname, experiment
 }
 
 // setReadDeadline sets/resets the read deadline for the connection.

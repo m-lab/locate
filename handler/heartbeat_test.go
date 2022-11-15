@@ -10,9 +10,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/locate/clientgeo"
-	"github.com/m-lab/locate/connection/testdata"
-	"github.com/m-lab/locate/heartbeat"
-	"github.com/m-lab/locate/heartbeat/heartbeattest"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
 )
 
@@ -69,22 +66,4 @@ func TestClient_Heartbeat_Timeout(t *testing.T) {
 func fakeClient() *Client {
 	return NewClient("mlab-sandbox", &fakeSigner{}, &fakeLocator{}, &fakeLocatorV2{},
 		clientgeo.NewAppEngineLocator(), prom.NewAPI(nil))
-}
-
-func TestClient_handleRegistration(t *testing.T) {
-	tracker := heartbeat.NewHeartbeatStatusTracker(&heartbeattest.FakeMemorystoreClient)
-	c := &Client{
-		LocatorV2: &heartbeat.Locator{
-			StatusTracker: tracker,
-		},
-	}
-	rm := testdata.FakeRegistration.Registration
-
-	gotHost, gotExp := c.handleRegistration(rm)
-	if gotHost != rm.Hostname {
-		t.Errorf("Client.handleRegistration() got Hostname = %v, want Hostname %v", gotHost, rm.Hostname)
-	}
-	if gotExp != rm.Experiment {
-		t.Errorf("Client.handleRegistration() got Experiment = %v, want Experiment %v", gotExp, rm.Experiment)
-	}
 }
