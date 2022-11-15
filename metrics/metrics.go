@@ -37,11 +37,12 @@ var (
 	//
 	// Example usage:
 	// metrics.CurrentHeartbeatConnections.Inc()
-	CurrentHeartbeatConnections = promauto.NewGauge(
+	CurrentHeartbeatConnections = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "locate_current_heartbeat_connections",
 			Help: "Number of currently active Heartbeat connections.",
 		},
+		[]string{"experiment"},
 	)
 
 	// PrometheusHealthCollectionDuration is a histogram that tracks the latency of the
@@ -52,6 +53,15 @@ var (
 			Help: "A histogram of request latencies to the Prometheus health signal handler.",
 		},
 		[]string{"code"},
+	)
+
+	// HeartbeatRegistrationsTotal counts the total number of registration
+	HeartbeatRegistrationsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "heartbeat_registrations_total",
+			Help: "Number of heartbeat registration requests",
+		},
+		[]string{"experiment", "status"},
 	)
 
 	// PortChecksTotal counts the number of port checks performed by the Heartbeat
