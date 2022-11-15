@@ -55,15 +55,6 @@ var (
 		[]string{"code"},
 	)
 
-	// HeartbeatRegistrationsTotal counts the total number of registration
-	HeartbeatRegistrationsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "heartbeat_registrations_total",
-			Help: "Number of heartbeat registration requests",
-		},
-		[]string{"experiment", "status"},
-	)
-
 	// PortChecksTotal counts the number of port checks performed by the Heartbeat
 	// Service.
 	PortChecksTotal = promauto.NewCounterVec(
