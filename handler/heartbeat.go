@@ -43,7 +43,9 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 		_, message, err := ws.ReadMessage()
 		if err != nil {
 			log.Errorf("read error: %v", err)
-			metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Dec()
+			if experiment != "" {
+				metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Dec()
+			}
 			return
 		}
 		if message != nil {
