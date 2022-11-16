@@ -9,7 +9,7 @@ import (
 func TestLintMetrics(t *testing.T) {
 	RequestsTotal.WithLabelValues("type", "status")
 	AppEngineTotal.WithLabelValues("country")
-	CurrentHeartbeatConnections.Set(0)
+	CurrentHeartbeatConnections.WithLabelValues("experiment").Set(0)
 	PrometheusHealthCollectionDuration.WithLabelValues("code")
 	PortChecksTotal.WithLabelValues("status")
 	KubernetesRequestsTotal.WithLabelValues("status")
