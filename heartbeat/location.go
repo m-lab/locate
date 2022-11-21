@@ -90,8 +90,6 @@ func filterSites(service, typ string, lat, lon float64, instances map[string]v2.
 				registration: *r,
 				machines:     make([]machine, 0),
 			}
-			// TODO: does it make sense to reuse the registration for sites or
-			// to create a new struct?
 			s.registration.Hostname = ""
 			s.registration.Machine = ""
 			m[r.Site] = s
@@ -101,7 +99,9 @@ func filterSites(service, typ string, lat, lon float64, instances map[string]v2.
 
 	sites := make([]site, 0)
 	for _, v := range m {
-		sites = append(sites, *v)
+		if pickWithProbability(v.registration.Site) {
+			sites = append(sites, *v)
+		}
 	}
 
 	return sites
@@ -185,6 +185,16 @@ func pickTargets(service string, sites []site) ([]v2.Target, []url.URL) {
 	}
 
 	return targets, urls
+}
+
+// pickWithProbability returns true if a pseudo-random number in the interval
+// [0.0,1.0) is less than the given site's defined probability (or if there is
+// no explicit probability defined for the site).
+func pickWithProbability(site string) bool {
+	if val, ok := static.SiteProbability[site]; ok {
+		return rand.Src.Float64() < val
+	}
+	return true
 }
 
 // getURLs extracts the URL templates from v2.Registration.Services and outputs
