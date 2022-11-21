@@ -725,3 +725,44 @@ func TestPickTargets(t *testing.T) {
 		})
 	}
 }
+
+func TestPickWithProbability(t *testing.T) {
+	tests := []struct {
+		name string
+		site string
+		seed int64
+		want bool
+	}{
+		{
+			name: "no-probability",
+			site: "lga00",
+			want: true,
+		},
+		// The current probability for yyc02 is 0.5.
+		// If we use 2 as a seed, the pseudo-random number generated will be < 0.5.
+		{
+			name: "pick-with-probability",
+			site: "yyc02",
+			seed: 2,
+			want: true,
+		},
+		// If we use 1 as a seed, the pseudo-random number generated will be > 0.5.
+		{
+			name: "do-not-pick-with-probability",
+			site: "yyc02",
+			seed: 1,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rand = mathx.NewRandom(tt.seed)
+			got := pickWithProbability(tt.site)
+
+			if got != tt.want {
+				t.Errorf("pickWithProbability() got: %v, want: %v", got, tt.want)
+			}
+		})
+	}
+}
