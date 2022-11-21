@@ -81,6 +81,7 @@ var LegacyServices = map[string]string{
 
 // SiteProbability defines explicit probabilites for sites that cannot handle
 // the current number of requests. The default value is 1.0.
+// TODO(github.com/m-lab/locate/issues/92): Make this dynamic.
 var SiteProbability = map[string]float64{
 	"ams10": 0.1, // virtual site
 	"bom01": 0.5,
