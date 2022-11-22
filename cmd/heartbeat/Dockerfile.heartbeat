@@ -2,9 +2,10 @@
 FROM golang:1.18.3-alpine3.16 AS build
 RUN apk add git
 ADD . /go/src/github.com/m-lab/locate
-RUN go install -v \
+WORKDIR /go/src/github.com/m-lab/locate
+RUN CGO_ENABLED=0 go install -v \
     -ldflags "-X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h)" \
-    github.com/m-lab/locate/cmd/heartbeat@latest
+    ./cmd/heartbeat
 
 # Now copy the resulting command into the minimal base image.
 FROM alpine:3.16
