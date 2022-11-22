@@ -420,7 +420,6 @@ func TestIsValidInstance(t *testing.T) {
 	tests := []struct {
 		name         string
 		typ          string
-		country      string
 		host         string
 		lat          float64
 		lon          float64
