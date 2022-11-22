@@ -239,6 +239,7 @@ func TestNearest(t *testing.T) {
 		name            string
 		service         string
 		typ             string
+		country         string
 		lat             float64
 		lon             float64
 		instances       []v2.HeartbeatMessage
@@ -250,6 +251,7 @@ func TestNearest(t *testing.T) {
 			name:            "NDT7-any-type",
 			service:         "ndt/ndt7",
 			typ:             "",
+			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{virtualTarget, physicalTarget},
@@ -260,6 +262,7 @@ func TestNearest(t *testing.T) {
 			name:            "NDT7-physical",
 			service:         "ndt/ndt7",
 			typ:             "physical",
+			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{physicalTarget},
@@ -270,6 +273,7 @@ func TestNearest(t *testing.T) {
 			name:            "NDT7-virtual",
 			service:         "ndt/ndt7",
 			typ:             "virtual",
+			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{virtualTarget},
@@ -280,6 +284,7 @@ func TestNearest(t *testing.T) {
 			name:            "wehe",
 			service:         "wehe/replay",
 			typ:             "",
+			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{weheTarget},
