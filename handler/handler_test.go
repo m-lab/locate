@@ -61,7 +61,7 @@ type fakeLocatorV2 struct {
 	urls    []url.URL
 }
 
-func (l *fakeLocatorV2) Nearest(service, typ string, lat, lon float64) ([]v2.Target, []url.URL, error) {
+func (l *fakeLocatorV2) Nearest(service, typ, country string, lat, lon float64) ([]v2.Target, []url.URL, error) {
 	if l.err != nil {
 		return nil, nil, l.err
 	}

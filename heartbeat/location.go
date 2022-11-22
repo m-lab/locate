@@ -54,9 +54,9 @@ func NewServerLocator(tracker StatusTracker) *Locator {
 
 // Nearest discovers the nearest machines for the target service, using
 // an exponentially distributed function based on distance.
-func (l *Locator) Nearest(service, typ string, lat, lon float64) ([]v2.Target, []url.URL, error) {
+func (l *Locator) Nearest(service, typ, country string, lat, lon float64) ([]v2.Target, []url.URL, error) {
 	// Filter.
-	sites := filterSites(service, typ, lat, lon, l.Instances())
+	sites := filterSites(service, typ, country, lat, lon, l.Instances())
 
 	// Sort.
 	sortSites(sites)
@@ -73,11 +73,11 @@ func (l *Locator) Nearest(service, typ string, lat, lon float64) ([]v2.Target, [
 
 // filterSites groups the v2.HeartbeatMessage instances into sites and returns
 // only those that can serve the client request.
-func filterSites(service, typ string, lat, lon float64, instances map[string]v2.HeartbeatMessage) []site {
+func filterSites(service, typ, country string, lat, lon float64, instances map[string]v2.HeartbeatMessage) []site {
 	m := make(map[string]*site)
 
 	for _, v := range instances {
-		isValid, machineName, distance := isValidInstance(service, typ, lat, lon, v)
+		isValid, machineName, distance := isValidInstance(service, typ, country, lat, lon, v)
 		if !isValid {
 			continue
 		}
@@ -109,7 +109,7 @@ func filterSites(service, typ string, lat, lon float64, instances map[string]v2.
 
 // isValidInstance returns whether a v2.HeartbeatMessage signals a valid
 // instance that can serve a request given its parameters.
-func isValidInstance(service, typ string, lat, lon float64, v v2.HeartbeatMessage) (bool, host.Name, float64) {
+func isValidInstance(service, typ, country string, lat, lon float64, v v2.HeartbeatMessage) (bool, host.Name, float64) {
 	if v.Registration == nil || v.Health == nil || v.Health.Score == 0 {
 		return false, host.Name{}, 0
 	}
@@ -133,14 +133,12 @@ func isValidInstance(service, typ string, lat, lon float64, v v2.HeartbeatMessag
 		return false, host.Name{}, 0
 	}
 
-	// TODO(cristinaleon): Add in-country biasing for distance.
-	// It might require implementing a reverse geocoder.
 	distance := mathx.GetHaversineDistance(lat, lon, r.Latitude, r.Longitude)
 	if distance > static.EarthHalfCircumferenceKm {
 		return false, host.Name{}, 0
 	}
 
-	return true, machineName, distance
+	return true, machineName, biasedDistance(country, v, distance)
 }
 
 // sortSites sorts a []site in ascending order based on distance.
@@ -212,4 +210,17 @@ func getURLs(service string, registration v2.Registration) []url.URL {
 	}
 
 	return result
+}
+
+func biasedDistance(country string, v v2.HeartbeatMessage, distance float64) float64 {
+	// The 'ZZ' country code is used for unknown or unspecified countries.
+	if country == "" || country == "ZZ" {
+		return distance
+	}
+
+	if country == v.Registration.CountryCode {
+		return distance
+	}
+
+	return 2 * distance
 }
