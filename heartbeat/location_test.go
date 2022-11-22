@@ -415,7 +415,6 @@ func TestIsValidInstance(t *testing.T) {
 	validLat := 40.7667
 	validLon := -73.8667
 	validType := "virtual"
-	validCountry := "US"
 	validScore := float64(1)
 
 	tests := []struct {
@@ -436,7 +435,6 @@ func TestIsValidInstance(t *testing.T) {
 		{
 			name:         "0-health",
 			typ:          "virtual",
-			country:      validCountry,
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -450,7 +448,6 @@ func TestIsValidInstance(t *testing.T) {
 		{
 			name:         "prometheus-unhealthy",
 			typ:          "",
-			country:      validCountry,
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -467,7 +464,6 @@ func TestIsValidInstance(t *testing.T) {
 		{
 			name:         "invalid-host",
 			typ:          "virtual",
-			country:      validCountry,
 			host:         "invalid-host",
 			lat:          validLat,
 			lon:          validLon,
@@ -481,7 +477,6 @@ func TestIsValidInstance(t *testing.T) {
 		{
 			name:         "mismatched-type",
 			typ:          "virtual",
-			country:      validCountry,
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -495,7 +490,6 @@ func TestIsValidInstance(t *testing.T) {
 		{
 			name:         "invalid-service",
 			typ:          "virtual",
-			country:      validCountry,
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -509,7 +503,6 @@ func TestIsValidInstance(t *testing.T) {
 		{
 			name:         "success-same-type",
 			typ:          "virtual",
-			country:      validCountry,
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -529,7 +522,6 @@ func TestIsValidInstance(t *testing.T) {
 		{
 			name:         "success-no-type",
 			typ:          "",
-			country:      validCountry,
 			host:         validHost,
 			lat:          validLat,
 			lon:          validLon,
@@ -571,7 +563,7 @@ func TestIsValidInstance(t *testing.T) {
 				},
 				Prometheus: tt.prom,
 			}
-			got, gotHost, gotDist := isValidInstance("ndt/ndt7", tt.typ, tt.country, 43.1988, -75.3242, v)
+			got, gotHost, gotDist := isValidInstance("ndt/ndt7", tt.typ, 43.1988, -75.3242, v)
 
 			if got != tt.expected {
 				t.Errorf("isValidInstance() got: %t, want: %t", got, tt.expected)
@@ -791,17 +783,15 @@ func TestBiasedDistance(t *testing.T) {
 	tests := []struct {
 		name     string
 		country  string
-		v        v2.HeartbeatMessage
+		r        *v2.Registration
 		distance float64
 		want     float64
 	}{
 		{
 			name:    "empty-country",
 			country: "",
-			v: v2.HeartbeatMessage{
-				Registration: &v2.Registration{
-					CountryCode: "foo",
-				},
+			r: &v2.Registration{
+				CountryCode: "foo",
 			},
 			distance: 100,
 			want:     100,
@@ -809,10 +799,8 @@ func TestBiasedDistance(t *testing.T) {
 		{
 			name:    "unknown-country",
 			country: "ZZ",
-			v: v2.HeartbeatMessage{
-				Registration: &v2.Registration{
-					CountryCode: "foo",
-				},
+			r: &v2.Registration{
+				CountryCode: "foo",
 			},
 			distance: 100,
 			want:     100,
@@ -820,10 +808,8 @@ func TestBiasedDistance(t *testing.T) {
 		{
 			name:    "same-country",
 			country: "foo",
-			v: v2.HeartbeatMessage{
-				Registration: &v2.Registration{
-					CountryCode: "foo",
-				},
+			r: &v2.Registration{
+				CountryCode: "foo",
 			},
 			distance: 100,
 			want:     100,
@@ -831,10 +817,8 @@ func TestBiasedDistance(t *testing.T) {
 		{
 			name:    "different-country",
 			country: "bar",
-			v: v2.HeartbeatMessage{
-				Registration: &v2.Registration{
-					CountryCode: "foo",
-				},
+			r: &v2.Registration{
+				CountryCode: "foo",
 			},
 			distance: 100,
 			want:     200,
@@ -843,7 +827,7 @@ func TestBiasedDistance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := biasedDistance(tt.country, tt.v, tt.distance)
+			got := biasedDistance(tt.country, tt.r, tt.distance)
 
 			if got != tt.want {
 				t.Errorf("biasedDistance() got: %f, want: %f", got, tt.want)

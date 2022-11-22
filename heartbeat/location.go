@@ -77,7 +77,7 @@ func filterSites(service, typ, country string, lat, lon float64, instances map[s
 	m := make(map[string]*site)
 
 	for _, v := range instances {
-		isValid, machineName, distance := isValidInstance(service, typ, country, lat, lon, v)
+		isValid, machineName, distance := isValidInstance(service, typ, lat, lon, v)
 		if !isValid {
 			continue
 		}
@@ -86,7 +86,7 @@ func filterSites(service, typ, country string, lat, lon float64, instances map[s
 		s, ok := m[r.Site]
 		if !ok {
 			s = &site{
-				distance:     distance,
+				distance:     biasedDistance(country, r, distance),
 				registration: *r,
 				machines:     make([]machine, 0),
 			}
@@ -109,7 +109,7 @@ func filterSites(service, typ, country string, lat, lon float64, instances map[s
 
 // isValidInstance returns whether a v2.HeartbeatMessage signals a valid
 // instance that can serve a request given its parameters.
-func isValidInstance(service, typ, country string, lat, lon float64, v v2.HeartbeatMessage) (bool, host.Name, float64) {
+func isValidInstance(service, typ string, lat, lon float64, v v2.HeartbeatMessage) (bool, host.Name, float64) {
 	if v.Registration == nil || v.Health == nil || v.Health.Score == 0 {
 		return false, host.Name{}, 0
 	}
@@ -138,7 +138,7 @@ func isValidInstance(service, typ, country string, lat, lon float64, v v2.Heartb
 		return false, host.Name{}, 0
 	}
 
-	return true, machineName, biasedDistance(country, v, distance)
+	return true, machineName, distance
 }
 
 // sortSites sorts a []site in ascending order based on distance.
@@ -212,13 +212,13 @@ func getURLs(service string, registration v2.Registration) []url.URL {
 	return result
 }
 
-func biasedDistance(country string, v v2.HeartbeatMessage, distance float64) float64 {
+func biasedDistance(country string, r *v2.Registration, distance float64) float64 {
 	// The 'ZZ' country code is used for unknown or unspecified countries.
 	if country == "" || country == "ZZ" {
 		return distance
 	}
 
-	if country == v.Registration.CountryCode {
+	if country == r.CountryCode {
 		return distance
 	}
 
