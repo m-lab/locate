@@ -239,6 +239,7 @@ func TestNearest(t *testing.T) {
 		name            string
 		service         string
 		typ             string
+		country         string
 		lat             float64
 		lon             float64
 		instances       []v2.HeartbeatMessage
@@ -250,6 +251,7 @@ func TestNearest(t *testing.T) {
 			name:            "NDT7-any-type",
 			service:         "ndt/ndt7",
 			typ:             "",
+			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{virtualTarget, physicalTarget},
@@ -260,6 +262,7 @@ func TestNearest(t *testing.T) {
 			name:            "NDT7-physical",
 			service:         "ndt/ndt7",
 			typ:             "physical",
+			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{physicalTarget},
@@ -270,6 +273,7 @@ func TestNearest(t *testing.T) {
 			name:            "NDT7-virtual",
 			service:         "ndt/ndt7",
 			typ:             "virtual",
+			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{virtualTarget},
@@ -280,6 +284,7 @@ func TestNearest(t *testing.T) {
 			name:            "wehe",
 			service:         "wehe/replay",
 			typ:             "",
+			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
 			expectedTargets: []v2.Target{weheTarget},
@@ -305,7 +310,7 @@ func TestNearest(t *testing.T) {
 				locator.UpdateHealth(i.Registration.Hostname, *i.Health)
 			}
 
-			gotTargets, gotURLs, err := locator.Nearest(tt.service, tt.typ, tt.lat, tt.lon)
+			gotTargets, gotURLs, err := locator.Nearest(tt.service, tt.typ, "", tt.lat, tt.lon)
 
 			if !reflect.DeepEqual(gotTargets, tt.expectedTargets) {
 				t.Errorf("Nearest() targets got: %+v, want %+v", gotTargets, tt.expectedTargets)
@@ -335,6 +340,7 @@ func TestFilterSites(t *testing.T) {
 		name     string
 		service  string
 		typ      string
+		country  string
 		lat      float64
 		lon      float64
 		expected []site
@@ -343,6 +349,7 @@ func TestFilterSites(t *testing.T) {
 			name:     "NDT7-any-type",
 			service:  "ndt/ndt7",
 			typ:      "",
+			country:  "US",
 			lat:      43.1988,
 			lon:      -75.3242,
 			expected: []site{virtualSite, physicalSite},
@@ -351,6 +358,7 @@ func TestFilterSites(t *testing.T) {
 			name:     "NDT7-physical",
 			service:  "ndt/ndt7",
 			typ:      "physical",
+			country:  "US",
 			lat:      43.1988,
 			lon:      -75.3242,
 			expected: []site{physicalSite},
@@ -359,6 +367,7 @@ func TestFilterSites(t *testing.T) {
 			name:     "NDT7-virtual",
 			service:  "ndt/ndt7",
 			typ:      "virtual",
+			country:  "US",
 			lat:      43.1988,
 			lon:      -75.3242,
 			expected: []site{virtualSite},
@@ -367,6 +376,7 @@ func TestFilterSites(t *testing.T) {
 			name:     "wehe",
 			service:  "wehe/replay",
 			typ:      "",
+			country:  "US",
 			lat:      43.1988,
 			lon:      -75.3242,
 			expected: []site{weheSite},
@@ -375,6 +385,7 @@ func TestFilterSites(t *testing.T) {
 			name:     "too-far",
 			service:  "ndt-ndt7",
 			typ:      "",
+			country:  "",
 			lat:      1000,
 			lon:      1000,
 			expected: []site{},
@@ -383,7 +394,7 @@ func TestFilterSites(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := filterSites(tt.service, tt.typ, tt.lat, tt.lon, instances)
+			got := filterSites(tt.service, tt.typ, tt.country, tt.lat, tt.lon, instances)
 
 			sortSites(got)
 			for _, v := range got {
@@ -762,6 +773,63 @@ func TestPickWithProbability(t *testing.T) {
 
 			if got != tt.want {
 				t.Errorf("pickWithProbability() got: %v, want: %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBiasedDistance(t *testing.T) {
+	tests := []struct {
+		name     string
+		country  string
+		r        *v2.Registration
+		distance float64
+		want     float64
+	}{
+		{
+			name:    "empty-country",
+			country: "",
+			r: &v2.Registration{
+				CountryCode: "foo",
+			},
+			distance: 100,
+			want:     100,
+		},
+		{
+			name:    "unknown-country",
+			country: "ZZ",
+			r: &v2.Registration{
+				CountryCode: "foo",
+			},
+			distance: 100,
+			want:     100,
+		},
+		{
+			name:    "same-country",
+			country: "foo",
+			r: &v2.Registration{
+				CountryCode: "foo",
+			},
+			distance: 100,
+			want:     100,
+		},
+		{
+			name:    "different-country",
+			country: "bar",
+			r: &v2.Registration{
+				CountryCode: "foo",
+			},
+			distance: 100,
+			want:     200,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := biasedDistance(tt.country, tt.r, tt.distance)
+
+			if got != tt.want {
+				t.Errorf("biasedDistance() got: %f, want: %f", got, tt.want)
 			}
 		})
 	}

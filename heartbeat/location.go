@@ -54,9 +54,9 @@ func NewServerLocator(tracker StatusTracker) *Locator {
 
 // Nearest discovers the nearest machines for the target service, using
 // an exponentially distributed function based on distance.
-func (l *Locator) Nearest(service, typ string, lat, lon float64) ([]v2.Target, []url.URL, error) {
+func (l *Locator) Nearest(service, typ, country string, lat, lon float64) ([]v2.Target, []url.URL, error) {
 	// Filter.
-	sites := filterSites(service, typ, lat, lon, l.Instances())
+	sites := filterSites(service, typ, country, lat, lon, l.Instances())
 
 	// Sort.
 	sortSites(sites)
@@ -73,7 +73,7 @@ func (l *Locator) Nearest(service, typ string, lat, lon float64) ([]v2.Target, [
 
 // filterSites groups the v2.HeartbeatMessage instances into sites and returns
 // only those that can serve the client request.
-func filterSites(service, typ string, lat, lon float64, instances map[string]v2.HeartbeatMessage) []site {
+func filterSites(service, typ, country string, lat, lon float64, instances map[string]v2.HeartbeatMessage) []site {
 	m := make(map[string]*site)
 
 	for _, v := range instances {
@@ -86,7 +86,7 @@ func filterSites(service, typ string, lat, lon float64, instances map[string]v2.
 		s, ok := m[r.Site]
 		if !ok {
 			s = &site{
-				distance:     distance,
+				distance:     biasedDistance(country, r, distance),
 				registration: *r,
 				machines:     make([]machine, 0),
 			}
@@ -133,8 +133,6 @@ func isValidInstance(service, typ string, lat, lon float64, v v2.HeartbeatMessag
 		return false, host.Name{}, 0
 	}
 
-	// TODO(cristinaleon): Add in-country biasing for distance.
-	// It might require implementing a reverse geocoder.
 	distance := mathx.GetHaversineDistance(lat, lon, r.Latitude, r.Longitude)
 	if distance > static.EarthHalfCircumferenceKm {
 		return false, host.Name{}, 0
@@ -212,4 +210,17 @@ func getURLs(service string, registration v2.Registration) []url.URL {
 	}
 
 	return result
+}
+
+func biasedDistance(country string, r *v2.Registration, distance float64) float64 {
+	// The 'ZZ' country code is used for unknown or unspecified countries.
+	if country == "" || country == "ZZ" {
+		return distance
+	}
+
+	if country == r.CountryCode {
+		return distance
+	}
+
+	return 2 * distance
 }
