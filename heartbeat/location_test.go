@@ -310,7 +310,9 @@ func TestNearest(t *testing.T) {
 				locator.UpdateHealth(i.Registration.Hostname, *i.Health)
 			}
 
-			gotTargets, gotURLs, err := locator.Nearest(tt.service, tt.typ, "", tt.lat, tt.lon)
+			opts := &NearestOptions{Type: tt.typ, Country: ""}
+
+			gotTargets, gotURLs, err := locator.Nearest(tt.service, tt.lat, tt.lon, opts)
 
 			if !reflect.DeepEqual(gotTargets, tt.expectedTargets) {
 				t.Errorf("Nearest() targets got: %+v, want %+v", gotTargets, tt.expectedTargets)
@@ -394,7 +396,8 @@ func TestFilterSites(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := filterSites(tt.service, tt.typ, tt.country, tt.lat, tt.lon, instances)
+			opts := &NearestOptions{Type: tt.typ, Country: tt.country}
+			got := filterSites(tt.service, tt.lat, tt.lon, instances, opts)
 
 			sortSites(got)
 			for _, v := range got {
@@ -562,7 +565,8 @@ func TestIsValidInstance(t *testing.T) {
 				},
 				Prometheus: tt.prom,
 			}
-			got, gotHost, gotDist := isValidInstance("ndt/ndt7", tt.typ, 43.1988, -75.3242, v)
+			opts := &NearestOptions{Type: tt.typ}
+			got, gotHost, gotDist := isValidInstance("ndt/ndt7", 43.1988, -75.3242, v, opts)
 
 			if got != tt.expected {
 				t.Errorf("isValidInstance() got: %t, want: %t", got, tt.expected)

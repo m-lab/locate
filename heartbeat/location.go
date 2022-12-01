@@ -23,6 +23,14 @@ type Locator struct {
 	StatusTracker
 }
 
+// NearestOptions allows clients to pass parameters modifying how results are
+// filtered.
+type NearestOptions struct {
+	Type    string   // Machine type.
+	Sites   []string // Strict set of sites.
+	Country string
+}
+
 // machine associates a machine name with its v2.Health value.
 type machine struct {
 	name   string
@@ -54,9 +62,9 @@ func NewServerLocator(tracker StatusTracker) *Locator {
 
 // Nearest discovers the nearest machines for the target service, using
 // an exponentially distributed function based on distance.
-func (l *Locator) Nearest(service, typ, country string, lat, lon float64) ([]v2.Target, []url.URL, error) {
+func (l *Locator) Nearest(service string, lat, lon float64, opts *NearestOptions) ([]v2.Target, []url.URL, error) {
 	// Filter.
-	sites := filterSites(service, typ, country, lat, lon, l.Instances())
+	sites := filterSites(service, lat, lon, l.Instances(), opts)
 
 	// Sort.
 	sortSites(sites)
@@ -73,11 +81,11 @@ func (l *Locator) Nearest(service, typ, country string, lat, lon float64) ([]v2.
 
 // filterSites groups the v2.HeartbeatMessage instances into sites and returns
 // only those that can serve the client request.
-func filterSites(service, typ, country string, lat, lon float64, instances map[string]v2.HeartbeatMessage) []site {
+func filterSites(service string, lat, lon float64, instances map[string]v2.HeartbeatMessage, opts *NearestOptions) []site {
 	m := make(map[string]*site)
 
 	for _, v := range instances {
-		isValid, machineName, distance := isValidInstance(service, typ, lat, lon, v)
+		isValid, machineName, distance := isValidInstance(service, lat, lon, v, opts)
 		if !isValid {
 			continue
 		}
@@ -86,7 +94,7 @@ func filterSites(service, typ, country string, lat, lon float64, instances map[s
 		s, ok := m[r.Site]
 		if !ok {
 			s = &site{
-				distance:     biasedDistance(country, r, distance),
+				distance:     biasedDistance(opts.Country, r, distance),
 				registration: *r,
 				machines:     make([]machine, 0),
 			}
@@ -109,7 +117,7 @@ func filterSites(service, typ, country string, lat, lon float64, instances map[s
 
 // isValidInstance returns whether a v2.HeartbeatMessage signals a valid
 // instance that can serve a request given its parameters.
-func isValidInstance(service, typ string, lat, lon float64, v v2.HeartbeatMessage) (bool, host.Name, float64) {
+func isValidInstance(service string, lat, lon float64, v v2.HeartbeatMessage, opts *NearestOptions) (bool, host.Name, float64) {
 	if v.Registration == nil || v.Health == nil || v.Health.Score == 0 {
 		return false, host.Name{}, 0
 	}
@@ -125,7 +133,11 @@ func isValidInstance(service, typ string, lat, lon float64, v v2.HeartbeatMessag
 		return false, host.Name{}, 0
 	}
 
-	if typ != "" && typ != r.Type {
+	if opts.Type != "" && opts.Type != r.Type {
+		return false, host.Name{}, 0
+	}
+
+	if opts.Sites != nil && !contains(opts.Sites, r.Site) {
 		return false, host.Name{}, 0
 	}
 
@@ -139,6 +151,16 @@ func isValidInstance(service, typ string, lat, lon float64, v v2.HeartbeatMessag
 	}
 
 	return true, machineName, distance
+}
+
+// contains reports whether the given string array contains the given value.
+func contains(sa []string, value string) bool {
+	for _, v := range sa {
+		if v == value {
+			return true
+		}
+	}
+	return false
 }
 
 // sortSites sorts a []site in ascending order based on distance.
