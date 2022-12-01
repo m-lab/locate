@@ -56,7 +56,7 @@ type Locator interface {
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
 // client.
 type LocatorV2 interface {
-	Nearest(service, typ, country string, lat, lon float64) ([]v2.Target, []url.URL, error)
+	Nearest(service string, lat, lon float64, opts *heartbeat.NearestOptions) ([]v2.Target, []url.URL, error)
 	heartbeat.StatusTracker
 }
 
@@ -192,7 +192,8 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	// Find the nearest targets using the client parameters.
 	t := req.URL.Query().Get("machine-type")
 	country := req.Header.Get("X-AppEngine-Country")
-	targets, urls, err := c.LocatorV2.Nearest(service, t, country, lat, lon)
+	opts := &heartbeat.NearestOptions{Type: t, Country: country}
+	targets, urls, err := c.LocatorV2.Nearest(service, lat, lon, opts)
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
 		writeResult(rw, result.Error.Status, &result)
