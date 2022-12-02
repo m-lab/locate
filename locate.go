@@ -186,6 +186,7 @@ func main() {
 
 	// USER APIs
 	// Clients request access tokens for specific services.
+	// TODO(cristinaleon): remove project names in code.
 	if project == "mlab-sandbox" {
 		mux.HandleFunc("/v2/nearest/", http.HandlerFunc(c.Nearest))
 	} else {
