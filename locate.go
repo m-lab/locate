@@ -191,7 +191,6 @@ func main() {
 	} else {
 		mux.HandleFunc("/v2/nearest/", http.HandlerFunc(c.TranslatedQuery))
 	}
-	mux.HandleFunc("/v2/nearest/", http.HandlerFunc(c.TranslatedQuery))
 	// REQUIRED: API keys parameters required for priority requests.
 	mux.HandleFunc("/v2/priority/nearest/", http.HandlerFunc(c.TranslatedQuery))
 	// Beta version of V2 nearest requests.
