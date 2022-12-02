@@ -104,12 +104,14 @@ func NewClientDirect(project string, private Signer, locator Locator, locatorV2 
 
 func extraParams(raw url.Values, version string) url.Values {
 	v := url.Values{}
+	// Add client parameters.
 	for key := range raw {
 		if strings.HasPrefix(key, "client_") {
 			// note: we only use the first value.
 			v.Set(key, raw.Get(key))
 		}
 	}
+	// Add Locate Service version.
 	v.Set("locate_version", version)
 	return v
 }
