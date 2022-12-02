@@ -102,7 +102,7 @@ func NewClientDirect(project string, private Signer, locator Locator, locatorV2 
 	}
 }
 
-func clientValues(raw url.Values) url.Values {
+func extraParams(raw url.Values, version string) url.Values {
 	v := url.Values{}
 	for key := range raw {
 		if strings.HasPrefix(key, "client_") {
@@ -110,6 +110,7 @@ func clientValues(raw url.Values) url.Values {
 			v.Set(key, raw.Get(key))
 		}
 	}
+	v.Set("locate_version", version)
 	return v
 }
 
@@ -153,7 +154,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Populate targets URLs and write out response.
-	c.populateURLs(targets, ports, experiment, req.Form)
+	c.populateURLs(targets, ports, experiment, "v2_proxy", req.Form)
 	result.Results = targets
 	writeResult(rw, http.StatusOK, &result)
 }
@@ -198,7 +199,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Populate target URLs and write out response.
-	c.populateURLs(targets, urls, experiment, req.Form)
+	c.populateURLs(targets, urls, experiment, "v2", req.Form)
 	result.Results = targets
 	writeResult(rw, http.StatusOK, &result)
 	metrics.RequestsTotal.WithLabelValues("nearest", http.StatusText(http.StatusOK)).Inc()
@@ -222,10 +223,10 @@ func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) 
 }
 
 // populateURLs populates each set of URLs using the target configuration.
-func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, form url.Values) {
+func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp, version string, form url.Values) {
 	for i := range targets {
 		token := c.getAccessToken(targets[i].Machine, exp)
-		targets[i].URLs = c.getURLs(ports, targets[i].Machine, exp, token, clientValues(form))
+		targets[i].URLs = c.getURLs(ports, targets[i].Machine, exp, token, extraParams(form, version))
 	}
 }
 
