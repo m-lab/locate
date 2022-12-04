@@ -45,6 +45,26 @@ var (
 		[]string{"experiment"},
 	)
 
+	// HeartbeatHealthStatus exposes the health status received from the
+	// Heartbeat Service.
+	HeartbeatHealthStatus = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "heartbeat_health_status",
+			Help: "Health status received from the Heartbeat Service.",
+		},
+		[]string{"hostname"},
+	)
+
+	// PrometheusHealthStatus exposes the health status collected from
+	// Prometheus.
+	PrometheusHealthStatus = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "prometheus_health_status",
+			Help: "Health status collected from Prometheus.",
+		},
+		[]string{"hostname"},
+	)
+
 	// PrometheusHealthCollectionDuration is a histogram that tracks the latency of the
 	// handler that collects Prometheus health signals.
 	PrometheusHealthCollectionDuration = promauto.NewHistogramVec(
