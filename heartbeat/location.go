@@ -26,9 +26,9 @@ type Locator struct {
 // NearestOptions allows clients to pass parameters modifying how results are
 // filtered.
 type NearestOptions struct {
-	Type    string   // Machine type.
-	Sites   []string // Strict set of sites.
-	Country string
+	Type    string   // Limit results to only machines of this type.
+	Sites   []string // Limit results to only machines at these sites.
+	Country string   // Bias results to prefer machines in this country.
 }
 
 // machine associates a machine name with its v2.Health value.
