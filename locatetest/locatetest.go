@@ -55,7 +55,7 @@ type LocatorV2 struct {
 }
 
 // Nearest returns the pre-configured LocatorV2 Servers or Err.
-func (l *LocatorV2) Nearest(service, typ, country string, lat, lon float64) ([]v2.Target, []url.URL, error) {
+func (l *LocatorV2) Nearest(service string, lat, lon float64, opts *heartbeat.NearestOptions) ([]v2.Target, []url.URL, error) {
 	if l.Err != nil {
 		return nil, nil, l.Err
 	}

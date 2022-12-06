@@ -238,11 +238,10 @@ func TestNearest(t *testing.T) {
 	tests := []struct {
 		name            string
 		service         string
-		typ             string
-		country         string
 		lat             float64
 		lon             float64
 		instances       []v2.HeartbeatMessage
+		opts            *NearestOptions
 		expectedTargets []v2.Target
 		expectedURLs    []url.URL
 		wantErr         bool
@@ -250,10 +249,9 @@ func TestNearest(t *testing.T) {
 		{
 			name:            "NDT7-any-type",
 			service:         "ndt/ndt7",
-			typ:             "",
-			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
+			opts:            &NearestOptions{Type: "", Country: "US"},
 			expectedTargets: []v2.Target{virtualTarget, physicalTarget},
 			expectedURLs:    NDT7Urls,
 			wantErr:         false,
@@ -261,10 +259,9 @@ func TestNearest(t *testing.T) {
 		{
 			name:            "NDT7-physical",
 			service:         "ndt/ndt7",
-			typ:             "physical",
-			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
+			opts:            &NearestOptions{Type: "physical", Country: "US"},
 			expectedTargets: []v2.Target{physicalTarget},
 			expectedURLs:    NDT7Urls,
 			wantErr:         false,
@@ -272,10 +269,9 @@ func TestNearest(t *testing.T) {
 		{
 			name:            "NDT7-virtual",
 			service:         "ndt/ndt7",
-			typ:             "virtual",
-			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
+			opts:            &NearestOptions{Type: "virtual", Country: "US"},
 			expectedTargets: []v2.Target{virtualTarget},
 			expectedURLs:    NDT7Urls,
 			wantErr:         false,
@@ -283,10 +279,9 @@ func TestNearest(t *testing.T) {
 		{
 			name:            "wehe",
 			service:         "wehe/replay",
-			typ:             "",
-			country:         "US",
 			lat:             43.1988,
 			lon:             -75.3242,
+			opts:            &NearestOptions{Type: "", Country: "US"},
 			expectedTargets: []v2.Target{weheTarget},
 			expectedURLs: []url.URL{{
 				Scheme: "wss",
@@ -294,6 +289,26 @@ func TestNearest(t *testing.T) {
 				Path:   "/v0/envelope/access",
 			}},
 			wantErr: false,
+		},
+		{
+			name:            "NDT-sites-found",
+			service:         "ndt/ndt7",
+			lat:             43.1988,
+			lon:             -75.3242,
+			opts:            &NearestOptions{Type: "", Country: "US", Sites: []string{"lga00", "lax00"}},
+			expectedTargets: []v2.Target{virtualTarget, physicalTarget},
+			expectedURLs:    NDT7Urls,
+			wantErr:         false,
+		},
+		{
+			name:            "NDT-sites-empty",
+			service:         "ndt/ndt7",
+			lat:             43.1988,
+			lon:             -75.3242,
+			opts:            &NearestOptions{Type: "", Country: "US", Sites: []string{"foo99", "bar99"}},
+			expectedTargets: nil,
+			expectedURLs:    nil,
+			wantErr:         true,
 		},
 	}
 
@@ -310,7 +325,7 @@ func TestNearest(t *testing.T) {
 				locator.UpdateHealth(i.Registration.Hostname, *i.Health)
 			}
 
-			gotTargets, gotURLs, err := locator.Nearest(tt.service, tt.typ, "", tt.lat, tt.lon)
+			gotTargets, gotURLs, err := locator.Nearest(tt.service, tt.lat, tt.lon, tt.opts)
 
 			if !reflect.DeepEqual(gotTargets, tt.expectedTargets) {
 				t.Errorf("Nearest() targets got: %+v, want %+v", gotTargets, tt.expectedTargets)
@@ -394,7 +409,8 @@ func TestFilterSites(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := filterSites(tt.service, tt.typ, tt.country, tt.lat, tt.lon, instances)
+			opts := &NearestOptions{Type: tt.typ, Country: tt.country}
+			got := filterSites(tt.service, tt.lat, tt.lon, instances, opts)
 
 			sortSites(got)
 			for _, v := range got {
@@ -562,7 +578,8 @@ func TestIsValidInstance(t *testing.T) {
 				},
 				Prometheus: tt.prom,
 			}
-			got, gotHost, gotDist := isValidInstance("ndt/ndt7", tt.typ, 43.1988, -75.3242, v)
+			opts := &NearestOptions{Type: tt.typ}
+			got, gotHost, gotDist := isValidInstance("ndt/ndt7", 43.1988, -75.3242, v, opts)
 
 			if got != tt.expected {
 				t.Errorf("isValidInstance() got: %t, want: %t", got, tt.expected)
