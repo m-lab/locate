@@ -294,3 +294,36 @@ func TestGetPrometheusMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestPromNumericStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		pm   *v2.Prometheus
+		want float64
+	}{
+		{
+			name: "true",
+			pm: &v2.Prometheus{
+				Health: true,
+			},
+			want: 1,
+		},
+		{
+			name: "false",
+			pm: &v2.Prometheus{
+				Health: false,
+			},
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := promNumericStatus(tt.pm)
+
+			if got != tt.want {
+				t.Errorf("promNumericStatus() got: %v, want: %v", got, tt.want)
+			}
+		})
+	}
+}
