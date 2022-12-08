@@ -45,26 +45,6 @@ var (
 		[]string{"experiment"},
 	)
 
-	// HeartbeatHealthStatus exposes the health status received from the
-	// Heartbeat Service.
-	HeartbeatHealthStatus = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "heartbeat_health_status",
-			Help: "Health status received from the Heartbeat Service.",
-		},
-		[]string{"hostname"},
-	)
-
-	// PrometheusHealthStatus exposes the health status collected from
-	// Prometheus.
-	PrometheusHealthStatus = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "prometheus_health_status",
-			Help: "Health status collected from Prometheus.",
-		},
-		[]string{"hostname"},
-	)
-
 	// LocateHealthStatus exposes the health status collected by the Locate Service.
 	LocateHealthStatus = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{

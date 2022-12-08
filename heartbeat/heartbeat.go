@@ -79,7 +79,6 @@ func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) err
 	if err := h.Put(hostname, "Health", &hm, true); err != nil {
 		return err
 	}
-	metrics.HeartbeatHealthStatus.WithLabelValues(hostname).Set(hm.Score)
 	return h.updateHealth(hostname, hm)
 }
 
@@ -95,9 +94,6 @@ func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string
 			if updateErr != nil {
 				err = errPrometheus
 			}
-
-			status := promNumericStatus(pm)
-			metrics.PrometheusHealthStatus.WithLabelValues(instance.Registration.Hostname).Set(status)
 		}
 	}
 
@@ -163,13 +159,7 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 
 	if err == nil {
 		h.instances = values
-
-		metrics.LocateHealthStatus.Reset()
-		for _, instance := range h.instances {
-			if instance.Registration != nil {
-				metrics.LocateHealthStatus.WithLabelValues(instance.Registration.Experiment).Add(getHealth(instance))
-			}
-		}
+		h.updateMetrics()
 	}
 }
 
@@ -206,17 +196,23 @@ func constructPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machine
 	return nil
 }
 
-func promNumericStatus(pm *v2.Prometheus) float64 {
-	if pm.Health {
-		return 1
+func (h *heartbeatStatusTracker) updateMetrics() {
+	healthy := make(map[string]float64)
+	for _, instance := range h.instances {
+		if isHealthy(instance) {
+			healthy[instance.Registration.Experiment]++
+		}
 	}
-	return 0
+
+	for experiment, count := range healthy {
+		metrics.LocateHealthStatus.WithLabelValues(experiment).Set(count)
+	}
 }
 
-func getHealth(instance v2.HeartbeatMessage) float64 {
-	if instance.Health != nil && instance.Health.Score > 0 &&
+func isHealthy(instance v2.HeartbeatMessage) bool {
+	if instance.Registration != nil && instance.Health != nil && instance.Health.Score > 0 &&
 		(instance.Prometheus == nil || instance.Prometheus.Health) {
-		return 1
+		return true
 	}
-	return 0
+	return false
 }
