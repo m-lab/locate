@@ -163,6 +163,13 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 
 	if err == nil {
 		h.instances = values
+
+		metrics.LocateHealthStatus.Reset()
+		for _, instance := range h.instances {
+			if instance.Registration != nil {
+				metrics.LocateHealthStatus.WithLabelValues(instance.Registration.Experiment).Add(getHealth(instance))
+			}
+		}
 	}
 }
 
@@ -201,6 +208,14 @@ func constructPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machine
 
 func promNumericStatus(pm *v2.Prometheus) float64 {
 	if pm.Health {
+		return 1
+	}
+	return 0
+}
+
+func getHealth(instance v2.HeartbeatMessage) float64 {
+	if instance.Health != nil && instance.Health.Score > 0 &&
+		(instance.Prometheus == nil || instance.Prometheus.Health) {
 		return 1
 	}
 	return 0

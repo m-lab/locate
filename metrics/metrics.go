@@ -65,6 +65,15 @@ var (
 		[]string{"hostname"},
 	)
 
+	// LocateHealthStatus exposes the health status collected by the Locate Service.
+	LocateHealthStatus = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "locate_health_status",
+			Help: "Health status collected by the Locate Service.",
+		},
+		[]string{"hostname"},
+	)
+
 	// PrometheusHealthCollectionDuration is a histogram that tracks the latency of the
 	// handler that collects Prometheus health signals.
 	PrometheusHealthCollectionDuration = promauto.NewHistogramVec(
