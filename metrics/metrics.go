@@ -71,7 +71,7 @@ var (
 			Name: "locate_health_status",
 			Help: "Health status collected by the Locate Service.",
 		},
-		[]string{"hostname"},
+		[]string{"experiment"},
 	)
 
 	// PrometheusHealthCollectionDuration is a histogram that tracks the latency of the
