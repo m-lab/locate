@@ -3,7 +3,6 @@ package heartbeat
 import (
 	"errors"
 	"reflect"
-	"runtime"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -11,6 +10,8 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/connection/testdata"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
+	"github.com/m-lab/locate/metrics"
+	prometheus "github.com/prometheus/client_model/go"
 )
 
 var (
@@ -176,18 +177,6 @@ func TestInstancesCopy(t *testing.T) {
 	}
 }
 
-func TestStopImport(t *testing.T) {
-	before := runtime.NumGoroutine()
-	h := NewHeartbeatStatusTracker(fakeDC)
-
-	h.StopImport()
-	after := runtime.NumGoroutine()
-	if after != before {
-		t.Errorf("StopImport() failed to stop import goroutine; got %d, want %d",
-			after, before)
-	}
-}
-
 func TestImportMemorystore(t *testing.T) {
 	fdc := &heartbeattest.FakeMemorystoreClient
 	h := NewHeartbeatStatusTracker(fdc)
@@ -200,6 +189,53 @@ func TestImportMemorystore(t *testing.T) {
 	if diff := deep.Equal(h.instances, expected); diff != nil {
 		t.Errorf("importMemorystore() failed to import; got: %+v, want: %+v", h.instances,
 			expected)
+	}
+}
+
+func TestUpdateMetrics(t *testing.T) {
+	tests := []struct {
+		name       string
+		instances  map[string]v2.HeartbeatMessage
+		experiment string
+		want       float64
+	}{
+		{
+			name: "success",
+			instances: map[string]v2.HeartbeatMessage{
+				testdata.FakeHostname: {
+					Registration: testdata.FakeRegistration.Registration,
+					Health:       testdata.FakeHealth.Health,
+				},
+			},
+			experiment: testdata.FakeRegistration.Registration.Experiment,
+			want:       1,
+		},
+		{
+			name:       "no-metrics",
+			instances:  map[string]v2.HeartbeatMessage{},
+			experiment: "",
+			want:       0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := heartbeatStatusTracker{
+				instances: tt.instances,
+			}
+
+			metrics.LocateHealthStatus.Reset()
+			h.updateMetrics()
+
+			metric := &prometheus.Metric{}
+			gauge := metrics.LocateHealthStatus.With(map[string]string{"experiment": tt.experiment})
+			gauge.Write(metric)
+			got := metric.GetGauge().GetValue()
+
+			if got != tt.want {
+				t.Errorf("updateMetrics() failed; got: %f want %f", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -290,39 +326,6 @@ func TestGetPrometheusMessage(t *testing.T) {
 
 			if !reflect.DeepEqual(pm, tt.want) {
 				t.Errorf("getPrometheusMessage() got: %v, want: %v", pm, tt.want)
-			}
-		})
-	}
-}
-
-func TestPromNumericStatus(t *testing.T) {
-	tests := []struct {
-		name string
-		pm   *v2.Prometheus
-		want float64
-	}{
-		{
-			name: "true",
-			pm: &v2.Prometheus{
-				Health: true,
-			},
-			want: 1,
-		},
-		{
-			name: "false",
-			pm: &v2.Prometheus{
-				Health: false,
-			},
-			want: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := promNumericStatus(tt.pm)
-
-			if got != tt.want {
-				t.Errorf("promNumericStatus() got: %v, want: %v", got, tt.want)
 			}
 		})
 	}
