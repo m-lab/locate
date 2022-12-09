@@ -10,6 +10,8 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/connection/testdata"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
+	"github.com/m-lab/locate/metrics"
+	prometheus "github.com/prometheus/client_model/go"
 )
 
 var (
@@ -180,17 +182,60 @@ func TestImportMemorystore(t *testing.T) {
 	h := NewHeartbeatStatusTracker(fdc)
 	defer h.StopImport()
 
-	fakeHM := v2.HeartbeatMessage{
-		Registration: testdata.FakeRegistration.Registration,
-		Health:       testdata.FakeHealth.Health,
-	}
-	fdc.FakeAdd(testdata.FakeHostname, fakeHM)
+	fdc.FakeAdd(testdata.FakeHostname, testdata.FakeRegistration)
 	h.importMemorystore()
 
-	expected := map[string]v2.HeartbeatMessage{testdata.FakeHostname: fakeHM}
+	expected := map[string]v2.HeartbeatMessage{testdata.FakeHostname: testdata.FakeRegistration}
 	if diff := deep.Equal(h.instances, expected); diff != nil {
 		t.Errorf("importMemorystore() failed to import; got: %+v, want: %+v", h.instances,
 			expected)
+	}
+}
+
+func TestUpdateMetrics(t *testing.T) {
+	tests := []struct {
+		name       string
+		instances  map[string]v2.HeartbeatMessage
+		experiment string
+		want       float64
+	}{
+		{
+			name: "success",
+			instances: map[string]v2.HeartbeatMessage{
+				testdata.FakeHostname: {
+					Registration: testdata.FakeRegistration.Registration,
+					Health:       testdata.FakeHealth.Health,
+				},
+			},
+			experiment: testdata.FakeRegistration.Registration.Experiment,
+			want:       1,
+		},
+		{
+			name:       "no-metrics",
+			instances:  map[string]v2.HeartbeatMessage{},
+			experiment: "",
+			want:       0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := heartbeatStatusTracker{
+				instances: tt.instances,
+			}
+
+			metrics.LocateHealthStatus.Reset()
+			h.updateMetrics()
+
+			metric := &prometheus.Metric{}
+			gauge := metrics.LocateHealthStatus.With(map[string]string{"experiment": tt.experiment})
+			gauge.Write(metric)
+			got := metric.GetGauge().GetValue()
+
+			if got != tt.want {
+				t.Errorf("updateMetrics() failed; got: %f want %f", got, tt.want)
+			}
+		})
 	}
 }
 
