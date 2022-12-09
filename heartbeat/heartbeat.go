@@ -163,6 +163,10 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 	}
 }
 
+// updateMetrics updates a Prometheus Gauge with the number of healthy instances per
+// experiment.
+// Note that if an experiment is deleted (i.e., there are no more experiment instances),
+// the metric will still report the last known count.
 func (h *heartbeatStatusTracker) updateMetrics() {
 	healthy := make(map[string]float64)
 	for _, instance := range h.instances {
