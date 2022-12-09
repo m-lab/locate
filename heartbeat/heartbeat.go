@@ -163,6 +163,19 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 	}
 }
 
+func (h *heartbeatStatusTracker) updateMetrics() {
+	healthy := make(map[string]float64)
+	for _, instance := range h.instances {
+		if isHealthy(instance) {
+			healthy[instance.Registration.Experiment]++
+		}
+	}
+
+	for experiment, count := range healthy {
+		metrics.LocateHealthStatus.WithLabelValues(experiment).Set(count)
+	}
+}
+
 // constructPrometheusMessage constructs a v2.Prometheus message for a specific instance
 // from a map of hostname/machine Prometheus data.
 // If no information is available for the instance, it returns nil.
@@ -194,25 +207,4 @@ func constructPrometheusMessage(instance v2.HeartbeatMessage, hostnames, machine
 	// If no Prometheus data is available for either the host or machine (both missing),
 	// return nil. This case is treated the same way downstream as a healthy signal.
 	return nil
-}
-
-func (h *heartbeatStatusTracker) updateMetrics() {
-	healthy := make(map[string]float64)
-	for _, instance := range h.instances {
-		if isHealthy(instance) {
-			healthy[instance.Registration.Experiment]++
-		}
-	}
-
-	for experiment, count := range healthy {
-		metrics.LocateHealthStatus.WithLabelValues(experiment).Set(count)
-	}
-}
-
-func isHealthy(instance v2.HeartbeatMessage) bool {
-	if instance.Registration != nil && instance.Health != nil && instance.Health.Score > 0 &&
-		(instance.Prometheus == nil || instance.Prometheus.Health) {
-		return true
-	}
-	return false
 }

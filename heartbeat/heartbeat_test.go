@@ -3,7 +3,6 @@ package heartbeat
 import (
 	"errors"
 	"reflect"
-	"runtime"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -176,27 +175,19 @@ func TestInstancesCopy(t *testing.T) {
 	}
 }
 
-func TestStopImport(t *testing.T) {
-	before := runtime.NumGoroutine()
-	h := NewHeartbeatStatusTracker(fakeDC)
-
-	h.StopImport()
-	after := runtime.NumGoroutine()
-	if after != before {
-		t.Errorf("StopImport() failed to stop import goroutine; got %d, want %d",
-			after, before)
-	}
-}
-
 func TestImportMemorystore(t *testing.T) {
 	fdc := &heartbeattest.FakeMemorystoreClient
 	h := NewHeartbeatStatusTracker(fdc)
 	defer h.StopImport()
 
-	fdc.FakeAdd(testdata.FakeHostname, testdata.FakeRegistration)
+	fakeHM := v2.HeartbeatMessage{
+		Registration: testdata.FakeRegistration.Registration,
+		Health:       testdata.FakeHealth.Health,
+	}
+	fdc.FakeAdd(testdata.FakeHostname, fakeHM)
 	h.importMemorystore()
 
-	expected := map[string]v2.HeartbeatMessage{testdata.FakeHostname: testdata.FakeRegistration}
+	expected := map[string]v2.HeartbeatMessage{testdata.FakeHostname: fakeHM}
 	if diff := deep.Equal(h.instances, expected); diff != nil {
 		t.Errorf("importMemorystore() failed to import; got: %+v, want: %+v", h.instances,
 			expected)

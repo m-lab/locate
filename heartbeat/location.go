@@ -118,11 +118,7 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 // isValidInstance returns whether a v2.HeartbeatMessage signals a valid
 // instance that can serve a request given its parameters.
 func isValidInstance(service string, lat, lon float64, v v2.HeartbeatMessage, opts *NearestOptions) (bool, host.Name, float64) {
-	if v.Registration == nil || v.Health == nil || v.Health.Score == 0 {
-		return false, host.Name{}, 0
-	}
-
-	if v.Prometheus != nil && !v.Prometheus.Health {
+	if !isHealthy(v) {
 		return false, host.Name{}, 0
 	}
 
@@ -151,6 +147,18 @@ func isValidInstance(service string, lat, lon float64, v v2.HeartbeatMessage, op
 	}
 
 	return true, machineName, distance
+}
+
+func isHealthy(v v2.HeartbeatMessage) bool {
+	if v.Registration == nil || v.Health == nil || v.Health.Score == 0 {
+		return false
+	}
+
+	if v.Prometheus != nil && !v.Prometheus.Health {
+		return false
+	}
+
+	return true
 }
 
 // contains reports whether the given string array contains the given value.
