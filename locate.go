@@ -186,12 +186,7 @@ func main() {
 
 	// USER APIs
 	// Clients request access tokens for specific services.
-	// TODO(cristinaleon): remove project names in code.
-	if project == "mlab-sandbox" {
-		mux.HandleFunc("/v2/nearest/", http.HandlerFunc(c.Nearest))
-	} else {
-		mux.HandleFunc("/v2/nearest/", http.HandlerFunc(c.TranslatedQuery))
-	}
+	mux.HandleFunc("/v2/nearest/", http.HandlerFunc(c.Nearest))
 	// REQUIRED: API keys parameters required for priority requests.
 	mux.HandleFunc("/v2/priority/nearest/", http.HandlerFunc(c.TranslatedQuery))
 	// Beta version of V2 nearest requests.
