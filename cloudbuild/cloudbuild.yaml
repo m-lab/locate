@@ -21,7 +21,7 @@ steps:
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.18
   env:
   # Use cbif condition: only run these steps in one of these projects.
-  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-ns
+  - PROJECT_IN=mlab-sandbox,mlab-staging
   args:
   - cp cloudbuild/app.yaml.template app.yaml
   - >
