@@ -94,7 +94,7 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 		s, ok := m[r.Site]
 		if !ok {
 			s = &site{
-				distance:     biasedDistance(opts.Country, r, distance),
+				distance:     distance,
 				registration: *r,
 				machines:     make([]machine, 0),
 			}
