@@ -93,11 +93,9 @@ var SiteProbability = map[string]float64{
 	"del03": 0.1,  // virtual site
 	"dfw09": 0.1,  // virtual site
 	"fra07": 0.1,  // virtual site
-	"gru05": 0.1,  // virtual site
 	"hel01": 0.1,  // virtual site
 	"hkg04": 0.1,  // virtual site
 	"hnd01": 0.05, // 0.05
-	"hnd06": 0.1,  // virtual site
 	"iad07": 0.1,  // virtual site
 	"icn01": 0.1,  // virtual site
 	"kix01": 0.1,  // virtual site
