@@ -161,9 +161,9 @@ func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMe
 func (h *heartbeatStatusTracker) importMemorystore() {
 	values, err := h.GetAll()
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	if err == nil {
+		h.mu.Lock()
+		defer h.mu.Unlock()
 		h.instances = values
 		h.updateMetrics()
 	}
