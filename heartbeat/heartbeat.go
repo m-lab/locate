@@ -173,7 +173,6 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 // the metric will still report the last known count.
 func (h *heartbeatStatusTracker) updateMetrics() {
 	healthy := h.getHealthy()
-
 	for experiment, count := range healthy {
 		metrics.LocateHealthStatus.WithLabelValues(experiment).Set(count)
 	}
