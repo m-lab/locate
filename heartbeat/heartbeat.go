@@ -161,6 +161,8 @@ func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMe
 func (h *heartbeatStatusTracker) importMemorystore() {
 	values, err := h.GetAll()
 
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	if err == nil {
 		h.instances = values
 		h.updateMetrics()
@@ -172,18 +174,6 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 // Note that if an experiment is deleted (i.e., there are no more experiment instances),
 // the metric will still report the last known count.
 func (h *heartbeatStatusTracker) updateMetrics() {
-	healthy := h.getHealthy()
-	for experiment, count := range healthy {
-		metrics.LocateHealthStatus.WithLabelValues(experiment).Set(count)
-	}
-}
-
-// getHealthy returns a map of experiments to their corresponding count of healthy
-// instances.
-func (h *heartbeatStatusTracker) getHealthy() map[string]float64 {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
 	healthy := make(map[string]float64)
 	for _, instance := range h.instances {
 		if isHealthy(instance) {
@@ -191,7 +181,9 @@ func (h *heartbeatStatusTracker) getHealthy() map[string]float64 {
 		}
 	}
 
-	return healthy
+	for experiment, count := range healthy {
+		metrics.LocateHealthStatus.WithLabelValues(experiment).Set(count)
+	}
 }
 
 // constructPrometheusMessage constructs a v2.Prometheus message for a specific instance
