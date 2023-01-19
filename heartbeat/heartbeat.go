@@ -85,8 +85,8 @@ func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) err
 // UpdatePrometheus updates the v2.Prometheus field for the instances.
 func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string]bool) error {
 	var err error
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	for _, instance := range h.instances {
 		pm := constructPrometheusMessage(instance, hostnames, machines)
@@ -153,8 +153,6 @@ func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMe
 	}
 
 	// Update locally.
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	instance.Prometheus = pm
 	h.instances[hostname] = instance
 	return nil
