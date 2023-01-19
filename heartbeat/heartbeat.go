@@ -85,6 +85,8 @@ func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) err
 // UpdatePrometheus updates the v2.Prometheus field for the instances.
 func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string]bool) error {
 	var err error
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	for _, instance := range h.instances {
 		pm := constructPrometheusMessage(instance, hostnames, machines)
@@ -103,10 +105,14 @@ func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string
 // Instances returns a mapping of all the v2.HeartbeatMessage instance keys to
 // their values.
 func (h *heartbeatStatusTracker) Instances() map[string]v2.HeartbeatMessage {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
 	c := make(map[string]v2.HeartbeatMessage, len(h.instances))
 	for k, v := range h.instances {
 		c[k] = v
 	}
+
 	return c
 }
 
@@ -147,8 +153,6 @@ func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMe
 	}
 
 	// Update locally.
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	instance.Prometheus = pm
 	h.instances[hostname] = instance
 	return nil
@@ -158,6 +162,8 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 	values, err := h.GetAll()
 
 	if err == nil {
+		h.mu.Lock()
+		defer h.mu.Unlock()
 		h.instances = values
 		h.updateMetrics()
 	}
