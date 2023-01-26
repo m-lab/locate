@@ -18,9 +18,9 @@ network:
 
 automatic_scaling:
   max_num_instances: 20
-  # Anecdotally, it seems to take roughly 5m for an instance to initialize
-  # fully.
-  cool_down_period_sec: 300
+  cool_down_period_sec: 600
+  cpu_utilization:
+    target_utilization: 0.3
 
 env_variables:
   LEGACY_SERVER: https://{{PROJECT}}.appspot.com
