@@ -17,7 +17,7 @@ network:
     - 9090/tcp
 
 automatic_scaling:
-  max_num_instances: 20
+  max_num_instances: 40
   cool_down_period_sec: 300
 
 env_variables:

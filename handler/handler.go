@@ -208,7 +208,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	c.populateURLs(targets, urls, experiment, "v2", req.Form)
 	result.Results = targets
 	writeResult(rw, http.StatusOK, &result)
-	metrics.RequestsTotal.WithLabelValues("nearest", "", http.StatusText(http.StatusOK)).Inc()
+	metrics.RequestsTotal.WithLabelValues("nearest", "success", http.StatusText(http.StatusOK)).Inc()
 }
 
 // checkClientLocation looks up the client location and copies the location
