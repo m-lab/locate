@@ -16,7 +16,7 @@ var (
 			Name: "locate_requests_total",
 			Help: "Number of requests served by the Locate service.",
 		},
-		[]string{"type", "status"},
+		[]string{"type", "condition", "status"},
 	)
 
 	// AppEngineTotal counts the number of times App Engine headers are
@@ -52,6 +52,16 @@ var (
 			Help: "Health status collected by the Locate Service.",
 		},
 		[]string{"experiment"},
+	)
+
+	// ImportMemorystoreTotal counts the number of times the Locate Service has imported
+	// the data in Memorystore.
+	ImportMemorystoreTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "locate_import_memorystore_total",
+			Help: "Number of times the Locate Service has imported the data in Memorystore.",
+		},
+		[]string{"status"},
 	)
 
 	// PrometheusHealthCollectionDuration is a histogram that tracks the latency of the
