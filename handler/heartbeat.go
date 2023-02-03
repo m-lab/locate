@@ -25,10 +25,10 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 	ws, err := upgrader.Upgrade(rw, req, nil)
 	if err != nil {
 		log.Errorf("failed to establish a connection: %v", err)
-		metrics.RequestsTotal.WithLabelValues("heartbeat", err.Error()).Inc()
+		metrics.RequestsTotal.WithLabelValues("heartbeat", "establish connection", err.Error()).Inc()
 		return
 	}
-	metrics.RequestsTotal.WithLabelValues("heartbeat", "OK").Inc()
+	metrics.RequestsTotal.WithLabelValues("heartbeat", "", "OK").Inc()
 	go c.handleHeartbeats(ws)
 }
 

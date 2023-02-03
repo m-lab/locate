@@ -19,8 +19,6 @@ network:
 automatic_scaling:
   max_num_instances: 20
   cool_down_period_sec: 300
-  cpu_utilization:
-    target_utilization: 0.3
 
 env_variables:
   LEGACY_SERVER: https://{{PROJECT}}.appspot.com

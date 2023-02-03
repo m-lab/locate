@@ -161,12 +161,16 @@ func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMe
 func (h *heartbeatStatusTracker) importMemorystore() {
 	values, err := h.GetAll()
 
-	if err == nil {
-		h.mu.Lock()
-		defer h.mu.Unlock()
-		h.instances = values
-		h.updateMetrics()
+	if err != nil {
+		metrics.ImportMemorystoreTotal.WithLabelValues(err.Error()).Inc()
+		return
 	}
+
+	metrics.ImportMemorystoreTotal.WithLabelValues("OK").Inc()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.instances = values
+	h.updateMetrics()
 }
 
 // updateMetrics updates a Prometheus Gauge with the number of healthy instances per
