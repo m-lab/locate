@@ -58,7 +58,7 @@ var (
 	// the data in Memorystore.
 	ImportMemorystoreTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "locate_import_memotystore_total",
+			Name: "locate_import_memorystore_total",
 			Help: "Number of times the Locate Service has imported the data in Memorystore.",
 		},
 		[]string{"status"},
