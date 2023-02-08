@@ -137,5 +137,5 @@ var SiteProbability = map[string]float64{
 	"yyc02": 0.5,
 	"yyz02": 0.2, // 0.2
 	"yyz07": 0.2, // virtual site
-	"zrh01": 0.1, // virtual site
+	"zrh01": 0.2, // virtual site
 }
