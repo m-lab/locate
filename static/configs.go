@@ -92,7 +92,7 @@ var SiteProbability = map[string]float64{
 	"cmh01": 0.2, // virtual site
 	"del03": 0.2, // virtual site
 	"dfw09": 0.2, // virtual site
-	"fra07": 0.2, // virtual site
+	"fra07": 1.0, // virtual site
 	"gru01": 0.1,
 	"gru02": 0.1,
 	"gru03": 0.1,
@@ -117,6 +117,14 @@ var SiteProbability = map[string]float64{
 	"mil08": 0.2, // virtual site
 	"oma01": 0.2, // virtual site
 	"ord07": 0.2, // virtual site
+
+	// TRIAL(github.com/m-lab/ops-tracker/issues/1720) for PRG metro.
+	"prg02": 0.3,
+	"prg03": 0.3,
+	"prg04": 0.3,
+	"prg05": 0.3,
+	"prg06": 0.3,
+
 	"par08": 0.2, // virtual site
 	"pdx01": 0.2, // virtual site
 	"scl05": 0.2, // virtual site
@@ -127,7 +135,7 @@ var SiteProbability = map[string]float64{
 	"tpe02": 0.2, // virtual site
 	"tun01": 0.5,
 	"vie01": 0.5,
-	"waw01": 0.2, // virtual site
+	"waw01": 1.0, // virtual site
 	"yqm01": 0.5,
 	"yul02": 0.2, // 0.2
 	"yul07": 0.2, // virtual site
