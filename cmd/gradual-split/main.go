@@ -76,9 +76,20 @@ func main() {
 		fmt.Println("Traffic already split to latest version")
 		return
 	}
-
+	opt := &internal.SplitOptions{
+		From:  vfrom,
+		To:    vto,
+		Delay: delay,
+		Sequence: []internal.Split{
+			{From: 0.90, To: 0.10}, // the biggest disruption appears to happen in the first step.
+			{From: 0.75, To: 0.25},
+			{From: 0.50, To: 0.50},
+			{From: 0.25, To: 0.75},
+			{From: 0.00, To: 1.00},
+		},
+	}
 	fmt.Println("Starting split:", vfrom, vto, service.Split.Allocations)
-	err = internal.PerformSplit(ctx, api, service, delay, vfrom, vto)
+	err = internal.PerformSplit(ctx, api, service, opt)
 	rtx.Must(err, "failed to perform split")
 
 	// Stop serving the vfrom verison.
