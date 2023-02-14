@@ -10,11 +10,13 @@ import (
 	appengine "google.golang.org/api/appengine/v1"
 )
 
+// Split represents traffic ratios "split" between two versions.
 type Split struct {
 	From float64
 	To   float64
 }
 
+// SplitOptions collects multiple values needed to perform the gradual split.
 type SplitOptions struct {
 	From     string
 	To       string
@@ -22,11 +24,14 @@ type SplitOptions struct {
 	Sequence []Split
 }
 
+// AppWrapper provides fakeable access to the App Engine Admin API.
 type AppWrapper interface {
 	VersionPages(ctx context.Context, serviceID string, f func(listVer *appengine.ListVersionsResponse) error) error
 	ServiceUpdate(ctx context.Context, serviceID string, service *appengine.Service, mask string) (*appengine.Operation, error)
 }
 
+// lookupLatestVersion returns the latest serving version string. The return
+// value will be empty if verFrom is the latest version.
 func lookupLatestVersion(ctx context.Context, api AppWrapper, verFrom string) (string, error) {
 	latest := ""
 	err := api.VersionPages(ctx, "locate", func(lv *appengine.ListVersionsResponse) error {
@@ -87,7 +92,8 @@ func GetVersions(ctx context.Context, api AppWrapper, service *appengine.Service
 	return vfrom, vto, nil
 }
 
-// PerformSplit
+// PerformSplit applies the sequence of split options pausing by Delay after
+// each step. PerformSplit can resume a split in progress.
 func PerformSplit(ctx context.Context, api AppWrapper, service *appengine.Service, opt *SplitOptions) error {
 	// delay time.Duration, vfrom, vto string) error {
 	// Check which split sequence position to start from. We can assume that
