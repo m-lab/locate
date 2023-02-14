@@ -8,15 +8,20 @@ options:
 steps:
 # Run unit tests for environment.
 - name: gcr.io/$PROJECT_ID/golang-cbif:1.18
-  env:
-  - GONOPROXY=github.com/m-lab/go/*
-  - CGO_ENABLED=0
+  #env:
+  #- GONOPROXY=github.com/m-lab/go/*
   args:
   - go version
   - go get -v -t ./...
   - go vet ./...
   - go test ./... -race
   - go test -v ./...
+
+# Run unit tests for environment.
+- name: gcr.io/$PROJECT_ID/golang-cbif:1.18
+  env:
+  - CGO_ENABLED=0
+  args:
   - go build ./cmd/gradual-split
 
 # Deployment of APIs in sandbox, staging, & mlab-ns.
