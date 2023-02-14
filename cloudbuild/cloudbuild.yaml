@@ -8,8 +8,6 @@ options:
 steps:
 # Run unit tests for environment.
 - name: gcr.io/$PROJECT_ID/golang-cbif:1.18
-  #env:
-  #- GONOPROXY=github.com/m-lab/go/*
   args:
   - go version
   - go get -v -t ./...
@@ -42,21 +40,3 @@ steps:
   # After deploying the new service, deploy the openapi spec.
   - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' openapi.yaml
   - gcloud endpoints services deploy openapi.yaml
-
-# Deployment of APIs in mlab-ns.
-#- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.18
-#  env:
-#  # Use cbif condition: only run these steps in one of these projects.
-#  - PROJECT_IN=mlab-ns
-#  args:
-#  - cp cloudbuild/app.yaml.template app.yaml
-#  - >
-#    sed -i
-#    -e 's/{{PROJECT}}/$PROJECT_ID/g'
-#    -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
-#    -e 's/{{REDIS_ADDRESS}}/$_REDIS_ADDRESS/'
-#    app.yaml
-#  - gcloud --project $PROJECT_ID app deploy --no-promote app.yaml
-#  # After deploying the new service, deploy the openapi spec.
-#  - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' openapi.yaml
-#  - gcloud endpoints services deploy openapi.yaml
