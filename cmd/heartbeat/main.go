@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
@@ -53,8 +54,21 @@ func main() {
 	prom := prometheusx.MustServeMetrics()
 	defer prom.Close()
 
+	// Parse the node's name into its constituent parts. This ensures that the
+	// value of the -hostname flag is actually valid. Additionally, virtual
+	// nodes which are part of a managed instance group may have a random
+	// suffix, which Locate cannot use, so we explicitly only include
+	// the parts of the node name that Locate actually cares about. The
+	// resultant variable mlabHostname should match a machine name in siteinfo's
+	// registration.json:
+	//
+	// https://siteinfo.mlab-oti.measurementlab.net/v2/sites/registration.json
+	h, err := host.Parse(hostname)
+	rtx.Must(err, "Failed to parse -hostname flag value")
+	mlabHostname := h.String()
+
 	// Load registration data.
-	r, err := LoadRegistration(mainCtx, hostname, registrationURL.URL)
+	r, err := LoadRegistration(mainCtx, mlabHostname, registrationURL.URL)
 	rtx.Must(err, "could not load registration data")
 	// Populate flag values.
 	s := services.Get()
