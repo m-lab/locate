@@ -171,8 +171,20 @@ func Test_PerformSplit(t *testing.T) {
 					},
 				},
 			}
+			opt := &SplitOptions{
+				From:  tt.vfrom,
+				To:    tt.vto,
+				Delay: delay,
+				Sequence: []Split{
+					{From: 0.90, To: 0.10}, // the biggest disruption appears to happen in the first step.
+					{From: 0.75, To: 0.25},
+					{From: 0.50, To: 0.50},
+					{From: 0.25, To: 0.75},
+					{From: 0.00, To: 1.00},
+				},
+			}
 
-			err := PerformSplit(ctx, api, service, delay, tt.vfrom, tt.vto)
+			err := PerformSplit(ctx, api, service, opt)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PerformSplit() error = %v, wantErr %v", err, tt.wantErr)
 			}

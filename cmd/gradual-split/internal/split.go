@@ -10,17 +10,16 @@ import (
 	appengine "google.golang.org/api/appengine/v1"
 )
 
-type split struct {
+type Split struct {
 	From float64
 	To   float64
 }
 
-var splitSequence = []split{
-	{0.9, 0.1}, // the biggest disruption appears to happen in the first step.
-	{0.75, 0.25},
-	{0.5, 0.5},
-	{0.25, 0.75},
-	{0.0, 1},
+type SplitOptions struct {
+	From     string
+	To       string
+	Delay    time.Duration
+	Sequence []Split
 }
 
 type AppWrapper interface {
@@ -28,7 +27,7 @@ type AppWrapper interface {
 	ServiceUpdate(ctx context.Context, serviceID string, service *appengine.Service, mask string) (*appengine.Operation, error)
 }
 
-func LookupLatestVersion(ctx context.Context, api AppWrapper, verFrom string) (string, error) {
+func lookupLatestVersion(ctx context.Context, api AppWrapper, verFrom string) (string, error) {
 	latest := ""
 	err := api.VersionPages(ctx, "locate", func(lv *appengine.ListVersionsResponse) error {
 		for _, version := range lv.Versions {
@@ -50,6 +49,8 @@ func LookupLatestVersion(ctx context.Context, api AppWrapper, verFrom string) (s
 	return latest, err
 }
 
+// GetVersions returns the current active and latest version. If vfrom and vto
+// are provided, they can override the result.
 func GetVersions(ctx context.Context, api AppWrapper, service *appengine.Service, vfrom, vto string) (string, string, error) {
 	switch {
 	case vfrom != "" && vto != "":
@@ -63,7 +64,7 @@ func GetVersions(ctx context.Context, api AppWrapper, service *appengine.Service
 		}
 		if vto == "" {
 			var err error
-			vto, err = LookupLatestVersion(ctx, api, vfrom)
+			vto, err = lookupLatestVersion(ctx, api, vfrom)
 			if err != nil {
 				return "", "", err
 			}
@@ -86,28 +87,30 @@ func GetVersions(ctx context.Context, api AppWrapper, service *appengine.Service
 	return vfrom, vto, nil
 }
 
-func PerformSplit(ctx context.Context, api AppWrapper, service *appengine.Service, delay time.Duration, vfrom, vto string) error {
+// PerformSplit
+func PerformSplit(ctx context.Context, api AppWrapper, service *appengine.Service, opt *SplitOptions) error {
+	// delay time.Duration, vfrom, vto string) error {
 	// Check which split sequence position to start from. We can assume that
 	// vfrom will always be present in the currnet split Allocation.
-	for i := range splitSequence {
-		split := splitSequence[i]
-		if split.To <= service.Split.Allocations[vto] {
+	for i := range opt.Sequence {
+		split := opt.Sequence[i]
+		if split.To <= service.Split.Allocations[opt.To] {
 			continue
 		}
-		fmt.Println("Splitting traffic from:", vfrom, split.From, "-> to:", vto, split.To)
-		service.Split.Allocations[vfrom] = split.From
-		service.Split.Allocations[vto] = split.To
+		fmt.Print("Splitting traffic from:", opt.From, split.From, "-> to:", opt.To, split.To, "")
+		service.Split.Allocations[opt.From] = split.From
+		service.Split.Allocations[opt.To] = split.To
 		if split.From == 0.0 {
 			// You cannot set a split percentage of zero.
-			delete(service.Split.Allocations, vfrom)
+			delete(service.Split.Allocations, opt.From)
 		}
 		service.Split.ShardBy = "IP" // Make traffic sticky.
 		op, err := api.ServiceUpdate(ctx, "locate", service, "split")
 		if err != nil {
 			return fmt.Errorf("%v: failed to update service traffic split: %#v", err, op)
 		}
-		fmt.Println("Sleeping", delay)
-		time.Sleep(delay)
+		fmt.Println("sleeping", opt.Delay)
+		time.Sleep(opt.Delay)
 	}
 	return nil
 }
