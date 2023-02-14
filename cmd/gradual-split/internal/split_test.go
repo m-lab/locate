@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"context"
@@ -33,7 +33,7 @@ func (a *fakeAPI) ServiceUpdate(ctx context.Context, serviceID string, service *
 	return nil, nil // a.apis.Apps.Services.Patch(project, serviceID, service).UpdateMask(mask).Do()
 }
 
-func Test_getVersions(t *testing.T) {
+func Test_GetVersions(t *testing.T) {
 	tests := []struct {
 		name        string
 		versions    []*appengine.Version
@@ -118,22 +118,22 @@ func Test_getVersions(t *testing.T) {
 					Allocations: tt.allocations,
 				},
 			}
-			gotFrom, gotTo, err := getVersions(ctx, api, service, tt.from, tt.to)
+			gotFrom, gotTo, err := GetVersions(ctx, api, service, tt.from, tt.to)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("getVersions() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetVersions() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if gotFrom != tt.wantFrom {
-				t.Errorf("getVersions() got = %v, want %v", gotFrom, tt.wantFrom)
+				t.Errorf("GetVersions() got = %v, want %v", gotFrom, tt.wantFrom)
 			}
 			if gotTo != tt.wantTo {
-				t.Errorf("getVersions() got1 = %v, want %v", gotTo, tt.wantTo)
+				t.Errorf("GetVersions() got1 = %v, want %v", gotTo, tt.wantTo)
 			}
 		})
 	}
 }
 
-func Test_performSplit(t *testing.T) {
+func Test_PerformSplit(t *testing.T) {
 	tests := []struct {
 		name       string
 		vfrom      string
@@ -152,7 +152,7 @@ func Test_performSplit(t *testing.T) {
 			wantErr:    true,
 		},
 	}
-	delay = time.Millisecond
+	delay := time.Millisecond
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
@@ -172,9 +172,9 @@ func Test_performSplit(t *testing.T) {
 				},
 			}
 
-			err := performSplit(ctx, api, service, tt.vfrom, tt.vto)
+			err := PerformSplit(ctx, api, service, delay, tt.vfrom, tt.vto)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("performSplit() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("PerformSplit() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
