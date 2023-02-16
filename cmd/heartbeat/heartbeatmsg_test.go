@@ -45,6 +45,13 @@ func Test_LoadRegistration(t *testing.T) {
 			wantMsg:  validMsg,
 		},
 		{
+			name:     "valid-hostname-with-suffix",
+			hostname: validHostname + "-t95j",
+			url:      validURL,
+			wantErr:  false,
+			wantMsg:  validMsg,
+		},
+		{
 			name:     "invalid-hostname",
 			hostname: "foo",
 			url:      validURL,

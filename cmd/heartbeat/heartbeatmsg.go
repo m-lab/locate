@@ -7,12 +7,18 @@ import (
 	"net/url"
 
 	"github.com/m-lab/go/content"
+	"github.com/m-lab/go/host"
 	v2 "github.com/m-lab/locate/api/v2"
 )
 
 // LoadRegistration downloads the registration data from the registration
 // URL and matches it with the provided hostname.
 func LoadRegistration(ctx context.Context, hostname string, url *url.URL) (*v2.Registration, error) {
+	h, err := host.Parse(hostname)
+	if err != nil {
+		return nil, err
+	}
+
 	if url == nil {
 		return nil, content.ErrUnsupportedURLScheme
 	}
@@ -32,8 +38,8 @@ func LoadRegistration(ctx context.Context, hostname string, url *url.URL) (*v2.R
 		return nil, err
 	}
 
-	if v, ok := registrations[hostname]; ok {
-		v.Hostname = hostname
+	if v, ok := registrations[h.String()]; ok {
+		v.Hostname = h.StringWithService()
 		return &v, nil
 	}
 
