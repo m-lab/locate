@@ -26,7 +26,8 @@ liveness_check:
 
 readiness_check:
   path: "/v2/ready"
-  app_start_timeout_sec: 300
+  check_interval_sec: 10  # Note: this frequency is twice as often as we expect the memorystore import to succeed.
+  app_start_timeout_sec: 600
 
 env_variables:
   LEGACY_SERVER: https://{{PROJECT}}.appspot.com
