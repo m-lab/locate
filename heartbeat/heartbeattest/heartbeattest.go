@@ -75,5 +75,10 @@ func (t *FakeStatusTracker) Instances() map[string]v2.HeartbeatMessage {
 	return nil
 }
 
+// Ready always return true.
+func (t *FakeStatusTracker) Ready() bool {
+	return t.Err == nil
+}
+
 // StopImport does nothing.
 func (t *FakeStatusTracker) StopImport() {}
