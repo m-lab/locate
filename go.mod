@@ -14,10 +14,11 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/justinas/alice v1.2.0
 	github.com/m-lab/access v0.0.10
-	github.com/m-lab/go v0.1.54
+	github.com/m-lab/go v0.1.58
 	github.com/m-lab/uuid-annotator v0.4.5
 	github.com/oschwald/geoip2-golang v1.5.0
 	github.com/prometheus/client_golang v1.13.0
+	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.37.0
 	github.com/rafaeljusto/redigomock v2.4.0+incompatible
 	github.com/sirupsen/logrus v1.8.1
@@ -65,7 +66,6 @@ require (
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/oschwald/maxminddb-golang v1.8.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect

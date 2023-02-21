@@ -526,10 +526,12 @@ func TestIsValidInstance(t *testing.T) {
 			score:        validScore,
 			expected:     true,
 			expectedHost: host.Name{
+				Service: "ndt",
 				Machine: "mlab1",
 				Site:    "lga00",
 				Project: "mlab-sandbox",
 				Domain:  "measurement-lab.org",
+				Suffix:  "",
 				Version: "v2",
 			},
 			expectedDist: 296.043665,
@@ -545,10 +547,12 @@ func TestIsValidInstance(t *testing.T) {
 			score:        validScore,
 			expected:     true,
 			expectedHost: host.Name{
+				Service: "ndt",
 				Machine: "mlab1",
 				Site:    "lga00",
 				Project: "mlab-sandbox",
 				Domain:  "measurement-lab.org",
+				Suffix:  "",
 				Version: "v2",
 			},
 			expectedDist: 296.043665,
@@ -586,7 +590,7 @@ func TestIsValidInstance(t *testing.T) {
 			}
 
 			if gotHost != tt.expectedHost {
-				t.Errorf("isValidInstance() host got: %+v, want: %+v", gotHost, tt.expectedHost)
+				t.Errorf("isValidInstance() host got: %#v, want: %#v", gotHost, tt.expectedHost)
 			}
 
 			if math.Abs(gotDist-tt.expectedDist) > 0.01 {
