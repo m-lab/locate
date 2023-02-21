@@ -81,7 +81,7 @@ var (
 			Name: "connection_requests_total",
 			Help: "Number of connection requests from the HBS to the Locate Service.",
 		},
-		[]string{"status", "code"},
+		[]string{"status"},
 	)
 
 	// PortChecksTotal counts the number of port checks performed by the Heartbeat
