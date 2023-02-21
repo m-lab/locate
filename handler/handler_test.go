@@ -453,7 +453,7 @@ func TestClient_Ready(t *testing.T) {
 			rtx.Must(err, "Failed to create request")
 			resp, err := http.DefaultClient.Do(req)
 			rtx.Must(err, "failed to issue request")
-			if resp.StatusCode == tt.wantStatus {
+			if resp.StatusCode != tt.wantStatus {
 				t.Errorf("Ready() wrong status; got %d; want %d", resp.StatusCode, tt.wantStatus)
 			}
 			defer resp.Body.Close()
@@ -462,7 +462,7 @@ func TestClient_Ready(t *testing.T) {
 			rtx.Must(err, "Failed to create request")
 			resp, err = http.DefaultClient.Do(req)
 			rtx.Must(err, "failed to issue request")
-			if resp.StatusCode == http.StatusOK {
+			if resp.StatusCode != http.StatusOK {
 				t.Errorf("Ready() wrong status; got %d; want %d", resp.StatusCode, http.StatusOK)
 			}
 			defer resp.Body.Close()
