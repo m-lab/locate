@@ -463,7 +463,7 @@ func TestClient_Ready(t *testing.T) {
 			resp, err = http.DefaultClient.Do(req)
 			rtx.Must(err, "failed to issue request")
 			if resp.StatusCode != http.StatusOK {
-				t.Errorf("Ready() wrong status; got %d; want %d", resp.StatusCode, http.StatusOK)
+				t.Errorf("Live() wrong status; got %d; want %d", resp.StatusCode, http.StatusOK)
 			}
 			defer resp.Body.Close()
 		})
