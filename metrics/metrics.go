@@ -74,6 +74,16 @@ var (
 		[]string{"code"},
 	)
 
+	// ConnectionRequestsTotal counts the number of (re)connection requests the Heartbeat Service
+	// makes to the Locate Service.
+	ConnectionRequestsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "connection_requests_total",
+			Help: "Number of connection requests from the HBS to the Locate Service.",
+		},
+		[]string{"status"},
+	)
+
 	// PortChecksTotal counts the number of port checks performed by the Heartbeat
 	// Service.
 	PortChecksTotal = promauto.NewCounterVec(
