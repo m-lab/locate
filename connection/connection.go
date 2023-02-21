@@ -236,19 +236,19 @@ func (c *Conn) connect() error {
 			if resp != nil && !retryErrors[resp.StatusCode] {
 				log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
 					c.url.String(), err, resp.StatusCode)
-				metrics.ConnectionRequestsTotal.WithLabelValues(http.StatusText(resp.StatusCode)).Inc()
+				metrics.ConnectionRequestsTotal.WithLabelValues("error", http.StatusText(resp.StatusCode)).Inc()
 				ticker.Stop()
 			}
 			log.Printf("could not establish a connection with %s (will retry), err: %v",
 				c.url.String(), err)
-			metrics.ConnectionRequestsTotal.WithLabelValues(http.StatusText(resp.StatusCode)).Inc()
+			metrics.ConnectionRequestsTotal.WithLabelValues("retry", http.StatusText(resp.StatusCode)).Inc()
 			continue
 		}
 
 		c.ws = ws
 		c.isConnected = true
 		log.Printf("successfully established a connection with %s", c.url.String())
-		metrics.ConnectionRequestsTotal.WithLabelValues(http.StatusText(resp.StatusCode)).Inc()
+		metrics.ConnectionRequestsTotal.WithLabelValues("success", http.StatusText(resp.StatusCode)).Inc()
 		ticker.Stop()
 	}
 
