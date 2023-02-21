@@ -238,6 +238,7 @@ func (c *Conn) connect() error {
 					c.url.String(), err, resp.StatusCode)
 				metrics.ConnectionRequestsTotal.WithLabelValues("error").Inc()
 				ticker.Stop()
+				return err
 			}
 			log.Printf("could not establish a connection with %s (will retry), err: %v",
 				c.url.String(), err)
