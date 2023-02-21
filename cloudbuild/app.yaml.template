@@ -26,7 +26,8 @@ liveness_check:
 
 readiness_check:
   path: "/v2/ready"
-  check_interval_sec: 10  # Note: this frequency is twice as often as we expect the memorystore import to succeed.
+  # Note: the check frequency here should be at most half the threshold set in heartbeat.go:Ready().
+  check_interval_sec: 10
   app_start_timeout_sec: 600
 
 env_variables:
