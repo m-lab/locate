@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -211,6 +212,21 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	result.Results = targets
 	writeResult(rw, http.StatusOK, &result)
 	metrics.RequestsTotal.WithLabelValues("nearest", "success", http.StatusText(http.StatusOK)).Inc()
+}
+
+// Live is a minimal handler to indicate that the server is operating at all.
+func (c *Client) Live(rw http.ResponseWriter, req *http.Request) {
+	fmt.Fprintf(rw, "ok")
+}
+
+// Ready reports whether the server is working as expected and ready to serve requests.
+func (c *Client) Ready(rw http.ResponseWriter, req *http.Request) {
+	if c.LocatorV2.Ready() {
+		fmt.Fprintf(rw, "ok")
+	} else {
+		rw.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(rw, "not ready")
+	}
 }
 
 // checkClientLocation looks up the client location and copies the location
