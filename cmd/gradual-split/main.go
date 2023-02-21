@@ -49,6 +49,9 @@ func (a *AppAPI) VersionPages(ctx context.Context, serviceID string,
 	return a.apis.Apps.Services.Versions.List(a.project, serviceID).Pages(ctx, f)
 }
 
+// ServiceUpdate pathes the given serviceID with values from the given service
+// identified by fields in mask. For details on field mask format, see:
+// https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1/apps.services/patch
 func (a *AppAPI) ServiceUpdate(ctx context.Context, serviceID string, service *appengine.Service, mask string) (*appengine.Operation, error) {
 	return a.apis.Apps.Services.Patch(project, serviceID, service).UpdateMask(mask).Do()
 }

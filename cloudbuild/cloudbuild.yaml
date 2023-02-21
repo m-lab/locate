@@ -15,7 +15,7 @@ steps:
   - go test ./... -race
   - go test -v ./...
 
-# Run unit tests for environment.
+# Buil gradual-split command.
 - name: gcr.io/$PROJECT_ID/golang-cbif:1.18
   env:
   - CGO_ENABLED=0

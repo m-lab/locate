@@ -30,7 +30,7 @@ func (a *fakeAPI) ServiceUpdate(ctx context.Context, serviceID string, service *
 	if a.serviceErr != nil {
 		return nil, a.serviceErr
 	}
-	return nil, nil // a.apis.Apps.Services.Patch(project, serviceID, service).UpdateMask(mask).Do()
+	return nil, nil
 }
 
 func Test_GetVersions(t *testing.T) {

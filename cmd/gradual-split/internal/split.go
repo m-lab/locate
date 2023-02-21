@@ -40,10 +40,6 @@ func lookupLatestVersion(ctx context.Context, api AppWrapper, verFrom string) (s
 				// We can only split to versions that are running.
 				continue
 			}
-			if verFrom >= version.Id {
-				// Skip older versions.
-				continue
-			}
 			// Find the latest version.
 			if version.Id > latest {
 				latest = version.Id
@@ -51,6 +47,10 @@ func lookupLatestVersion(ctx context.Context, api AppWrapper, verFrom string) (s
 		}
 		return nil
 	})
+	if verFrom >= latest {
+		// Skip older versions.
+		return "", err
+	}
 	return latest, err
 }
 
@@ -95,7 +95,6 @@ func GetVersions(ctx context.Context, api AppWrapper, service *appengine.Service
 // PerformSplit applies the sequence of split options pausing by Delay after
 // each step. PerformSplit can resume a split in progress.
 func PerformSplit(ctx context.Context, api AppWrapper, service *appengine.Service, opt *SplitOptions) error {
-	// delay time.Duration, vfrom, vto string) error {
 	// Check which split sequence position to start from. We can assume that
 	// vfrom will always be present in the currnet split Allocation.
 	for i := range opt.Sequence {
