@@ -12,6 +12,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/gorilla/websocket"
+	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 )
 
@@ -126,12 +127,12 @@ func (c *Conn) Dial(address string, header http.Header, dialMsg interface{}) err
 // message.
 //
 // The write will fail under the following conditions:
-//	1. The client has not called Dial (ErrNotDialed).
-//	2. The connection is disconnected and it was not able to
-//	   reconnect (ErrTooManyReconnects or an internal connection
-//	   error).
-//	3. The write call in the websocket package failed
-//	   (gorilla/websocket error).
+//  1. The client has not called Dial (ErrNotDialed).
+//  2. The connection is disconnected and it was not able to
+//     reconnect (ErrTooManyReconnects or an internal connection
+//     error).
+//  3. The write call in the websocket package failed
+//     (gorilla/websocket error).
 func (c *Conn) WriteMessage(messageType int, data interface{}) error {
 	if !c.isDialed {
 		return ErrNotDailed
@@ -235,16 +236,19 @@ func (c *Conn) connect() error {
 			if resp != nil && !retryErrors[resp.StatusCode] {
 				log.Printf("error trying to establish a connection with %s, err: %v, status: %d",
 					c.url.String(), err, resp.StatusCode)
+				metrics.ConnectionRequestsTotal.WithLabelValues(http.StatusText(resp.StatusCode)).Inc()
 				ticker.Stop()
 			}
 			log.Printf("could not establish a connection with %s (will retry), err: %v",
 				c.url.String(), err)
+			metrics.ConnectionRequestsTotal.WithLabelValues(http.StatusText(resp.StatusCode)).Inc()
 			continue
 		}
 
 		c.ws = ws
 		c.isConnected = true
 		log.Printf("successfully established a connection with %s", c.url.String())
+		metrics.ConnectionRequestsTotal.WithLabelValues(http.StatusText(resp.StatusCode)).Inc()
 		ticker.Stop()
 	}
 
