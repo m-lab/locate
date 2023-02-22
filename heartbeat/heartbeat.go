@@ -20,9 +20,10 @@ var (
 
 type heartbeatStatusTracker struct {
 	MemorystoreClient[v2.HeartbeatMessage]
-	instances map[string]v2.HeartbeatMessage
-	mu        sync.RWMutex
-	stop      chan bool
+	instances  map[string]v2.HeartbeatMessage
+	mu         sync.RWMutex
+	stop       chan bool
+	lastUpdate time.Time
 }
 
 // MemorystoreClient is a client for reading and writing data in Memorystore.
@@ -116,6 +117,14 @@ func (h *heartbeatStatusTracker) Instances() map[string]v2.HeartbeatMessage {
 	return c
 }
 
+// Ready reports whether the import to Memorystore has complete successfully
+// within 2x the export period.
+func (h *heartbeatStatusTracker) Ready() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return time.Since(h.lastUpdate) <= 2*static.MemorystoreExportPeriod
+}
+
 // StopImport stops importing instance data from the Memorystore.
 // It must be called to release resources.
 func (h *heartbeatStatusTracker) StopImport() {
@@ -170,6 +179,7 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.instances = values
+	h.lastUpdate = time.Now()
 	h.updateMetrics()
 }
 

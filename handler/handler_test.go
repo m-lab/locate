@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/m-lab/locate/heartbeat/heartbeattest"
+
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
@@ -418,4 +420,52 @@ func TestNewClientDirect(t *testing.T) {
 			t.Error("got nil client!")
 		}
 	})
+}
+
+func TestClient_Ready(t *testing.T) {
+	tests := []struct {
+		name       string
+		fakeErr    error
+		wantStatus int
+	}{
+		{
+			name:       "success",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "error-not-ready",
+			fakeErr:    errors.New("fake error"),
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewClient("foo", &fakeSigner{}, &fakeLocator{},
+				&fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil)
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("/ready/", c.Ready)
+			mux.HandleFunc("/live/", c.Live)
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			req, err := http.NewRequest(http.MethodGet, srv.URL+"/ready", nil)
+			rtx.Must(err, "Failed to create request")
+			resp, err := http.DefaultClient.Do(req)
+			rtx.Must(err, "failed to issue request")
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("Ready() wrong status; got %d; want %d", resp.StatusCode, tt.wantStatus)
+			}
+			defer resp.Body.Close()
+
+			req, err = http.NewRequest(http.MethodGet, srv.URL+"/live", nil)
+			rtx.Must(err, "Failed to create request")
+			resp, err = http.DefaultClient.Do(req)
+			rtx.Must(err, "failed to issue request")
+			if resp.StatusCode != http.StatusOK {
+				t.Errorf("Live() wrong status; got %d; want %d", resp.StatusCode, http.StatusOK)
+			}
+			defer resp.Body.Close()
+		})
+	}
 }

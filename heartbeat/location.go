@@ -51,6 +51,7 @@ type StatusTracker interface {
 	UpdatePrometheus(hostnames, machines map[string]bool) error
 	Instances() map[string]v2.HeartbeatMessage
 	StopImport()
+	Ready() bool
 }
 
 // NewServerLocator creates a new Locator instance.
