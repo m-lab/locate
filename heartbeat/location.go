@@ -4,11 +4,13 @@ import (
 	"errors"
 	"net/url"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/mathx"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 )
 
@@ -190,6 +192,7 @@ func pickTargets(service string, sites []site) ([]v2.Target, []url.URL) {
 
 	for i := 0; i < numTargets; i++ {
 		index := rand.GetExpDistributedInt(1) % len(sites)
+		metrics.ServerDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(index))
 		s := sites[index]
 		// TODO(cristinaleon): Once health values range between 0 and 1,
 		// pick based on health. For now, pick at random.
