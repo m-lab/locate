@@ -82,8 +82,9 @@ var (
 	// metrics.ServerDistanceRanking.WithLabelValues(0).Observe(1)
 	ServerDistanceRanking = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name: "locate_server_distance_ranking",
-			Help: "A histogram of server selection rankings with respect to distance from the client.",
+			Name:    "locate_server_distance_ranking",
+			Help:    "A histogram of server selection rankings with respect to distance from the client.",
+			Buckets: prometheus.LinearBuckets(0, 1000, 1),
 		},
 		[]string{"index"},
 	)
