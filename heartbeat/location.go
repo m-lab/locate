@@ -180,9 +180,8 @@ func sortSites(sites []site) {
 	sort.Slice(sites, func(i, j int) bool {
 		return sites[i].distance < sites[j].distance
 	})
-
-	for i, site := range sites {
-		site.rank = i
+	for i := range sites {
+		sites[i].rank = i
 	}
 }
 
