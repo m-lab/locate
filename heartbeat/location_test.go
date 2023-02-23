@@ -350,6 +350,10 @@ func TestFilterSites(t *testing.T) {
 		"physical": physicalInstance,
 		"wehe":     weheInstance,
 	}
+	vSite0 := site(virtualSite)
+	vSite0.rank = 0
+	pSite1 := site(physicalSite)
+	pSite1.rank = 1
 
 	tests := []struct {
 		name     string
@@ -367,7 +371,7 @@ func TestFilterSites(t *testing.T) {
 			country:  "US",
 			lat:      43.1988,
 			lon:      -75.3242,
-			expected: []site{virtualSite, physicalSite},
+			expected: []site{vSite0, pSite1},
 		},
 		{
 			name:     "NDT7-physical",
@@ -614,14 +618,15 @@ func TestSortSites(t *testing.T) {
 		{
 			name:     "one",
 			sites:    []site{{distance: 10}},
-			expected: []site{{distance: 10}},
+			expected: []site{{distance: 10, rank: 0}},
 		},
 		{
 			name: "many",
 			sites: []site{{distance: 3838.61}, {distance: 3710.7679340078703}, {distance: -895420.92},
 				{distance: 296.0436}, {distance: math.MaxFloat64}, {distance: 3838.61}},
-			expected: []site{{distance: -895420.92}, {distance: 296.0436}, {distance: 3710.7679340078703},
-				{distance: 3838.61}, {distance: 3838.61}, {distance: math.MaxFloat64}},
+			expected: []site{{distance: -895420.92, rank: 0}, {distance: 296.0436, rank: 1},
+				{distance: 3710.7679340078703, rank: 2}, {distance: 3838.61, rank: 3},
+				{distance: 3838.61, rank: 4}, {distance: math.MaxFloat64, rank: 5}},
 		},
 	}
 

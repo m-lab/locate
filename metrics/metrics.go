@@ -74,6 +74,21 @@ var (
 		[]string{"code"},
 	)
 
+	// ServerDistanceRanking is a histogram that tracks the ranked distance of the returned servers
+	// with respect to the client.
+	// Numbering is zero-based.
+	//
+	// Example usage (the 2nd closest server to the client is returned as the 1st server in the list):
+	// metrics.ServerDistanceRanking.WithLabelValues(0).Observe(1)
+	ServerDistanceRanking = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "locate_server_distance_ranking",
+			Help:    "A histogram of server selection rankings with respect to distance from the client.",
+			Buckets: prometheus.LinearBuckets(0, 1, 1000),
+		},
+		[]string{"index"},
+	)
+
 	// ConnectionRequestsTotal counts the number of (re)connection requests the Heartbeat Service
 	// makes to the Locate Service.
 	ConnectionRequestsTotal = promauto.NewCounterVec(
