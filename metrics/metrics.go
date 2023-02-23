@@ -85,7 +85,7 @@ var (
 			Name: "locate_server_distance_ranking",
 			Help: "A histogram of server selection rankings with respect to distance from the client.",
 		},
-		[]string{"return-index"},
+		[]string{"index"},
 	)
 
 	// ConnectionRequestsTotal counts the number of (re)connection requests the Heartbeat Service
