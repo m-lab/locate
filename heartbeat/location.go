@@ -42,6 +42,7 @@ type machine struct {
 // site groups v2.HeartbeatMessage instances based on v2.Registration.Site.
 type site struct {
 	distance     float64
+	rank         int
 	registration v2.Registration
 	machines     []machine
 }
@@ -179,6 +180,10 @@ func sortSites(sites []site) {
 	sort.Slice(sites, func(i, j int) bool {
 		return sites[i].distance < sites[j].distance
 	})
+
+	for i, site := range sites {
+		site.rank = i
+	}
 }
 
 // pickTargets picks up to 4 sites using an exponentially distributed function based
@@ -192,8 +197,8 @@ func pickTargets(service string, sites []site) ([]v2.Target, []url.URL) {
 
 	for i := 0; i < numTargets; i++ {
 		index := rand.GetExpDistributedInt(1) % len(sites)
-		metrics.ServerDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(index))
 		s := sites[index]
+		metrics.ServerDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(s.rank))
 		// TODO(cristinaleon): Once health values range between 0 and 1,
 		// pick based on health. For now, pick at random.
 		machineIndex := rand.GetRandomInt(len(s.machines))
