@@ -20,8 +20,6 @@ const (
 	BackoffMultiplier          = 2
 	BackoffMaxInterval         = time.Hour
 	BackoffMaxElapsedTime      = 0
-	MaxReconnectionsTotal      = 10
-	MaxReconnectionsTime       = time.Hour
 	HeartbeatPeriod            = 10 * time.Second
 	MemorystoreExportPeriod    = 10 * time.Second
 	PrometheusCheckPeriod      = time.Minute
