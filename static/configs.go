@@ -18,7 +18,7 @@ const (
 	BackoffInitialInterval     = time.Second
 	BackoffRandomizationFactor = 0.5
 	BackoffMultiplier          = 2
-	BackoffMaxInterval         = time.Hour
+	BackoffMaxInterval         = 5 * time.Minute
 	BackoffMaxElapsedTime      = 0
 	HeartbeatPeriod            = 10 * time.Second
 	MemorystoreExportPeriod    = 10 * time.Second
