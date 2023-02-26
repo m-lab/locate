@@ -171,6 +171,35 @@ func Test_WriteMessage_ErrNotDailed(t *testing.T) {
 	}
 }
 
+func TestWriteMessage_ClosedServer(t *testing.T) {
+	c := NewConn()
+	defer c.Close()
+	fh := testdata.FakeHandler{}
+	s := testdata.FakeServer(fh.Upgrade)
+	c.InitialInterval = 500 * time.Millisecond
+	c.MaxElapsedTime = time.Second
+	c.Dial(s.URL, http.Header{}, testdata.FakeRegistration)
+
+	// Shut down server for testing.
+	fh.Close()
+	s.Close()
+
+	// Write should fail and connection should become disconnected.
+	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+	if err == nil {
+		t.Error("WriteMessage() should fail after server is disconnected")
+	}
+	if c.IsConnected() {
+		t.Errorf("IsConnected() should be false after writing to closed server.")
+	}
+
+	// Subsequent writes should fail.
+	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
+	if err == nil {
+		t.Error("WriteMessage() should fail after client detects disconnection")
+	}
+}
+
 func close(c *Conn, s *httptest.Server) {
 	c.Close()
 	s.Close()
