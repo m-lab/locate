@@ -17,9 +17,6 @@ import (
 )
 
 var (
-	// ErrTooManyReconnects is returned when the number of reconnections
-	// has reached MaxReconnectionsTotal within MaxElapsedTime.
-	ErrTooManyReconnects = errors.New("websocket cannot reconnect right now (too many attemps)")
 	// ErrNotDialed is returned when WriteMessage is called, but
 	// the websocket has not been created yet (call Dial).
 	ErrNotDailed = errors.New("websocket not created yet, please call Dial()")
@@ -48,36 +45,25 @@ type Conn struct {
 	// MaxElapsedTime is the amount of time after which the ExponentialBackOff
 	// returns Stop. It never stops if MaxElapsedTime == 0.
 	MaxElapsedTime time.Duration
-	// MaxReconnectionsTotal is the maximum number of reconnections that can
-	// happen within MaxReconnectionsTime.
-	MaxReconnectionsTotal int
-	// MaxReconnectionsTime is the time period during which the number of
-	// reconnections must be less than MaxReconnectionsTotal to allow a
-	// reconnection atttempt.
-	MaxReconnectionsTime time.Duration
-	dialer               websocket.Dialer
-	ws                   *websocket.Conn
-	url                  url.URL
-	header               http.Header
-	dialMessage          interface{}
-	ticker               time.Ticker
-	mu                   sync.Mutex
-	reconnections        int
-	isDialed             bool
-	isConnected          bool
-	stop                 chan bool
+	dialer         websocket.Dialer
+	ws             *websocket.Conn
+	url            url.URL
+	header         http.Header
+	dialMessage    interface{}
+	ticker         time.Ticker
+	mu             sync.Mutex
+	isDialed       bool
+	isConnected    bool
 }
 
 // NewConn creates a new Conn with default values.
 func NewConn() *Conn {
 	c := &Conn{
-		InitialInterval:       static.BackoffInitialInterval,
-		RandomizationFactor:   static.BackoffRandomizationFactor,
-		Multiplier:            static.BackoffMultiplier,
-		MaxInterval:           static.BackoffMaxInterval,
-		MaxElapsedTime:        static.BackoffMaxElapsedTime,
-		MaxReconnectionsTotal: static.MaxReconnectionsTotal,
-		MaxReconnectionsTime:  static.MaxReconnectionsTime,
+		InitialInterval:     static.BackoffInitialInterval,
+		RandomizationFactor: static.BackoffRandomizationFactor,
+		Multiplier:          static.BackoffMultiplier,
+		MaxInterval:         static.BackoffMaxInterval,
+		MaxElapsedTime:      static.BackoffMaxElapsedTime,
 	}
 	return c
 }
@@ -101,23 +87,9 @@ func (c *Conn) Dial(address string, header http.Header, dialMsg interface{}) err
 	}
 	c.url = *u
 	c.dialMessage = dialMsg
-	c.stop = make(chan bool)
 	c.header = header
 	c.dialer = websocket.Dialer{}
 	c.isDialed = true
-	c.ticker = *time.NewTicker(c.MaxReconnectionsTime)
-	go func(c *Conn) {
-		for {
-			select {
-			case <-c.stop:
-				c.ticker.Stop()
-				return
-			case <-c.ticker.C:
-				c.resetReconnections()
-			}
-		}
-	}(c)
-
 	return c.connect()
 }
 
@@ -129,8 +101,7 @@ func (c *Conn) Dial(address string, header http.Header, dialMsg interface{}) err
 // The write will fail under the following conditions:
 //  1. The client has not called Dial (ErrNotDialed).
 //  2. The connection is disconnected and it was not able to
-//     reconnect (ErrTooManyReconnects or an internal connection
-//     error).
+//     reconnect.
 //  3. The write call in the websocket package failed
 //     (gorilla/websocket error).
 func (c *Conn) WriteMessage(messageType int, data interface{}) error {
@@ -160,39 +131,22 @@ func (c *Conn) IsConnected() bool {
 	return c.isConnected
 }
 
-// CanConnect checks whether it is possible to reconnect
-// given the recent number of attempts.
-func (c *Conn) CanConnect() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.reconnections < c.MaxReconnectionsTotal
-}
-
 // Close closes the network connection and cleans up private
 // resources after the connection is done.
 func (c *Conn) Close() error {
 	if c.isDialed {
 		c.isDialed = false
-		c.stop <- true
 	}
 	return c.close()
 }
 
-// resetReconnections sets the number of disconnects followed
-// by reconnects.
-func (c *Conn) resetReconnections() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.reconnections = 0
-}
-
-// closeAndReconnect calls close and reconnect.
+// closeAndReconnect calls close and reconnects.
 func (c *Conn) closeAndReconnect() error {
 	err := c.close()
 	if err != nil {
 		return err
 	}
-	return c.reconnect()
+	return c.connect()
 }
 
 // close closes the underlying network connection without
@@ -205,18 +159,6 @@ func (c *Conn) close() error {
 		}
 	}
 	return nil
-}
-
-// reconnect updates the number of reconnections and
-// re-establishes the connection.
-func (c *Conn) reconnect() error {
-	if !c.CanConnect() {
-		return ErrTooManyReconnects
-	}
-	c.mu.Lock()
-	c.reconnections++
-	c.mu.Unlock()
-	return c.connect()
 }
 
 // connect creates a new client connection and sends the
