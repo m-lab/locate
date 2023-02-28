@@ -88,7 +88,7 @@ func setReadDeadline(ws conn) {
 
 func closeConnection(experiment string, err error) {
 	if experiment != "" {
-		metrics.CurrentHeartbeatConnections.WithLabelValues()
+		metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Dec()
 	}
 	log.Errorf("closing connection, err: %v", err)
 }
