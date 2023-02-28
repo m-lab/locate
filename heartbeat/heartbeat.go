@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -67,6 +68,7 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 	hostname := rm.Hostname
 	if err := h.Put(hostname, "Registration", &rm, true); err != nil {
+		log.Printf("failed to write Registration message to Memorystore, err: %v", err)
 		return err
 	}
 
@@ -78,6 +80,7 @@ func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 // updates it locally.
 func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) error {
 	if err := h.Put(hostname, "Health", &hm, true); err != nil {
+		log.Printf("failed to write Health message to Memorystore, err: %v", err)
 		return err
 	}
 	return h.updateHealth(hostname, hm)
@@ -158,6 +161,7 @@ func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMe
 	// Update in Memorystore.
 	err := h.Put(hostname, "Prometheus", pm, false)
 	if err != nil {
+		log.Printf("failed to write Prometheus message to Memorystore, err: %v", err)
 		return err
 	}
 
