@@ -43,6 +43,7 @@ type machine struct {
 type site struct {
 	distance     float64
 	rank         int
+	metroRank    int
 	registration v2.Registration
 	machines     []machine
 }
@@ -180,8 +181,19 @@ func sortSites(sites []site) {
 	sort.Slice(sites, func(i, j int) bool {
 		return sites[i].distance < sites[j].distance
 	})
-	for i := range sites {
+
+	metroRank := 0
+	metros := make(map[string]int)
+	for i, site := range sites {
 		sites[i].rank = i
+
+		metro := site.registration.Metro
+		_, ok := metros[metro]
+		if !ok {
+			metros[metro] = metroRank
+			metroRank++
+		}
+		sites[i].metroRank = metros[metro]
 	}
 }
 

@@ -89,6 +89,21 @@ var (
 		[]string{"index"},
 	)
 
+	// MetroDistanceRanking is a histogram that tracks the ranked distance of the returned metros
+	// with respect to the client.
+	// Numbering is zero-based.
+	//
+	// Example usage (the 1st server in the list is in the 2nd metro closest to the client):
+	// metrics.MetroDistanceRanking.WithLabelValues(0).Observe(1)
+	MetroDistanceRanking = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "locate_metro_distance_ranking",
+			Help:    "A histogram of metro selection rankings with respect to distance from the client.",
+			Buckets: prometheus.LinearBuckets(0, 1, 20),
+		},
+		[]string{"index"},
+	)
+
 	// ConnectionRequestsTotal counts the number of (re)connection requests the Heartbeat Service
 	// makes to the Locate Service.
 	ConnectionRequestsTotal = promauto.NewCounterVec(
