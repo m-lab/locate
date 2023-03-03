@@ -111,7 +111,9 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 
 	sites := make([]site, 0)
 	for _, v := range m {
-		if pickWithProbability(v.registration.Site) {
+		// Virtual sites do not need further filtering if the query is already requesting
+		// only virtual machines.
+		if opts.Type == "virtual" || pickWithProbability(v.registration.Site) {
 			sites = append(sites, *v)
 		}
 	}
