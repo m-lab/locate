@@ -83,7 +83,7 @@ func (l *Locator) Nearest(service string, lat, lon float64, opts *NearestOptions
 	sortSites(sites)
 
 	// Rank.
-	rankSites(sites)
+	rank(sites)
 
 	// Pick.
 	result := pickTargets(service, sites)
@@ -194,8 +194,8 @@ func sortSites(sites []site) {
 	})
 }
 
-// rankSites ranks the sites and metros.
-func rankSites(sites []site) {
+// rank ranks sites and metros.
+func rank(sites []site) {
 	metroRank := 0
 	metros := make(map[string]int)
 	for i, site := range sites {

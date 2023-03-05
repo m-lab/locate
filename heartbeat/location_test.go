@@ -683,7 +683,7 @@ func TestRankSites(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rankSites(tt.sites)
+			rank(tt.sites)
 
 			if !reflect.DeepEqual(tt.sites, tt.expected) {
 				t.Errorf("rankSites() got: %+v, want: %+v", tt.sites, tt.expected)
