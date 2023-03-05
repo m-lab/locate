@@ -55,15 +55,18 @@ type LocatorV2 struct {
 }
 
 // Nearest returns the pre-configured LocatorV2 Servers or Err.
-func (l *LocatorV2) Nearest(service string, lat, lon float64, opts *heartbeat.NearestOptions) ([]v2.Target, []url.URL, error) {
+func (l *LocatorV2) Nearest(service string, lat, lon float64, opts *heartbeat.NearestOptions) (*heartbeat.TargetInfo, error) {
 	if l.Err != nil {
-		return nil, nil, l.Err
+		return nil, l.Err
 	}
 	t := make([]v2.Target, len(l.Servers))
 	for i := range l.Servers {
 		t[i].Machine = l.Servers[i]
 	}
-	return t, []url.URL{}, nil
+	return &heartbeat.TargetInfo{
+		Targets: t,
+		URLs:    []url.URL{},
+	}, nil
 }
 
 // NewLocateServer creates an httptest.Server that can respond to Locate API v2

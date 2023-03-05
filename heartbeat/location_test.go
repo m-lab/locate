@@ -236,79 +236,94 @@ func TestNearest(t *testing.T) {
 	}
 
 	tests := []struct {
-		name            string
-		service         string
-		lat             float64
-		lon             float64
-		instances       []v2.HeartbeatMessage
-		opts            *NearestOptions
-		expectedTargets []v2.Target
-		expectedURLs    []url.URL
-		wantErr         bool
+		name      string
+		service   string
+		lat       float64
+		lon       float64
+		instances []v2.HeartbeatMessage
+		opts      *NearestOptions
+		expected  *TargetInfo
+		wantErr   bool
 	}{
 		{
-			name:            "NDT7-any-type",
-			service:         "ndt/ndt7",
-			lat:             43.1988,
-			lon:             -75.3242,
-			opts:            &NearestOptions{Type: "", Country: "US"},
-			expectedTargets: []v2.Target{virtualTarget, physicalTarget},
-			expectedURLs:    NDT7Urls,
-			wantErr:         false,
-		},
-		{
-			name:            "NDT7-physical",
-			service:         "ndt/ndt7",
-			lat:             43.1988,
-			lon:             -75.3242,
-			opts:            &NearestOptions{Type: "physical", Country: "US"},
-			expectedTargets: []v2.Target{physicalTarget},
-			expectedURLs:    NDT7Urls,
-			wantErr:         false,
-		},
-		{
-			name:            "NDT7-virtual",
-			service:         "ndt/ndt7",
-			lat:             43.1988,
-			lon:             -75.3242,
-			opts:            &NearestOptions{Type: "virtual", Country: "US"},
-			expectedTargets: []v2.Target{virtualTarget},
-			expectedURLs:    NDT7Urls,
-			wantErr:         false,
-		},
-		{
-			name:            "wehe",
-			service:         "wehe/replay",
-			lat:             43.1988,
-			lon:             -75.3242,
-			opts:            &NearestOptions{Type: "", Country: "US"},
-			expectedTargets: []v2.Target{weheTarget},
-			expectedURLs: []url.URL{{
-				Scheme: "wss",
-				Host:   "4443",
-				Path:   "/v0/envelope/access",
-			}},
+			// Test client coordinates are in NY, virtual target in LGA, and physical target in LAX.
+			name:    "NDT7-any-type",
+			service: "ndt/ndt7",
+			lat:     43.1988,
+			lon:     -75.3242,
+			opts:    &NearestOptions{Type: "", Country: "US"},
+			expected: &TargetInfo{
+				Targets: []v2.Target{virtualTarget, physicalTarget},
+				URLs:    NDT7Urls,
+				Ranks:   map[string]int{virtualTarget.Machine: 0, physicalTarget.Machine: 1},
+			},
 			wantErr: false,
 		},
 		{
-			name:            "NDT-sites-found",
-			service:         "ndt/ndt7",
-			lat:             43.1988,
-			lon:             -75.3242,
-			opts:            &NearestOptions{Type: "", Country: "US", Sites: []string{"lga00", "lax00"}},
-			expectedTargets: []v2.Target{virtualTarget, physicalTarget},
-			expectedURLs:    NDT7Urls,
-			wantErr:         false,
+			name:    "NDT7-physical",
+			service: "ndt/ndt7",
+			lat:     43.1988,
+			lon:     -75.3242,
+			opts:    &NearestOptions{Type: "physical", Country: "US"},
+			expected: &TargetInfo{
+				Targets: []v2.Target{physicalTarget},
+				URLs:    NDT7Urls,
+				Ranks:   map[string]int{physicalTarget.Machine: 0},
+			},
+			wantErr: false,
 		},
 		{
-			name:            "NDT-sites-empty",
-			service:         "ndt/ndt7",
-			lat:             43.1988,
-			lon:             -75.3242,
-			opts:            &NearestOptions{Type: "", Country: "US", Sites: []string{"foo99", "bar99"}},
-			expectedTargets: nil,
-			expectedURLs:    nil,
-			wantErr:         true,
+			name:    "NDT7-virtual",
+			service: "ndt/ndt7",
+			lat:     43.1988,
+			lon:     -75.3242,
+			opts:    &NearestOptions{Type: "virtual", Country: "US"},
+			expected: &TargetInfo{
+				Targets: []v2.Target{virtualTarget},
+				URLs:    NDT7Urls,
+				Ranks:   map[string]int{virtualTarget.Machine: 0},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "wehe",
+			service: "wehe/replay",
+			lat:     43.1988,
+			lon:     -75.3242,
+			opts:    &NearestOptions{Type: "", Country: "US"},
+			expected: &TargetInfo{
+				Targets: []v2.Target{weheTarget},
+				URLs: []url.URL{{
+					Scheme: "wss",
+					Host:   "4443",
+					Path:   "/v0/envelope/access",
+				}},
+				Ranks: map[string]int{weheTarget.Machine: 0},
+			},
+			wantErr: false,
+		},
+		{
+			// Test client coordinates are in NY, virtual target in LGA, and physical target in LAX.
+			name:    "NDT-sites-found",
+			service: "ndt/ndt7",
+			lat:     43.1988,
+			lon:     -75.3242,
+			opts:    &NearestOptions{Type: "", Country: "US", Sites: []string{"lga00", "lax00"}},
+			expected: &TargetInfo{
+				Targets: []v2.Target{virtualTarget, physicalTarget},
+				URLs:    NDT7Urls,
+				Ranks:   map[string]int{virtualTarget.Machine: 0, physicalTarget.Machine: 1},
+			},
+			wantErr: false,
+		},
+		{
+			name:     "NDT-sites-empty",
+			service:  "ndt/ndt7",
+			lat:      43.1988,
+			lon:      -75.3242,
+			opts:     &NearestOptions{Type: "", Country: "US", Sites: []string{"foo99", "bar99"}},
+			expected: nil,
+			wantErr:  true,
 		},
 	}
 
@@ -325,18 +340,14 @@ func TestNearest(t *testing.T) {
 				locator.UpdateHealth(i.Registration.Hostname, *i.Health)
 			}
 
-			gotTargets, gotURLs, err := locator.Nearest(tt.service, tt.lat, tt.lon, tt.opts)
-
-			if !reflect.DeepEqual(gotTargets, tt.expectedTargets) {
-				t.Errorf("Nearest() targets got: %+v, want %+v", gotTargets, tt.expectedTargets)
-			}
-
-			if !reflect.DeepEqual(gotURLs, tt.expectedURLs) {
-				t.Errorf("Nearest() URLs got: %+v, want %+v", gotURLs, tt.expectedURLs)
-			}
+			got, err := locator.Nearest(tt.service, tt.lat, tt.lon, tt.opts)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Nearest() error got: %t, want %t", err != nil, tt.wantErr)
+				t.Fatalf("Nearest() error got: %t, want %t", err != nil, tt.wantErr)
+			}
+
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("Nearest() targets got: %+v, want %+v", got, tt.expected)
 			}
 		})
 	}
@@ -350,10 +361,6 @@ func TestFilterSites(t *testing.T) {
 		"physical": physicalInstance,
 		"wehe":     weheInstance,
 	}
-	vSite0 := site(virtualSite)
-	vSite0.rank = 0
-	pSite1 := site(physicalSite)
-	pSite1.rank = 1
 
 	tests := []struct {
 		name     string
@@ -371,7 +378,7 @@ func TestFilterSites(t *testing.T) {
 			country:  "US",
 			lat:      43.1988,
 			lon:      -75.3242,
-			expected: []site{vSite0, pSite1},
+			expected: []site{virtualSite, physicalSite},
 		},
 		{
 			name:     "NDT7-physical",
@@ -618,15 +625,14 @@ func TestSortSites(t *testing.T) {
 		{
 			name:     "one",
 			sites:    []site{{distance: 10}},
-			expected: []site{{distance: 10, rank: 0}},
+			expected: []site{{distance: 10}},
 		},
 		{
 			name: "many",
 			sites: []site{{distance: 3838.61}, {distance: 3710.7679340078703}, {distance: -895420.92},
 				{distance: 296.0436}, {distance: math.MaxFloat64}, {distance: 3838.61}},
-			expected: []site{{distance: -895420.92, rank: 0}, {distance: 296.0436, rank: 1},
-				{distance: 3710.7679340078703, rank: 2}, {distance: 3838.61, rank: 3},
-				{distance: 3838.61, rank: 4}, {distance: math.MaxFloat64, rank: 5}},
+			expected: []site{{distance: -895420.92}, {distance: 296.0436}, {distance: 3710.7679340078703},
+				{distance: 3838.61}, {distance: 3838.61}, {distance: math.MaxFloat64}},
 		},
 	}
 
@@ -641,6 +647,51 @@ func TestSortSites(t *testing.T) {
 	}
 }
 
+func TestRankSites(t *testing.T) {
+	tests := []struct {
+		name     string
+		sites    []site
+		expected []site
+	}{
+		{
+			name:     "empty",
+			sites:    []site{},
+			expected: []site{},
+		},
+		{
+			name:     "one",
+			sites:    []site{{distance: 10}},
+			expected: []site{{distance: 10, rank: 0, metroRank: 0}},
+		},
+		{
+			name: "many",
+			sites: []site{
+				{registration: v2.Registration{Metro: "a"}},
+				{registration: v2.Registration{Metro: "b"}},
+				{registration: v2.Registration{Metro: "b"}},
+				{registration: v2.Registration{Metro: "c"}},
+				{registration: v2.Registration{Metro: "b"}}},
+			expected: []site{
+				{rank: 0, metroRank: 0, registration: v2.Registration{Metro: "a"}},
+				{rank: 1, metroRank: 1, registration: v2.Registration{Metro: "b"}},
+				{rank: 2, metroRank: 1, registration: v2.Registration{Metro: "b"}},
+				{rank: 3, metroRank: 2, registration: v2.Registration{Metro: "c"}},
+				{rank: 4, metroRank: 1, registration: v2.Registration{Metro: "b"}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rankSites(tt.sites)
+
+			if !reflect.DeepEqual(tt.sites, tt.expected) {
+				t.Errorf("rankSites() got: %+v, want: %+v", tt.sites, tt.expected)
+			}
+		})
+	}
+}
+
 func TestPickTargets(t *testing.T) {
 	// Sites numbered by distance, which makes it easier to understand expected values.
 	site1 := site{
@@ -649,8 +700,10 @@ func TestPickTargets(t *testing.T) {
 			City:        "New York",
 			CountryCode: "US",
 			Services:    validNDT7Services,
+			Metro:       "lga",
 		},
-		machines: []machine{{name: "mlab1-site1"}, {name: "mlab2-site1"}, {name: "mlab3-site1"}, {name: "mlab4-site1"}},
+		metroRank: 0,
+		machines:  []machine{{name: "mlab1-site1-metro0"}, {name: "mlab2-site1-metro0"}, {name: "mlab3-site1-metro0"}, {name: "mlab4-site-metro10"}},
 	}
 	site2 := site{
 		distance: 10,
@@ -658,8 +711,10 @@ func TestPickTargets(t *testing.T) {
 			City:        "New York",
 			CountryCode: "US",
 			Services:    validNDT7Services,
+			Metro:       "lga",
 		},
-		machines: []machine{{name: "mlab1-site2"}, {name: "mlab2-site2"}, {name: "mlab3-site2"}, {name: "mlab4-site2"}},
+		metroRank: 0,
+		machines:  []machine{{name: "mlab1-site2-metro0"}, {name: "mlab2-site2-metro0"}, {name: "mlab3-site2-metro0"}, {name: "mlab4-site2-metro0"}},
 	}
 	site3 := site{
 		distance: 100,
@@ -667,8 +722,10 @@ func TestPickTargets(t *testing.T) {
 			City:        "Los Angeles",
 			CountryCode: "US",
 			Services:    validNDT7Services,
+			Metro:       "lax",
 		},
-		machines: []machine{{name: "mlab1-site3"}},
+		metroRank: 1,
+		machines:  []machine{{name: "mlab1-site3-metro1"}},
 	}
 	site4 := site{
 		distance: 110,
@@ -676,73 +733,85 @@ func TestPickTargets(t *testing.T) {
 			City:        "Portland",
 			CountryCode: "US",
 			Services:    validNDT7Services,
+			Metro:       "pdx",
 		},
-		machines: []machine{{name: "mlab1-site4"}},
+		metroRank: 2,
+		machines:  []machine{{name: "mlab1-site4-metro2"}},
 	}
 
 	tests := []struct {
-		name         string
-		sites        []site
-		expected     []v2.Target
-		expectedURLs []url.URL
+		name     string
+		sites    []site
+		expected *TargetInfo
 	}{
 		{
 			name: "4-sites",
 			sites: []site{
 				site1, site2, site3, site4,
 			},
-			expected: []v2.Target{
-				{
-					Machine: "mlab2-site1",
-					Location: &v2.Location{
-						City:    site1.registration.City,
-						Country: site1.registration.CountryCode,
+			expected: &TargetInfo{
+				Targets: []v2.Target{
+					{
+						Machine: "mlab2-site1-metro0",
+						Location: &v2.Location{
+							City:    site1.registration.City,
+							Country: site1.registration.CountryCode,
+						},
+						URLs: make(map[string]string),
 					},
-					URLs: make(map[string]string),
+					{
+						Machine: "mlab1-site3-metro1",
+						Location: &v2.Location{
+							City:    site3.registration.City,
+							Country: site3.registration.CountryCode,
+						},
+						URLs: make(map[string]string),
+					},
+					{
+						Machine: "mlab4-site2-metro0",
+						Location: &v2.Location{
+							City:    site2.registration.City,
+							Country: site2.registration.CountryCode,
+						},
+						URLs: make(map[string]string),
+					},
+					{
+						Machine: "mlab1-site4-metro2",
+						Location: &v2.Location{
+							City:    site4.registration.City,
+							Country: site4.registration.CountryCode,
+						},
+						URLs: make(map[string]string),
+					},
 				},
-				{
-					Machine: "mlab1-site3",
-					Location: &v2.Location{
-						City:    site3.registration.City,
-						Country: site3.registration.CountryCode,
-					},
-					URLs: make(map[string]string),
-				},
-				{
-					Machine: "mlab4-site2",
-					Location: &v2.Location{
-						City:    site2.registration.City,
-						Country: site2.registration.CountryCode,
-					},
-					URLs: make(map[string]string),
-				},
-				{
-					Machine: "mlab1-site4",
-					Location: &v2.Location{
-						City:    site4.registration.City,
-						Country: site4.registration.CountryCode,
-					},
-					URLs: make(map[string]string),
+				URLs: NDT7Urls,
+				Ranks: map[string]int{
+					"mlab2-site1-metro0": 0,
+					"mlab1-site3-metro1": 1,
+					"mlab4-site2-metro0": 0,
+					"mlab1-site4-metro2": 2,
 				},
 			},
-			expectedURLs: NDT7Urls,
 		},
 		{
 			name: "1-site",
 			sites: []site{
 				site1,
 			},
-			expected: []v2.Target{
-				{
-					Machine: "mlab2-site1",
-					Location: &v2.Location{
-						City:    site1.registration.City,
-						Country: site1.registration.CountryCode,
+			expected: &TargetInfo{
+				Targets: []v2.Target{
+					{
+						Machine: "mlab2-site1-metro0",
+						Location: &v2.Location{
+							City:    site1.registration.City,
+							Country: site1.registration.CountryCode,
+						},
+						URLs: make(map[string]string),
 					},
-					URLs: make(map[string]string),
 				},
+				URLs:  NDT7Urls,
+				Ranks: map[string]int{"mlab2-site1-metro0": 0},
 			},
-			expectedURLs: NDT7Urls,
 		},
 	}
 	for _, tt := range tests {
@@ -750,14 +819,10 @@ func TestPickTargets(t *testing.T) {
 			// Use a fixed seed so the pattern is only pseudorandom and can
 			// be verififed against expectations.
 			rand = mathx.NewRandom(1658340109320624212)
-			got, gotURLs := pickTargets("ndt/ndt7", tt.sites)
+			got := pickTargets("ndt/ndt7", tt.sites)
 
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("pickTargets() got: %+v, want: %+v", got, tt.expected)
-			}
-
-			if !reflect.DeepEqual(gotURLs, tt.expectedURLs) {
-				t.Errorf("pickTargets() urls got: %+v, want: %+v", gotURLs, tt.expectedURLs)
 			}
 		})
 	}

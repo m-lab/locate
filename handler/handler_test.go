@@ -8,16 +8,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/m-lab/locate/heartbeat/heartbeattest"
 
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/heartbeat"
+	"github.com/m-lab/locate/heartbeat/heartbeattest"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -63,11 +63,15 @@ type fakeLocatorV2 struct {
 	urls    []url.URL
 }
 
-func (l *fakeLocatorV2) Nearest(service string, lat, lon float64, opts *heartbeat.NearestOptions) ([]v2.Target, []url.URL, error) {
+func (l *fakeLocatorV2) Nearest(service string, lat, lon float64, opts *heartbeat.NearestOptions) (*heartbeat.TargetInfo, error) {
 	if l.err != nil {
-		return nil, nil, l.err
+		return nil, l.err
 	}
-	return l.targets, l.urls, nil
+	return &heartbeat.TargetInfo{
+		Targets: l.targets,
+		URLs:    l.urls,
+		Ranks:   map[string]int{},
+	}, nil
 }
 
 type fakeAppEngineLocator struct {
@@ -466,6 +470,61 @@ func TestClient_Ready(t *testing.T) {
 				t.Errorf("Live() wrong status; got %d; want %d", resp.StatusCode, http.StatusOK)
 			}
 			defer resp.Body.Close()
+		})
+	}
+}
+
+func TestExtraParams(t *testing.T) {
+	tests := []struct {
+		name     string
+		hostname string
+		p        paramOpts
+		want     url.Values
+	}{
+		{
+			name:     "all-params",
+			hostname: "host",
+			p: paramOpts{
+				raw:     map[string][]string{"client_name": {"client"}},
+				version: "v2",
+				ranks:   map[string]int{"host": 0},
+			},
+			want: url.Values{
+				"client_name":    []string{"client"},
+				"locate_version": []string{"v2"},
+				"metro_rank":     []string{"0"},
+			},
+		},
+		{
+			name:     "no-client",
+			hostname: "host",
+			p: paramOpts{
+				version: "v2",
+				ranks:   map[string]int{"host": 0},
+			},
+			want: url.Values{
+				"locate_version": []string{"v2"},
+				"metro_rank":     []string{"0"},
+			},
+		},
+		{
+			name:     "unmatched-host",
+			hostname: "host",
+			p: paramOpts{
+				version: "v2",
+				ranks:   map[string]int{"different-host": 0},
+			},
+			want: url.Values{
+				"locate_version": []string{"v2"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extraParams(tt.hostname, tt.p)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("extraParams() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
