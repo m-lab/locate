@@ -57,7 +57,7 @@ type Locator interface {
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
 // client.
 type LocatorV2 interface {
-	Nearest(service string, lat, lon float64, opts *heartbeat.NearestOptions) ([]v2.Target, []url.URL, error)
+	Nearest(service string, lat, lon float64, opts *heartbeat.NearestOptions) (*heartbeat.TargetInfo, error)
 	heartbeat.StatusTracker
 }
 
@@ -69,6 +69,12 @@ type ClientLocator interface {
 // PrometheusClient defines the interface to query Prometheus.
 type PrometheusClient interface {
 	Query(ctx context.Context, query string, ts time.Time, opts ...prom.Option) (model.Value, prom.Warnings, error)
+}
+
+type paramOpts struct {
+	raw     url.Values
+	version string
+	ranks   map[string]int
 }
 
 func init() {
@@ -103,17 +109,25 @@ func NewClientDirect(project string, private Signer, locator Locator, locatorV2 
 	}
 }
 
-func extraParams(raw url.Values, version string) url.Values {
+func extraParams(hostname string, p paramOpts) url.Values {
 	v := url.Values{}
 	// Add client parameters.
-	for key := range raw {
+	for key := range p.raw {
 		if strings.HasPrefix(key, "client_") {
 			// note: we only use the first value.
-			v.Set(key, raw.Get(key))
+			v.Set(key, p.raw.Get(key))
 		}
 	}
+
 	// Add Locate Service version.
-	v.Set("locate_version", version)
+	v.Set("locate_version", p.version)
+
+	// Add metro rank.
+	rank, ok := p.ranks[hostname]
+	if ok {
+		v.Set("metro_rank", strconv.Itoa(rank))
+	}
+
 	return v
 }
 
@@ -156,8 +170,9 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 		targets[i].URLs = map[string]string{}
 	}
 
+	pOpts := paramOpts{raw: req.Form, version: "v2_proxy"}
 	// Populate targets URLs and write out response.
-	c.populateURLs(targets, ports, experiment, "v2_proxy", req.Form)
+	c.populateURLs(targets, ports, experiment, pOpts)
 	result.Results = targets
 	writeResult(rw, http.StatusOK, &result)
 }
@@ -198,7 +213,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	country := req.Header.Get("X-AppEngine-Country")
 	sites := q["site"]
 	opts := &heartbeat.NearestOptions{Type: t, Country: country, Sites: sites}
-	targets, urls, err := c.LocatorV2.Nearest(service, lat, lon, opts)
+	targetInfo, err := c.LocatorV2.Nearest(service, lat, lon, opts)
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
 		writeResult(rw, result.Error.Status, &result)
@@ -207,9 +222,10 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	pOpts := paramOpts{raw: req.Form, version: "v2", ranks: targetInfo.Ranks}
 	// Populate target URLs and write out response.
-	c.populateURLs(targets, urls, experiment, "v2", req.Form)
-	result.Results = targets
+	c.populateURLs(targetInfo.Targets, targetInfo.URLs, experiment, pOpts)
+	result.Results = targetInfo.Targets
 	writeResult(rw, http.StatusOK, &result)
 	metrics.RequestsTotal.WithLabelValues("nearest", "success", http.StatusText(http.StatusOK)).Inc()
 }
@@ -247,10 +263,11 @@ func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) 
 }
 
 // populateURLs populates each set of URLs using the target configuration.
-func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp, version string, form url.Values) {
-	for i := range targets {
-		token := c.getAccessToken(targets[i].Machine, exp)
-		targets[i].URLs = c.getURLs(ports, targets[i].Machine, exp, token, extraParams(form, version))
+func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, pOpts paramOpts) {
+	for i, target := range targets {
+		token := c.getAccessToken(target.Machine, exp)
+		params := extraParams(target.Machine, pOpts)
+		targets[i].URLs = c.getURLs(ports, target.Machine, exp, token, params)
 	}
 }
 

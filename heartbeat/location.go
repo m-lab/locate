@@ -33,6 +33,14 @@ type NearestOptions struct {
 	Country string   // Bias results to prefer machines in this country.
 }
 
+// TargetInfo returns the set of `v2.Target` to run the measurement on with the
+// necessary information to create their URLs.
+type TargetInfo struct {
+	Targets []v2.Target    // Targets to run a measurement on.
+	URLs    []url.URL      // Service URL templates.
+	Ranks   map[string]int // Map of machines to metro rankings.
+}
+
 // machine associates a machine name with its v2.Health value.
 type machine struct {
 	name   string
@@ -43,6 +51,7 @@ type machine struct {
 type site struct {
 	distance     float64
 	rank         int
+	metroRank    int
 	registration v2.Registration
 	machines     []machine
 }
@@ -66,21 +75,24 @@ func NewServerLocator(tracker StatusTracker) *Locator {
 
 // Nearest discovers the nearest machines for the target service, using
 // an exponentially distributed function based on distance.
-func (l *Locator) Nearest(service string, lat, lon float64, opts *NearestOptions) ([]v2.Target, []url.URL, error) {
+func (l *Locator) Nearest(service string, lat, lon float64, opts *NearestOptions) (*TargetInfo, error) {
 	// Filter.
 	sites := filterSites(service, lat, lon, l.Instances(), opts)
 
 	// Sort.
 	sortSites(sites)
 
-	// Pick.
-	targets, urls := pickTargets(service, sites)
+	// Rank.
+	rank(sites)
 
-	if len(targets) == 0 || len(urls) == 0 {
-		return nil, nil, ErrNoAvailableServers
+	// Pick.
+	result := pickTargets(service, sites)
+
+	if len(result.Targets) == 0 || len(result.Targets) == 0 {
+		return nil, ErrNoAvailableServers
 	}
 
-	return targets, urls, nil
+	return result, nil
 }
 
 // filterSites groups the v2.HeartbeatMessage instances into sites and returns
@@ -182,8 +194,24 @@ func sortSites(sites []site) {
 	sort.Slice(sites, func(i, j int) bool {
 		return sites[i].distance < sites[j].distance
 	})
-	for i := range sites {
+}
+
+// rank ranks sites and metros.
+func rank(sites []site) {
+	metroRank := 0
+	metros := make(map[string]int)
+	for i, site := range sites {
+		// Update site rank.
 		sites[i].rank = i
+
+		// Update metro rank.
+		metro := site.registration.Metro
+		_, ok := metros[metro]
+		if !ok {
+			metros[metro] = metroRank
+			metroRank++
+		}
+		sites[i].metroRank = metros[metro]
 	}
 }
 
@@ -191,15 +219,17 @@ func sortSites(sites []site) {
 // on distance. For each site, it picks a machine at random and returns them
 // as []v2.Target.
 // For any of the picked targets, it also returns the service URL templates as []url.URL.
-func pickTargets(service string, sites []site) ([]v2.Target, []url.URL) {
+func pickTargets(service string, sites []site) *TargetInfo {
 	numTargets := mathx.Min(4, len(sites))
 	targets := make([]v2.Target, numTargets)
+	ranks := make(map[string]int)
 	var urls []url.URL
 
 	for i := 0; i < numTargets; i++ {
 		index := rand.GetExpDistributedInt(1) % len(sites)
 		s := sites[index]
 		metrics.ServerDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(s.rank))
+		metrics.MetroDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(s.metroRank))
 		// TODO(cristinaleon): Once health values range between 0 and 1,
 		// pick based on health. For now, pick at random.
 		machineIndex := rand.GetRandomInt(len(s.machines))
@@ -214,6 +244,8 @@ func pickTargets(service string, sites []site) ([]v2.Target, []url.URL) {
 			},
 			URLs: make(map[string]string),
 		}
+		ranks[machine.name] = s.metroRank
+
 		// Remove the selected site from the set of candidates for the next target selection.
 		sites = append(sites[:index], sites[index+1:]...)
 
@@ -222,7 +254,11 @@ func pickTargets(service string, sites []site) ([]v2.Target, []url.URL) {
 		}
 	}
 
-	return targets, urls
+	return &TargetInfo{
+		Targets: targets,
+		URLs:    urls,
+		Ranks:   ranks,
+	}
 }
 
 // pickWithProbability returns true if a pseudo-random number in the interval
