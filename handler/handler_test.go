@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/heartbeat"
+	"github.com/m-lab/locate/heartbeat/heartbeattest"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -61,11 +63,15 @@ type fakeLocatorV2 struct {
 	urls    []url.URL
 }
 
-func (l *fakeLocatorV2) Nearest(service string, lat, lon float64, opts *heartbeat.NearestOptions) ([]v2.Target, []url.URL, error) {
+func (l *fakeLocatorV2) Nearest(service string, lat, lon float64, opts *heartbeat.NearestOptions) (*heartbeat.TargetInfo, error) {
 	if l.err != nil {
-		return nil, nil, l.err
+		return nil, l.err
 	}
-	return l.targets, l.urls, nil
+	return &heartbeat.TargetInfo{
+		Targets: l.targets,
+		URLs:    l.urls,
+		Ranks:   map[string]int{},
+	}, nil
 }
 
 type fakeAppEngineLocator struct {
@@ -418,4 +424,107 @@ func TestNewClientDirect(t *testing.T) {
 			t.Error("got nil client!")
 		}
 	})
+}
+
+func TestClient_Ready(t *testing.T) {
+	tests := []struct {
+		name       string
+		fakeErr    error
+		wantStatus int
+	}{
+		{
+			name:       "success",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "error-not-ready",
+			fakeErr:    errors.New("fake error"),
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewClient("foo", &fakeSigner{}, &fakeLocator{},
+				&fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil)
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("/ready/", c.Ready)
+			mux.HandleFunc("/live/", c.Live)
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			req, err := http.NewRequest(http.MethodGet, srv.URL+"/ready", nil)
+			rtx.Must(err, "Failed to create request")
+			resp, err := http.DefaultClient.Do(req)
+			rtx.Must(err, "failed to issue request")
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("Ready() wrong status; got %d; want %d", resp.StatusCode, tt.wantStatus)
+			}
+			defer resp.Body.Close()
+
+			req, err = http.NewRequest(http.MethodGet, srv.URL+"/live", nil)
+			rtx.Must(err, "Failed to create request")
+			resp, err = http.DefaultClient.Do(req)
+			rtx.Must(err, "failed to issue request")
+			if resp.StatusCode != http.StatusOK {
+				t.Errorf("Live() wrong status; got %d; want %d", resp.StatusCode, http.StatusOK)
+			}
+			defer resp.Body.Close()
+		})
+	}
+}
+
+func TestExtraParams(t *testing.T) {
+	tests := []struct {
+		name     string
+		hostname string
+		p        paramOpts
+		want     url.Values
+	}{
+		{
+			name:     "all-params",
+			hostname: "host",
+			p: paramOpts{
+				raw:     map[string][]string{"client_name": {"client"}},
+				version: "v2",
+				ranks:   map[string]int{"host": 0},
+			},
+			want: url.Values{
+				"client_name":    []string{"client"},
+				"locate_version": []string{"v2"},
+				"metro_rank":     []string{"0"},
+			},
+		},
+		{
+			name:     "no-client",
+			hostname: "host",
+			p: paramOpts{
+				version: "v2",
+				ranks:   map[string]int{"host": 0},
+			},
+			want: url.Values{
+				"locate_version": []string{"v2"},
+				"metro_rank":     []string{"0"},
+			},
+		},
+		{
+			name:     "unmatched-host",
+			hostname: "host",
+			p: paramOpts{
+				version: "v2",
+				ranks:   map[string]int{"different-host": 0},
+			},
+			want: url.Values{
+				"locate_version": []string{"v2"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extraParams(tt.hostname, tt.p)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("extraParams() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

@@ -189,12 +189,16 @@ func main() {
 	mux.HandleFunc("/v2/nearest/", http.HandlerFunc(c.Nearest))
 	// REQUIRED: API keys parameters required for priority requests.
 	mux.HandleFunc("/v2/priority/nearest/", http.HandlerFunc(c.Nearest))
-	// Beta version of V2 nearest requests.
-	// TODO(cristinaleon): migrate clients off v2beta2 after v2 launch.
-	mux.HandleFunc("/v2beta2/nearest/", http.HandlerFunc(c.Nearest))
+
+	// Liveness and Readiness checks to support deployments.
+	mux.HandleFunc("/v2/live", c.Live)
+	mux.HandleFunc("/v2/ready", c.Ready)
 
 	// DEPRECATED APIs: TODO: retire after migrating clients.
 	mux.Handle("/v2/monitoring/", monitoringChain)
+	// Beta version of V2 nearest requests.
+	// TODO(cristinaleon): migrate clients off v2beta2 after v2 launch.
+	mux.HandleFunc("/v2beta2/nearest/", http.HandlerFunc(c.Nearest))
 	mux.HandleFunc("/v2beta1/query/", http.HandlerFunc(c.TranslatedQuery))
 
 	srv := &http.Server{

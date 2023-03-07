@@ -4,6 +4,9 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
+
+	"github.com/m-lab/locate/static"
 
 	"github.com/go-test/deep"
 	"github.com/m-lab/go/testingx"
@@ -180,6 +183,9 @@ func TestInstancesCopy(t *testing.T) {
 func TestImportMemorystore(t *testing.T) {
 	fdc := &heartbeattest.FakeMemorystoreClient
 	h := NewHeartbeatStatusTracker(fdc)
+	if h.Ready() {
+		t.Errorf("importMemorystore() Ready too soon; got %s, want over: %s", time.Since(h.lastUpdate), 2*static.MemorystoreExportPeriod)
+	}
 	defer h.StopImport()
 
 	fdc.FakeAdd(testdata.FakeHostname, testdata.FakeRegistration)
@@ -189,6 +195,10 @@ func TestImportMemorystore(t *testing.T) {
 	if diff := deep.Equal(h.instances, expected); diff != nil {
 		t.Errorf("importMemorystore() failed to import; got: %+v, want: %+v", h.instances,
 			expected)
+	}
+
+	if !h.Ready() {
+		t.Errorf("importMemorystore() not Ready; got %s, want under: %s", time.Since(h.lastUpdate), 2*static.MemorystoreExportPeriod)
 	}
 }
 

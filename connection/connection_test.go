@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/locate/connection/testdata"
-	"github.com/m-lab/locate/static"
 )
 
 func Test_Dial(t *testing.T) {
@@ -172,78 +171,32 @@ func Test_WriteMessage_ErrNotDailed(t *testing.T) {
 	}
 }
 
-func Test_WriteMessage_ErrTooManyReconnects(t *testing.T) {
+func TestWriteMessage_ClosedServer(t *testing.T) {
 	c := NewConn()
-	c.MaxReconnectionsTotal = 0
 	defer c.Close()
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
-	defer s.Close()
+	c.InitialInterval = 500 * time.Millisecond
+	c.MaxElapsedTime = time.Second
 	c.Dial(s.URL, http.Header{}, testdata.FakeRegistration)
-	// Close connection so writes fail.
+
+	// Shut down server for testing.
 	fh.Close()
-
-	// This should return ErrTooManyReconnects because IsConnected is false
-	// and MaxReconnectionsTotal = 0.
-	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-	if !errors.Is(err, ErrTooManyReconnects) {
-		t.Errorf("WriteMessage() incorrect error; got: %v, want: ErrTooManyReconnects", err)
-	}
-
-	// Shut server down so reconnection fails.
 	s.Close()
-	// Allow reconnections again.
-	c.MaxReconnectionsTotal = 1
-	c.MaxElapsedTime = 1 * time.Second
-	// Should still get an error, but it should not be ErrTooManyReconnects.
-	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-	if err == nil || errors.Is(err, ErrTooManyReconnects) {
-		t.Errorf("WriteMessage() incorrect error; got: %v, want: !ErrTooManyReconnects", err)
-	}
-}
 
-func Test_CloseAndReconnect(t *testing.T) {
-	c := NewConn()
-	fh := testdata.FakeHandler{}
-	s := testdata.FakeServer(fh.Upgrade)
-	defer close(c, s)
-	// For testing, make this time window smaller.
-	c.MaxReconnectionsTime = time.Second
-	c.Dial(s.URL, http.Header{}, testdata.FakeRegistration)
-
-	for i := 0; i < static.MaxReconnectionsTotal; i++ {
-		fh.Close()
-
-		err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-		if err != nil {
-			t.Errorf("WriteMessage() should succeed after reconnection; err: %v", err)
-		}
-
-		if !c.IsConnected() {
-			t.Error("WriteMessage() failed to reconnect")
-		}
-	}
-
-	// It should not reconnect once it reaches the maximum number of attempts.
-	fh.Close()
+	// Write should fail and connection should become disconnected.
 	err := c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
 	if err == nil {
-		t.Error("WriteMessage() should fail while disconnected")
+		t.Error("WriteMessage() should fail after server is disconnected")
 	}
 	if c.IsConnected() {
-		t.Error("WriteMessage() reconnection should fail after MaxReconnectionsTotal reached")
+		t.Errorf("IsConnected() should be false after writing to closed server.")
 	}
 
-	// It should reconnect again after calling WriteMessage once the number of reconnections
-	// is reset.
-	timer := time.NewTimer(2 * c.MaxReconnectionsTime)
-	<-timer.C
+	// Subsequent writes should fail.
 	err = c.WriteMessage(websocket.TextMessage, []byte("Health message!"))
-	if err != nil {
-		t.Errorf("WriteMessage() should succeed after MaxReconnectionsTime; err: %v", err)
-	}
-	if !c.IsConnected() {
-		t.Error("WriteMessage() failed to reconnect after MaxReconnectionsTime")
+	if err == nil {
+		t.Error("WriteMessage() should fail after client detects disconnection")
 	}
 }
 

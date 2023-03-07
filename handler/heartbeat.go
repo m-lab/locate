@@ -14,6 +14,12 @@ import (
 
 var readDeadline = static.WebsocketReadDeadline
 
+type conn interface {
+	ReadMessage() (int, []byte, error)
+	SetReadDeadline(time.Time) error
+	Close() error
+}
+
 // Heartbeat implements /v2/heartbeat requests.
 // It starts a new persistent connection and a new goroutine
 // to read incoming messages.
@@ -34,7 +40,7 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 }
 
 // handleHeartbeats handles incoming messages from the connection.
-func (c *Client) handleHeartbeats(ws *websocket.Conn) {
+func (c *Client) handleHeartbeats(ws conn) error {
 	defer ws.Close()
 	setReadDeadline(ws)
 
@@ -43,11 +49,8 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 	for {
 		_, message, err := ws.ReadMessage()
 		if err != nil {
-			log.Errorf("read error: %v", err)
-			if experiment != "" {
-				metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Dec()
-			}
-			return
+			closeConnection(experiment, err)
+			return err
 		}
 		if message != nil {
 			setReadDeadline(ws)
@@ -60,19 +63,32 @@ func (c *Client) handleHeartbeats(ws *websocket.Conn) {
 
 			switch {
 			case hbm.Registration != nil:
+				if err := c.RegisterInstance(*hbm.Registration); err != nil {
+					closeConnection(experiment, err)
+					return err
+				}
 				hostname = hbm.Registration.Hostname
-				c.RegisterInstance(*hbm.Registration)
 				experiment = hbm.Registration.Experiment
 				metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Inc()
 			case hbm.Health != nil:
-				c.UpdateHealth(hostname, *hbm.Health)
+				if err := c.UpdateHealth(hostname, *hbm.Health); err != nil {
+					closeConnection(experiment, err)
+					return err
+				}
 			}
 		}
 	}
 }
 
 // setReadDeadline sets/resets the read deadline for the connection.
-func setReadDeadline(ws *websocket.Conn) {
+func setReadDeadline(ws conn) {
 	deadline := time.Now().Add(readDeadline)
 	ws.SetReadDeadline(deadline)
+}
+
+func closeConnection(experiment string, err error) {
+	if experiment != "" {
+		metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Dec()
+	}
+	log.Errorf("closing connection, err: %v", err)
 }

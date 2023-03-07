@@ -20,6 +20,16 @@ automatic_scaling:
   max_num_instances: 40
   cool_down_period_sec: 300
 
+liveness_check:
+  path: "/v2/live"
+  initial_delay_sec: 300
+
+readiness_check:
+  path: "/v2/ready"
+  # Note: the check frequency here should be at most half the threshold set in heartbeat.go:Ready().
+  check_interval_sec: 10
+  app_start_timeout_sec: 600
+
 env_variables:
   LEGACY_SERVER: https://{{PROJECT}}.appspot.com
   PLATFORM_PROJECT: {{PLATFORM_PROJECT}}

@@ -20,9 +20,10 @@ var (
 
 type heartbeatStatusTracker struct {
 	MemorystoreClient[v2.HeartbeatMessage]
-	instances map[string]v2.HeartbeatMessage
-	mu        sync.RWMutex
-	stop      chan bool
+	instances  map[string]v2.HeartbeatMessage
+	mu         sync.RWMutex
+	stop       chan bool
+	lastUpdate time.Time
 }
 
 // MemorystoreClient is a client for reading and writing data in Memorystore.
@@ -66,7 +67,7 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 	hostname := rm.Hostname
 	if err := h.Put(hostname, "Registration", &rm, true); err != nil {
-		return err
+		return fmt.Errorf("%w: failed to write Registration message to Memorystore", err)
 	}
 
 	h.registerInstance(hostname, rm)
@@ -77,7 +78,7 @@ func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 // updates it locally.
 func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) error {
 	if err := h.Put(hostname, "Health", &hm, true); err != nil {
-		return err
+		return fmt.Errorf("%w: failed to write Health message to Memorystore", err)
 	}
 	return h.updateHealth(hostname, hm)
 }
@@ -116,6 +117,14 @@ func (h *heartbeatStatusTracker) Instances() map[string]v2.HeartbeatMessage {
 	return c
 }
 
+// Ready reports whether the import to Memorystore has complete successfully
+// within 2x the export period.
+func (h *heartbeatStatusTracker) Ready() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return time.Since(h.lastUpdate) <= 2*static.MemorystoreExportPeriod
+}
+
 // StopImport stops importing instance data from the Memorystore.
 // It must be called to release resources.
 func (h *heartbeatStatusTracker) StopImport() {
@@ -149,7 +158,7 @@ func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMe
 	// Update in Memorystore.
 	err := h.Put(hostname, "Prometheus", pm, false)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: failed to write Prometheus message to Memorystore", err)
 	}
 
 	// Update locally.
@@ -170,6 +179,7 @@ func (h *heartbeatStatusTracker) importMemorystore() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.instances = values
+	h.lastUpdate = time.Now()
 	h.updateMetrics()
 }
 

@@ -39,7 +39,7 @@ func LoadRegistration(ctx context.Context, hostname string, url *url.URL) (*v2.R
 	}
 
 	if v, ok := registrations[h.String()]; ok {
-		v.Hostname = hostname
+		v.Hostname = h.StringWithService()
 		return &v, nil
 	}
 
