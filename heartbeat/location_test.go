@@ -11,6 +11,7 @@ import (
 	"github.com/m-lab/go/mathx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
+	"github.com/m-lab/locate/static"
 )
 
 var (
@@ -844,14 +845,14 @@ func TestPickWithProbability(t *testing.T) {
 		// If we use 2 as a seed, the pseudo-random number generated will be < 0.5.
 		{
 			name: "pick-with-probability",
-			site: "yyc02",
+			site: "foo01",
 			seed: 2,
 			want: true,
 		},
 		// If we use 1 as a seed, the pseudo-random number generated will be > 0.5.
 		{
 			name: "do-not-pick-with-probability",
-			site: "yyc02",
+			site: "foo01",
 			seed: 1,
 			want: false,
 		},
@@ -859,6 +860,9 @@ func TestPickWithProbability(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.seed > 0 {
+				static.SiteProbability[tt.site] = 0.5
+			}
 			rand = mathx.NewRandom(tt.seed)
 			got := pickWithProbability(tt.site)
 
