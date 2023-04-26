@@ -105,6 +105,15 @@ var SiteProbability = map[string]float64{
 	"las01": 0.3, // virtual site
 	"lax07": 0.3, // virtual site
 	"lga1t": 0.5,
+
+	// LGA spray experiment.
+	// TODO(soltesz): reset after 1 week on 2023-05-03.
+	"lga04": 0.5,
+	"lga05": 0.5,
+	"lga06": 0.5,
+	"lga08": 0.5,
+	"lga09": 0.5,
+
 	"lhr09": 0.3, // virtual site
 	"lis01": 0.5,
 	"lju01": 0.5,
