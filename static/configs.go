@@ -83,13 +83,6 @@ var LegacyServices = map[string]string{
 var SiteProbability = map[string]float64{
 	"ams10": 0.3, // virtual site
 
-	// TODO(soltesz): revert ATL/CHS trial after 2023-05-15.
-	"atl02": 0.5,
-	"atl03": 0.5,
-	"atl04": 0.5,
-	"atl07": 0.5,
-	"atl08": 0.5,
-
 	"bom01": 0.1,
 	"bom02": 0.1,
 	"bru06": 0.3, // virtual site
