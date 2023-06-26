@@ -476,10 +476,11 @@ func TestClient_Ready(t *testing.T) {
 
 func TestExtraParams(t *testing.T) {
 	tests := []struct {
-		name     string
-		hostname string
-		p        paramOpts
-		want     url.Values
+		name                 string
+		hostname             string
+		p                    paramOpts
+		earlyExitProbability float64
+		want                 url.Values
 	}{
 		{
 			name:     "all-params",
@@ -518,9 +519,33 @@ func TestExtraParams(t *testing.T) {
 				"locate_version": []string{"v2"},
 			},
 		},
+		{
+			name: "early-exit-true",
+			p: paramOpts{
+				raw:     map[string][]string{"early_exit": {"250"}},
+				version: "v2",
+			},
+			earlyExitProbability: 1,
+			want: url.Values{
+				"early_exit":     []string{"250"},
+				"locate_version": []string{"v2"},
+			},
+		},
+		{
+			name: "early-exit-false",
+			p: paramOpts{
+				raw:     map[string][]string{"early_exit": {"250"}},
+				version: "v2",
+			},
+			earlyExitProbability: 0,
+			want: url.Values{
+				"locate_version": []string{"v2"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			earlyExitProbability = tt.earlyExitProbability
 			got := extraParams(tt.hostname, tt.p)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("extraParams() = %v, want %v", got, tt.want)
