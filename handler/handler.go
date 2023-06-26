@@ -20,6 +20,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/square/go-jose.v2/jwt"
 
+	"github.com/m-lab/go/mathx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
@@ -30,7 +31,11 @@ import (
 	"github.com/prometheus/common/model"
 )
 
-var errFailedToLookupClient = errors.New("Failed to look up client location")
+var (
+	errFailedToLookupClient = errors.New("Failed to look up client location")
+	rand                    = mathx.NewRandom(time.Now().UnixNano())
+	earlyExitProbability    = 0.01
+)
 
 // Signer defines how access tokens are signed.
 type Signer interface {
@@ -115,6 +120,9 @@ func extraParams(hostname string, p paramOpts) url.Values {
 	for key := range p.raw {
 		if strings.HasPrefix(key, "client_") {
 			// note: we only use the first value.
+			v.Set(key, p.raw.Get(key))
+		}
+		if key == "early_exit" && rand.Src.Float64() < earlyExitProbability {
 			v.Set(key, p.raw.Get(key))
 		}
 	}
