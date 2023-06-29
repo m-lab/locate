@@ -121,12 +121,12 @@ func catchSigterm(ws *connection.Conn) {
 	for {
 		// Wait until we receive a SIGTERM.
 		log.Println("received signal: ", <-c)
+		// Notify the receiver that the health score should now be 0.
 		hbm := v2.HeartbeatMessage{
 			Health: &v2.Health{
 				Score: 0,
 			},
 		}
-		// Let the receiver know that the health score should now be 0.
 		err := ws.WriteMessage(websocket.TextMessage, hbm)
 		if err != nil {
 			log.Printf("failed to write final health message, err: %v", err)
