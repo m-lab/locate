@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
+	"os"
+	"syscall"
 	"testing"
 	"time"
 
+	"github.com/m-lab/go/rtx"
+	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/connection/testdata"
 )
 
@@ -38,6 +43,21 @@ func Test_main(t *testing.T) {
 		msg, err := fh.Read()
 		if msg == nil || err != nil {
 			t.Errorf("write() did not send heartbeat message")
+		}
+
+		p, err := os.FindProcess(os.Getpid())
+		rtx.Must(err, "could not get the current process")
+		err = p.Signal(syscall.SIGUSR2)
+		rtx.Must(err, "could not send signal")
+		msg, err = fh.Read()
+		if err != nil {
+			t.Errorf("catchSigterm() did not send message")
+		}
+		var hbm v2.HeartbeatMessage
+		err = json.Unmarshal(msg, &hbm)
+		rtx.Must(err, "could not unmarshal message")
+		if hbm.Health.Score != 0 {
+			t.Errorf("catchSigterm() did not send 0 health message")
 		}
 
 		mainCancel()

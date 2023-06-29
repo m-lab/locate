@@ -5,6 +5,9 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -66,6 +69,7 @@ func main() {
 	conn := connection.NewConn()
 	err = conn.Dial(heartbeatURL, http.Header{}, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
+	go catchSigterm(conn)
 
 	probe := health.NewPortProbe(s)
 	hc := &health.Checker{}
@@ -107,4 +111,25 @@ func getHealth(hc *health.Checker) float64 {
 	ctx, cancel := context.WithTimeout(mainCtx, heartbeatPeriod)
 	defer cancel()
 	return hc.GetHealth(ctx)
+}
+
+func catchSigterm(ws *connection.Conn) {
+	// Register channel to receive SIGTERM events.
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGTERM)
+
+	for {
+		// Wait until we receive a SIGTERM.
+		log.Println("received signal: ", <-c)
+		hbm := v2.HeartbeatMessage{
+			Health: &v2.Health{
+				Score: 0,
+			},
+		}
+		// Let the receiver know that the health score should now be 0.
+		err := ws.WriteMessage(websocket.TextMessage, hbm)
+		if err != nil {
+			log.Printf("failed to write final health message, err: %v", err)
+		}
+	}
 }
