@@ -116,11 +116,13 @@ func getHealth(hc *health.Checker) float64 {
 func catchSigterm(ws *connection.Conn) {
 	// Register channel to receive SIGTERM events.
 	c := make(chan os.Signal, 1)
+	defer close(c)
 	signal.Notify(c, syscall.SIGTERM)
 
 	for {
 		// Wait until we receive a SIGTERM.
 		log.Println("received signal: ", <-c)
+
 		// Notify the receiver that the health score should now be 0.
 		hbm := v2.HeartbeatMessage{
 			Health: &v2.Health{
@@ -131,5 +133,8 @@ func catchSigterm(ws *connection.Conn) {
 		if err != nil {
 			log.Printf("failed to write final health message, err: %v", err)
 		}
+
+		// Cancel the main context.
+		mainCancel()
 	}
 }
