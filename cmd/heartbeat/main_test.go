@@ -51,13 +51,13 @@ func Test_main(t *testing.T) {
 		rtx.Must(err, "could not send signal")
 		msg, err = fh.Read()
 		if err != nil {
-			t.Errorf("catchSigterm() did not send message")
+			t.Errorf("write() did not send message")
 		}
 		var hbm v2.HeartbeatMessage
 		err = json.Unmarshal(msg, &hbm)
 		rtx.Must(err, "could not unmarshal message")
 		if hbm.Health.Score != 0 {
-			t.Errorf("catchSigterm() did not send 0 health message")
+			t.Errorf("write() did not send 0 health message")
 		}
 
 		mainCancel()
