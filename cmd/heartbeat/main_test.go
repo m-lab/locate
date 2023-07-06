@@ -29,7 +29,6 @@ func Test_main(t *testing.T) {
 	flag.Set("namespace", "default")
 	flag.Set("registration-url", "file:./testdata/registration.json")
 	flag.Set("services", "ndt/ndt7=ws://:"+u.Port()+"/ndt/v7/download")
-	kubernetesAuth = "health/testdata"
 
 	heartbeatPeriod = 2 * time.Second
 	timer := time.NewTimer(2 * heartbeatPeriod)
