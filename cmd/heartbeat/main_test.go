@@ -47,7 +47,7 @@ func Test_main(t *testing.T) {
 
 		p, err := os.FindProcess(os.Getpid())
 		rtx.Must(err, "could not get the current process")
-		err = p.Signal(syscall.SIGUSR2)
+		err = p.Signal(syscall.SIGTERM)
 		rtx.Must(err, "could not send signal")
 		msg, err = fh.Read()
 		if err != nil {
