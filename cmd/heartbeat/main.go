@@ -5,6 +5,9 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -86,9 +89,21 @@ func write(ws *connection.Conn, hc *health.Checker) {
 	ticker := *time.NewTicker(heartbeatPeriod)
 	defer ticker.Stop()
 
+	// Register the channel to receive SIGTERM events.
+	sigterm := make(chan os.Signal, 1)
+	defer close(sigterm)
+	signal.Notify(sigterm, syscall.SIGTERM)
+
 	for {
 		select {
 		case <-mainCtx.Done():
+			log.Println("context cancelled")
+			sendExitMessage(ws)
+			return
+		case <-sigterm:
+			log.Println("received SIGTERM")
+			sendExitMessage(ws)
+			mainCancel()
 			return
 		case <-ticker.C:
 			score := getHealth(hc)
@@ -107,4 +122,17 @@ func getHealth(hc *health.Checker) float64 {
 	ctx, cancel := context.WithTimeout(mainCtx, heartbeatPeriod)
 	defer cancel()
 	return hc.GetHealth(ctx)
+}
+
+func sendExitMessage(ws *connection.Conn) {
+	// Notify the receiver that the health score should now be 0.
+	hbm := v2.HeartbeatMessage{
+		Health: &v2.Health{
+			Score: 0,
+		},
+	}
+	err := ws.WriteMessage(websocket.TextMessage, hbm)
+	if err != nil {
+		log.Printf("failed to write final health message, err: %v", err)
+	}
 }
