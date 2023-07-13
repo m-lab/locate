@@ -153,4 +153,14 @@ var (
 		},
 		[]string{"healthy"},
 	)
+
+	// RegistrationUpdateTime tracks the time when a new registration message
+	// is retrieved from siteinfo.
+	RegistrationUpdateTime = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "heartbeat_registration_update_time",
+			Help: "Time of new registration retrieval from siteinfo.",
+		},
+		[]string{},
+	)
 )

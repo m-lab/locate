@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/memoryless"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/metrics"
 )
 
 // Loader is a structure to load registration data from siteinfo.
@@ -76,6 +78,7 @@ func (ldr *Loader) GetRegistration(ctx context.Context) (*v2.Registration, error
 		ldr.reg = v
 		v.Experiment = ldr.exp
 		v.Services = ldr.svcs
+		metrics.RegistrationUpdateTime.WithLabelValues().Set(float64(time.Now().Unix()))
 		return &v, nil
 	}
 
