@@ -17,6 +17,7 @@ import (
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/cmd/heartbeat/health"
+	"github.com/m-lab/locate/cmd/heartbeat/registration"
 	"github.com/m-lab/locate/connection"
 	"github.com/m-lab/locate/static"
 )
@@ -64,7 +65,7 @@ func main() {
 		Max:      static.RegistrationLoadMax,
 	}
 	svcs := services.Get()
-	ldr, err := NewLoader(registrationURL.URL, hostname, experiment, svcs, ldrConfig)
+	ldr, err := registration.NewLoader(mainCtx, registrationURL.URL, hostname, experiment, svcs, ldrConfig)
 	rtx.Must(err, "could not initialize registration loader")
 	r, err := ldr.GetRegistration(mainCtx)
 	rtx.Must(err, "could not load registration data")
@@ -89,7 +90,7 @@ func main() {
 
 // write starts a write loop to send health messages every
 // HeartbeatPeriod.
-func write(ws *connection.Conn, hc *health.Checker, ldr *loader) {
+func write(ws *connection.Conn, hc *health.Checker, ldr *registration.Loader) {
 	defer ws.Close()
 	hbTicker := *time.NewTicker(heartbeatPeriod)
 	defer hbTicker.Stop()
@@ -99,7 +100,7 @@ func write(ws *connection.Conn, hc *health.Checker, ldr *loader) {
 	defer close(sigterm)
 	signal.Notify(sigterm, syscall.SIGTERM)
 
-	defer ldr.ticker.Stop()
+	defer ldr.Ticker.Stop()
 
 	for {
 		select {
@@ -112,10 +113,10 @@ func write(ws *connection.Conn, hc *health.Checker, ldr *loader) {
 			sendExitMessage(ws)
 			mainCancel()
 			return
-		case <-ldr.ticker.C:
+		case <-ldr.Ticker.C:
 			reg, err := ldr.GetRegistration(mainCtx)
 			if err != nil {
-				log.Println("could not load registration data")
+				log.Printf("could not load registration data, err: %v", err)
 			}
 			if reg != nil {
 				sendMessage(ws, v2.HeartbeatMessage{Registration: reg}, "registration")

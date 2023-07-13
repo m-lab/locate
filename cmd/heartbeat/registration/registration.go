@@ -1,4 +1,4 @@
-package main
+package registration
 
 import (
 	"context"
@@ -13,9 +13,10 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 )
 
-type loader struct {
+// Loader is a structure to load registration data from siteinfo.
+type Loader struct {
+	Ticker   *memoryless.Ticker // Ticker determines the interval to reload the data.
 	url      *url.URL
-	ticker   *memoryless.Ticker
 	hostname host.Name
 	exp      string
 	svcs     map[string][]string
@@ -23,7 +24,7 @@ type loader struct {
 }
 
 // NewLoader returns a new loader for registration data.
-func NewLoader(url *url.URL, hostname, exp string, svcs map[string][]string, config memoryless.Config) (*loader, error) {
+func NewLoader(ctx context.Context, url *url.URL, hostname, exp string, svcs map[string][]string, config memoryless.Config) (*Loader, error) {
 	h, err := host.Parse(hostname)
 	if err != nil {
 		return nil, err
@@ -33,14 +34,14 @@ func NewLoader(url *url.URL, hostname, exp string, svcs map[string][]string, con
 		return nil, content.ErrUnsupportedURLScheme
 	}
 
-	ticker, err := memoryless.NewTicker(mainCtx, config)
+	ticker, err := memoryless.NewTicker(ctx, config)
 	if err != nil {
 		return nil, err
 	}
 
-	return &loader{
+	return &Loader{
+		Ticker:   ticker,
 		url:      url,
-		ticker:   ticker,
 		hostname: h,
 		exp:      exp,
 		svcs:     svcs,
@@ -49,7 +50,7 @@ func NewLoader(url *url.URL, hostname, exp string, svcs map[string][]string, con
 
 // GetRegistration downloads the registration data from the registration
 // URL and matches it with the provided hostname.
-func (ldr *loader) GetRegistration(ctx context.Context) (*v2.Registration, error) {
+func (ldr *Loader) GetRegistration(ctx context.Context) (*v2.Registration, error) {
 	provider, err := content.FromURL(ctx, ldr.url)
 	if err != nil {
 		return nil, err
@@ -78,5 +79,5 @@ func (ldr *loader) GetRegistration(ctx context.Context) (*v2.Registration, error
 		return &v, nil
 	}
 
-	return nil, fmt.Errorf("hostname %s not found", hostname)
+	return nil, fmt.Errorf("hostname %s not found", ldr.hostname)
 }

@@ -1,4 +1,4 @@
-package main
+package registration
 
 import (
 	"context"
@@ -47,7 +47,7 @@ func Test_NewLoader(t *testing.T) {
 		url      *url.URL
 		hostname string
 		config   memoryless.Config
-		want     *loader
+		want     *Loader
 		wantErr  bool
 	}{
 		{
@@ -62,12 +62,12 @@ func Test_NewLoader(t *testing.T) {
 				Expected: static.RegistrationLoadExpected,
 				Max:      static.RegistrationLoadMax,
 			},
-			want: &loader{
+			want: &Loader{
 				url: &url.URL{
 					Scheme: "file",
 					Opaque: "./testdata/registration.json",
 				},
-				ticker: ticker,
+				Ticker: ticker,
 				hostname: host.Name{
 					Service: "ndt",
 					Machine: "mlab1",
@@ -125,7 +125,7 @@ func Test_NewLoader(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := NewLoader(tt.url, tt.hostname, "", map[string][]string{}, tt.config)
+			got, err := NewLoader(context.Background(), tt.url, tt.hostname, "", map[string][]string{}, tt.config)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewLoader() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -212,7 +212,7 @@ func Test_GetRegistration(t *testing.T) {
 			h, err := host.Parse(tt.hostname)
 			testingx.Must(t, err, "could not parse hostname")
 
-			ldr := &loader{
+			ldr := &Loader{
 				url:      u,
 				hostname: h,
 				reg:      tt.savedReg,
