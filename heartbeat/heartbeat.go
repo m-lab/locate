@@ -135,6 +135,8 @@ func (h *heartbeatStatusTracker) registerInstance(hostname string, rm v2.Registr
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	// Check if the instance has already been registered to avoid overwriting any
+	// Health/Prometheus data that already exists.
 	if instance, found := h.instances[hostname]; found {
 		instance.Registration = &rm
 		h.instances[hostname] = instance
