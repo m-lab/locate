@@ -78,7 +78,7 @@ func (ldr *Loader) GetRegistration(ctx context.Context) (*v2.Registration, error
 		ldr.reg = v
 		v.Experiment = ldr.exp
 		v.Services = ldr.svcs
-		metrics.RegistrationUpdateTime.WithLabelValues().Set(float64(time.Now().Unix()))
+		metrics.RegistrationUpdateTime.Set(float64(time.Now().Unix()))
 		return &v, nil
 	}
 

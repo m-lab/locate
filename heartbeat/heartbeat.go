@@ -134,6 +134,13 @@ func (h *heartbeatStatusTracker) StopImport() {
 func (h *heartbeatStatusTracker) registerInstance(hostname string, rm v2.Registration) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	if instance, found := h.instances[hostname]; found {
+		instance.Registration = &rm
+		h.instances[hostname] = instance
+		return
+	}
+
 	h.instances[hostname] = v2.HeartbeatMessage{Registration: &rm}
 }
 
