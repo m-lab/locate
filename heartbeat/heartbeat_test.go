@@ -52,6 +52,34 @@ func TestRegisterInstance_Success(t *testing.T) {
 	}
 }
 
+func TestRegisterInstanceTwice(t *testing.T) {
+	h := NewHeartbeatStatusTracker(fakeDC)
+	defer h.StopImport()
+
+	// Register once.
+	reg := testdata.FakeRegistration.Registration
+	err := h.RegisterInstance(*reg)
+	testingx.Must(t, err, "failed to register instance")
+
+	// Set health.
+	err = h.UpdateHealth(testdata.FakeHostname, v2.Health{Score: 1.0})
+	testingx.Must(t, err, "failed to update health")
+
+	// Re-register.
+	newReg := v2.Registration(*testdata.FakeRegistration.Registration)
+	newReg.Site = "foo"
+	err = h.RegisterInstance(newReg)
+
+	got := h.instances[reg.Hostname]
+	if got.Registration.Site != "foo" {
+		t.Errorf("RegisterInstance() failed to re-register; got: %+v, want: %+v", got.Registration.Site, "foo")
+	}
+
+	if got.Health.Score != 1.0 {
+		t.Errorf("RegisterInstance() changed health; got: %+v, want: %+v", got.Health.Score, "foo")
+	}
+}
+
 func TestUpdateHealth_UpdateError(t *testing.T) {
 	h := NewHeartbeatStatusTracker(fakeErrDC)
 	defer h.StopImport()
