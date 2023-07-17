@@ -262,8 +262,7 @@ func pickTargets(service string, sites []site) *TargetInfo {
 }
 
 // pickWithProbability returns true if a pseudo-random number in the interval
-// [0.0,1.0) is less than the given site's defined probability (or if there is
-// no explicit probability defined for the site).
+// [0.0,1.0) is less than the given site's defined probability.
 func pickWithProbability(probability float64) bool {
 	return rand.Src.Float64() < probability
 }
