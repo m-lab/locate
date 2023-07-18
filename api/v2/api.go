@@ -154,7 +154,6 @@ type Registration struct {
 	Machine       string              // Machine (e.g., mlab1).
 	Metro         string              // Metro (e.g., lga).
 	Project       string              // Project (e.g., mlab-sandbox).
-	Probability   float64             // Probability of picking site (e.g., 0.3).
 	Site          string              // Site (e.g.. lga01).
 	Type          string              // Machine type (e.g., physical, virtual).
 	Uplink        string              // Uplink capacity.

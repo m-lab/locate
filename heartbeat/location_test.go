@@ -11,6 +11,7 @@ import (
 	"github.com/m-lab/go/mathx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
+	"github.com/m-lab/locate/static"
 )
 
 var (
@@ -61,7 +62,6 @@ var (
 			Machine:       "mlab1",
 			Metro:         "lga",
 			Project:       "mlab-sandbox",
-			Probability:   1.0,
 			Site:          "lga00",
 			Type:          "virtual",
 			Uplink:        "10g",
@@ -81,7 +81,6 @@ var (
 			Machine:       "mlab2",
 			Metro:         "lga",
 			Project:       "mlab-sandbox",
-			Probability:   1.0,
 			Site:          "lga00",
 			Type:          "virtual",
 			Uplink:        "10g",
@@ -101,7 +100,6 @@ var (
 			Machine:       "mlab1",
 			Metro:         "lax",
 			Project:       "mlab-sandbox",
-			Probability:   1.0,
 			Site:          "lax00",
 			Type:          "physical",
 			Uplink:        "10g",
@@ -121,7 +119,6 @@ var (
 			Machine:       "mlab1",
 			Metro:         "pdx",
 			Project:       "mlab-sandbox",
-			Probability:   1.0,
 			Site:          "pdx00",
 			Type:          "physical",
 			Uplink:        "10g",
@@ -142,7 +139,6 @@ var (
 			Longitude:     -73.8667,
 			Metro:         "lga",
 			Project:       "mlab-sandbox",
-			Probability:   1.0,
 			Site:          "lga00",
 			Type:          "virtual",
 			Uplink:        "10g",
@@ -170,7 +166,6 @@ var (
 			Longitude:     -118.4072,
 			Metro:         "lax",
 			Project:       "mlab-sandbox",
-			Probability:   1.0,
 			Site:          "lax00",
 			Type:          "physical",
 			Uplink:        "10g",
@@ -194,7 +189,6 @@ var (
 			Longitude:     -122.5975,
 			Metro:         "pdx",
 			Project:       "mlab-sandbox",
-			Probability:   1.0,
 			Site:          "pdx00",
 			Type:          "physical",
 			Uplink:        "10g",
@@ -590,7 +584,6 @@ func TestIsValidInstance(t *testing.T) {
 					Machine:       "mlab1",
 					Metro:         "lga",
 					Project:       "mlab-sandbox",
-					Probability:   1.0,
 					Site:          "lga00",
 					Type:          tt.instanceType,
 					Uplink:        "10g",
@@ -838,36 +831,40 @@ func TestPickTargets(t *testing.T) {
 
 func TestPickWithProbability(t *testing.T) {
 	tests := []struct {
-		name        string
-		probability float64
-		seed        int64
-		want        bool
+		name string
+		site string
+		seed int64
+		want bool
 	}{
 		{
-			name:        "no-probability",
-			probability: 1.0,
-			want:        true,
+			name: "no-probability",
+			site: "lga00",
+			want: true,
 		},
+		// The current probability for yyc02 is 0.5.
 		// If we use 2 as a seed, the pseudo-random number generated will be < 0.5.
 		{
-			name:        "pick-with-probability",
-			probability: 0.5,
-			seed:        2,
-			want:        true,
+			name: "pick-with-probability",
+			site: "foo01",
+			seed: 2,
+			want: true,
 		},
 		// If we use 1 as a seed, the pseudo-random number generated will be > 0.5.
 		{
-			name:        "do-not-pick-with-probability",
-			probability: 0.5,
-			seed:        1,
-			want:        false,
+			name: "do-not-pick-with-probability",
+			site: "foo01",
+			seed: 1,
+			want: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.seed > 0 {
+				static.SiteProbability[tt.site] = 0.5
+			}
 			rand = mathx.NewRandom(tt.seed)
-			got := pickWithProbability(tt.probability)
+			got := pickWithProbability(tt.site)
 
 			if got != tt.want {
 				t.Errorf("pickWithProbability() got: %v, want: %v", got, tt.want)
