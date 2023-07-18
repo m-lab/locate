@@ -27,7 +27,7 @@ func Test_main(t *testing.T) {
 	flag.Set("pod", "ndt-abcde")
 	flag.Set("node", "mlab0-lga00.mlab-sandbox.measurement-lab.org")
 	flag.Set("namespace", "default")
-	flag.Set("registration-url", "file:./registration/testdata/registration.json")
+	flag.Set("registration-url", "file:./testdata/registration.json")
 	flag.Set("services", "ndt/ndt7=ws://:"+u.Port()+"/ndt/v7/download")
 
 	heartbeatPeriod = 2 * time.Second

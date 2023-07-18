@@ -67,11 +67,9 @@ func (c *Client) handleHeartbeats(ws conn) error {
 					closeConnection(experiment, err)
 					return err
 				}
-				if hostname == "" {
-					hostname = hbm.Registration.Hostname
-					experiment = hbm.Registration.Experiment
-					metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Inc()
-				}
+				hostname = hbm.Registration.Hostname
+				experiment = hbm.Registration.Experiment
+				metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Inc()
 			case hbm.Health != nil:
 				if err := c.UpdateHealth(hostname, *hbm.Health); err != nil {
 					closeConnection(experiment, err)

@@ -19,6 +19,5 @@ func TestLintMetrics(t *testing.T) {
 	PortChecksTotal.WithLabelValues("status")
 	KubernetesRequestsTotal.WithLabelValues("status")
 	KubernetesRequestTimeHistogram.WithLabelValues("healthy")
-	RegistrationUpdateTime.Set(0)
 	promtest.LintMetrics(nil)
 }

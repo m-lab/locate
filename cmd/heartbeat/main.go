@@ -12,12 +12,10 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/go/flagx"
-	"github.com/m-lab/go/memoryless"
 	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/cmd/heartbeat/health"
-	"github.com/m-lab/locate/cmd/heartbeat/registration"
 	"github.com/m-lab/locate/connection"
 	"github.com/m-lab/locate/static"
 )
@@ -59,16 +57,12 @@ func main() {
 	defer prom.Close()
 
 	// Load registration data.
-	ldrConfig := memoryless.Config{
-		Min:      static.RegistrationLoadMin,
-		Expected: static.RegistrationLoadExpected,
-		Max:      static.RegistrationLoadMax,
-	}
-	svcs := services.Get()
-	ldr, err := registration.NewLoader(mainCtx, registrationURL.URL, hostname, experiment, svcs, ldrConfig)
-	rtx.Must(err, "could not initialize registration loader")
-	r, err := ldr.GetRegistration(mainCtx)
+	r, err := LoadRegistration(mainCtx, hostname, registrationURL.URL)
 	rtx.Must(err, "could not load registration data")
+	// Populate flag values.
+	s := services.Get()
+	r.Services = s
+	r.Experiment = experiment
 	hbm := v2.HeartbeatMessage{Registration: r}
 
 	// Establish a connection.
@@ -76,7 +70,7 @@ func main() {
 	err = conn.Dial(heartbeatURL, http.Header{}, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
-	probe := health.NewPortProbe(svcs)
+	probe := health.NewPortProbe(s)
 	hc := &health.Checker{}
 	if kubernetesURL.URL == nil {
 		hc = health.NewChecker(probe)
@@ -85,22 +79,20 @@ func main() {
 		hc = health.NewCheckerK8S(probe, k8s)
 	}
 
-	write(conn, hc, ldr)
+	write(conn, hc)
 }
 
 // write starts a write loop to send health messages every
 // HeartbeatPeriod.
-func write(ws *connection.Conn, hc *health.Checker, ldr *registration.Loader) {
+func write(ws *connection.Conn, hc *health.Checker) {
 	defer ws.Close()
-	hbTicker := *time.NewTicker(heartbeatPeriod)
-	defer hbTicker.Stop()
+	ticker := *time.NewTicker(heartbeatPeriod)
+	defer ticker.Stop()
 
 	// Register the channel to receive SIGTERM events.
 	sigterm := make(chan os.Signal, 1)
 	defer close(sigterm)
 	signal.Notify(sigterm, syscall.SIGTERM)
-
-	defer ldr.Ticker.Stop()
 
 	for {
 		select {
@@ -113,20 +105,15 @@ func write(ws *connection.Conn, hc *health.Checker, ldr *registration.Loader) {
 			sendExitMessage(ws)
 			mainCancel()
 			return
-		case <-ldr.Ticker.C:
-			reg, err := ldr.GetRegistration(mainCtx)
-			if err != nil {
-				log.Printf("could not load registration data, err: %v", err)
-			}
-			if reg != nil {
-				sendMessage(ws, v2.HeartbeatMessage{Registration: reg}, "registration")
-				log.Printf("updated registration to %v", reg)
-			}
-		case <-hbTicker.C:
+		case <-ticker.C:
 			score := getHealth(hc)
 			healthMsg := v2.Health{Score: score}
 			hbm := v2.HeartbeatMessage{Health: &healthMsg}
-			sendMessage(ws, hbm, "health")
+
+			err := ws.WriteMessage(websocket.TextMessage, hbm)
+			if err != nil {
+				log.Printf("failed to write health message, err: %v", err)
+			}
 		}
 	}
 }
@@ -137,13 +124,6 @@ func getHealth(hc *health.Checker) float64 {
 	return hc.GetHealth(ctx)
 }
 
-func sendMessage(ws *connection.Conn, hbm v2.HeartbeatMessage, msgType string) {
-	err := ws.WriteMessage(websocket.TextMessage, hbm)
-	if err != nil {
-		log.Printf("failed to write %s message, err: %v", msgType, err)
-	}
-}
-
 func sendExitMessage(ws *connection.Conn) {
 	// Notify the receiver that the health score should now be 0.
 	hbm := v2.HeartbeatMessage{
@@ -151,5 +131,8 @@ func sendExitMessage(ws *connection.Conn) {
 			Score: 0,
 		},
 	}
-	sendMessage(ws, hbm, "final health")
+	err := ws.WriteMessage(websocket.TextMessage, hbm)
+	if err != nil {
+		log.Printf("failed to write final health message, err: %v", err)
+	}
 }
