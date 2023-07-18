@@ -125,7 +125,7 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 	for _, v := range m {
 		// Virtual sites do not need further filtering if the query is already requesting
 		// only virtual machines.
-		if opts.Type == "virtual" || pickWithProbability(v.registration.Site) {
+		if opts.Type == "virtual" || pickWithProbability(v.registration.Probability) {
 			sites = append(sites, *v)
 		}
 	}
@@ -262,13 +262,9 @@ func pickTargets(service string, sites []site) *TargetInfo {
 }
 
 // pickWithProbability returns true if a pseudo-random number in the interval
-// [0.0,1.0) is less than the given site's defined probability (or if there is
-// no explicit probability defined for the site).
-func pickWithProbability(site string) bool {
-	if val, ok := static.SiteProbability[site]; ok {
-		return rand.Src.Float64() < val
-	}
-	return true
+// [0.0,1.0) is less than the given site's defined probability.
+func pickWithProbability(probability float64) bool {
+	return rand.Src.Float64() < probability
 }
 
 // getURLs extracts the URL templates from v2.Registration.Services and outputs
