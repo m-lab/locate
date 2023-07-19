@@ -67,6 +67,7 @@ func (c *Client) handleHeartbeats(ws conn) error {
 					closeConnection(experiment, err)
 					return err
 				}
+				log.Printf("Registration: %+v", *hbm.Registration)
 				if hostname == "" {
 					hostname = hbm.Registration.Hostname
 					experiment = hbm.Registration.Experiment
