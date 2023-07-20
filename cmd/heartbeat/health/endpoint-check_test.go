@@ -10,32 +10,36 @@ import (
 
 func Test_checkHealthEndpoint(t *testing.T) {
 	tests := []struct {
-		name    string
-		code    int
-		timeout time.Duration
-		want    bool
-		wantErr bool
+		name     string
+		code     int
+		timeout  time.Duration
+		startSrv bool
+		want     bool
+		wantErr  bool
 	}{
 		{
-			name:    "200-status",
-			code:    http.StatusOK,
-			timeout: time.Second,
-			want:    true,
-			wantErr: false,
+			name:     "200-status",
+			code:     http.StatusOK,
+			timeout:  time.Second,
+			startSrv: true,
+			want:     true,
+			wantErr:  false,
 		},
 		{
-			name:    "timeout",
-			code:    http.StatusOK,
-			timeout: 0,
-			want:    false,
-			wantErr: true,
+			name:     "timeout",
+			code:     http.StatusOK,
+			timeout:  0,
+			startSrv: true,
+			want:     false,
+			wantErr:  true,
 		},
 		{
-			name:    "500-status",
-			code:    http.StatusInternalServerError,
-			timeout: time.Second,
-			want:    false,
-			wantErr: false,
+			name:     "500-status",
+			code:     http.StatusInternalServerError,
+			timeout:  time.Second,
+			startSrv: true,
+			want:     false,
+			wantErr:  false,
 		},
 		{
 			name:    "error",
@@ -52,7 +56,7 @@ func Test_checkHealthEndpoint(t *testing.T) {
 				defer srv.Close()
 			}
 
-			hc := NewEndpointClient(time.Second)
+			hc := NewEndpointClient(tt.timeout)
 			got, err := hc.checkHealthEndpoint()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("checkHealthEndpoint() error = %v, wantErr %v", err, tt.wantErr)
