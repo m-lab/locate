@@ -29,19 +29,19 @@ func NewCheckerK8S(pp *PortProbe, k8s *KubernetesClient, ec *EndpointClient) *Ch
 }
 
 // GetHealth combines a set of health checks into a single score.
-func (c *Checker) GetHealth(ctx context.Context) float64 {
-	if !c.pp.checkPorts() {
+func (hc *Checker) GetHealth(ctx context.Context) float64 {
+	if !hc.pp.checkPorts() {
 		return 0
 	}
 
-	if c.k8s != nil && !c.k8s.isHealthy(ctx) {
+	if hc.k8s != nil && !hc.k8s.isHealthy(ctx) {
 		return 0
 	}
 
 	// Some experiments might not support a /health endpoint, so
 	// the result is only taken into account if the request error
 	// is nil.
-	status, err := c.ec.checkHealthEndpoint()
+	status, err := hc.ec.checkHealthEndpoint()
 	if err == nil && !status {
 		return 0
 	}

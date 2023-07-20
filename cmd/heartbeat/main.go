@@ -78,15 +78,15 @@ func main() {
 
 	probe := health.NewPortProbe(svcs)
 	ec := health.NewEndpointClient(static.HealthEndpointTimeout)
-	checker := &health.Checker{}
+	hc := &health.Checker{}
 	if kubernetesURL.URL == nil {
-		checker = health.NewChecker(probe, ec)
+		hc = health.NewChecker(probe, ec)
 	} else {
 		k8s := health.MustNewKubernetesClient(kubernetesURL.URL, pod, node, namespace, kubernetesAuth)
-		checker = health.NewCheckerK8S(probe, k8s, ec)
+		hc = health.NewCheckerK8S(probe, k8s, ec)
 	}
 
-	write(conn, checker, ldr)
+	write(conn, hc, ldr)
 }
 
 // write starts a write loop to send health messages every
