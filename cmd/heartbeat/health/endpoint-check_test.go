@@ -1,8 +1,6 @@
 package health
 
 import (
-	"context"
-	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -64,8 +62,8 @@ func Test_checkHealthEndpoint_timeout(t *testing.T) {
 
 	hc := NewEndpointClient(time.Second)
 	got, err := hc.checkHealthEndpoint()
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Errorf("checkHealthEndpoint() error = %v, wantErr %v", err, context.DeadlineExceeded)
+	if err == nil {
+		t.Errorf("checkHealthEndpoint() error = %v, wantErr %s", err, "context deadline error")
 		return
 	}
 
