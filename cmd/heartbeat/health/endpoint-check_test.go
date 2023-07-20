@@ -12,23 +12,34 @@ func Test_checkHealthEndpoint(t *testing.T) {
 	tests := []struct {
 		name    string
 		code    int
+		timeout time.Duration
 		want    bool
 		wantErr bool
 	}{
 		{
 			name:    "200-status",
 			code:    http.StatusOK,
+			timeout: time.Second,
 			want:    true,
 			wantErr: false,
 		},
 		{
+			name:    "timeout",
+			code:    http.StatusOK,
+			timeout: 0,
+			want:    false,
+			wantErr: true,
+		},
+		{
 			name:    "500-status",
 			code:    http.StatusInternalServerError,
+			timeout: time.Second,
 			want:    false,
 			wantErr: false,
 		},
 		{
 			name:    "error",
+			timeout: time.Second,
 			want:    false,
 			wantErr: true,
 		},

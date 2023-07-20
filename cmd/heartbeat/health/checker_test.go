@@ -2,7 +2,6 @@ package health
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
 	"github.com/m-lab/locate/cmd/heartbeat/health/healthtest"
@@ -24,9 +23,7 @@ func TestChecker_getHealth(t *testing.T) {
 				&KubernetesClient{
 					clientset: healthyClientset,
 				},
-				&EndpointClient{
-					Client: http.Client{},
-				},
+				&EndpointClient{},
 			),
 			endpointStatus: 200,
 			want:           1,
@@ -35,9 +32,7 @@ func TestChecker_getHealth(t *testing.T) {
 			name: "health-1-k8s-nil",
 			checker: NewChecker(
 				&PortProbe{},
-				&EndpointClient{
-					Client: http.Client{},
-				},
+				&EndpointClient{},
 			),
 			endpointStatus: 200,
 			want:           1,
@@ -51,9 +46,7 @@ func TestChecker_getHealth(t *testing.T) {
 				&KubernetesClient{
 					clientset: healthyClientset,
 				},
-				&EndpointClient{
-					Client: http.Client{},
-				},
+				&EndpointClient{},
 			),
 			endpointStatus: 200,
 			want:           0,
@@ -65,9 +58,7 @@ func TestChecker_getHealth(t *testing.T) {
 				&KubernetesClient{
 					clientset: fake.NewSimpleClientset(),
 				},
-				&EndpointClient{
-					Client: http.Client{},
-				},
+				&EndpointClient{},
 			),
 			endpointStatus: 200,
 			want:           1,
@@ -92,9 +83,7 @@ func TestChecker_getHealth(t *testing.T) {
 						},
 					),
 				},
-				&EndpointClient{
-					Client: http.Client{},
-				},
+				&EndpointClient{},
 			),
 			endpointStatus: 200,
 			want:           0,
@@ -106,9 +95,7 @@ func TestChecker_getHealth(t *testing.T) {
 				&KubernetesClient{
 					clientset: healthyClientset,
 				},
-				&EndpointClient{
-					Client: http.Client{},
-				},
+				&EndpointClient{},
 			),
 			endpointStatus: 500,
 			want:           0,
@@ -135,9 +122,7 @@ func TestChecker_getHealth(t *testing.T) {
 						},
 					),
 				},
-				&EndpointClient{
-					Client: http.Client{},
-				},
+				&EndpointClient{},
 			),
 			want: 0,
 		},
@@ -147,9 +132,7 @@ func TestChecker_getHealth(t *testing.T) {
 				&PortProbe{
 					ports: map[string]bool{"65536": true},
 				},
-				&EndpointClient{
-					Client: http.Client{},
-				},
+				&EndpointClient{},
 			),
 			want: 0,
 		},
