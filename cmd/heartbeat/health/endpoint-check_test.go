@@ -10,40 +10,25 @@ import (
 
 func Test_checkHealthEndpoint(t *testing.T) {
 	tests := []struct {
-		name     string
-		code     int
-		timeout  time.Duration
-		startSrv bool
-		want     bool
-		wantErr  bool
+		name    string
+		code    int
+		want    bool
+		wantErr bool
 	}{
 		{
-			name:     "200-status",
-			code:     http.StatusOK,
-			timeout:  time.Second,
-			startSrv: true,
-			want:     true,
-			wantErr:  false,
+			name:    "200-status",
+			code:    http.StatusOK,
+			want:    true,
+			wantErr: false,
 		},
 		{
-			name:     "timeout",
-			code:     http.StatusOK,
-			timeout:  0,
-			startSrv: true,
-			want:     false,
-			wantErr:  true,
-		},
-		{
-			name:     "500-status",
-			code:     http.StatusInternalServerError,
-			timeout:  time.Second,
-			startSrv: true,
-			want:     false,
-			wantErr:  false,
+			name:    "500-status",
+			code:    http.StatusInternalServerError,
+			want:    false,
+			wantErr: false,
 		},
 		{
 			name:    "error",
-			timeout: time.Second,
 			want:    false,
 			wantErr: true,
 		},
@@ -56,7 +41,7 @@ func Test_checkHealthEndpoint(t *testing.T) {
 				defer srv.Close()
 			}
 
-			hc := NewEndpointClient(tt.timeout)
+			hc := NewEndpointClient(time.Second)
 			got, err := hc.checkHealthEndpoint()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("checkHealthEndpoint() error = %v, wantErr %v", err, tt.wantErr)
@@ -67,5 +52,22 @@ func Test_checkHealthEndpoint(t *testing.T) {
 				t.Errorf("checkHealthEndpoint() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_checkHealthEndpoint_timeout(t *testing.T) {
+	srv := healthtest.TestTimeoutServer(2 * time.Second)
+	healthAddress = srv.URL + "/health"
+	defer srv.Close()
+
+	hc := NewEndpointClient(time.Second)
+	got, err := hc.checkHealthEndpoint()
+	if err == nil {
+		t.Errorf("checkHealthEndpoint() error = %v, wantErr %s", err, "context deadline exceeded error")
+		return
+	}
+
+	if got != false {
+		t.Errorf("checkHealthEndpoint() = %v, want %v", got, false)
 	}
 }
