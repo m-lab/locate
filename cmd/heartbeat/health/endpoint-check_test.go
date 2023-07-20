@@ -3,6 +3,7 @@ package health
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/m-lab/locate/cmd/heartbeat/health/healthtest"
 )
@@ -40,7 +41,8 @@ func Test_checkHealthEndpoint(t *testing.T) {
 				defer srv.Close()
 			}
 
-			got, err := checkHealthEndpoint()
+			hc := NewEndpointClient(time.Second)
+			got, err := hc.checkHealthEndpoint()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("checkHealthEndpoint() error = %v, wantErr %v", err, tt.wantErr)
 				return

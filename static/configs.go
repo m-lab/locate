@@ -20,6 +20,7 @@ const (
 	BackoffMultiplier          = 2
 	BackoffMaxInterval         = 5 * time.Minute
 	BackoffMaxElapsedTime      = 0
+	HealthEndpointTimeout      = 5 * time.Second
 	HeartbeatPeriod            = 10 * time.Second
 	MemorystoreExportPeriod    = 10 * time.Second
 	PrometheusCheckPeriod      = time.Minute

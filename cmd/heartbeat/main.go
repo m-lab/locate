@@ -77,15 +77,16 @@ func main() {
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
 	probe := health.NewPortProbe(svcs)
-	hc := &health.Checker{}
+	ec := health.NewEndpointClient(static.HealthEndpointTimeout)
+	checker := &health.Checker{}
 	if kubernetesURL.URL == nil {
-		hc = health.NewChecker(probe)
+		checker = health.NewChecker(probe, ec)
 	} else {
 		k8s := health.MustNewKubernetesClient(kubernetesURL.URL, pod, node, namespace, kubernetesAuth)
-		hc = health.NewCheckerK8S(probe, k8s)
+		checker = health.NewCheckerK8S(probe, k8s, ec)
 	}
 
-	write(conn, hc, ldr)
+	write(conn, checker, ldr)
 }
 
 // write starts a write loop to send health messages every
