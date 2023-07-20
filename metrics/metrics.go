@@ -131,7 +131,7 @@ var (
 			Name: "heartbeat_kubernetes_requests_total",
 			Help: "Number of requests from the HBS to the Kubernetes API",
 		},
-		[]string{"status"},
+		[]string{"type", "status"},
 	)
 
 	// HealthEndpointChecksTotal counts the number of local /health endpoint

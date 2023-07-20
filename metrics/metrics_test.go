@@ -17,7 +17,7 @@ func TestLintMetrics(t *testing.T) {
 	MetroDistanceRanking.WithLabelValues("index")
 	ConnectionRequestsTotal.WithLabelValues("status")
 	PortChecksTotal.WithLabelValues("status")
-	KubernetesRequestsTotal.WithLabelValues("status")
+	KubernetesRequestsTotal.WithLabelValues("type", "status")
 	KubernetesRequestTimeHistogram.WithLabelValues("healthy")
 	RegistrationUpdateTime.Set(0)
 	promtest.LintMetrics(nil)

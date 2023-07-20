@@ -106,11 +106,11 @@ func (c *KubernetesClient) isPodRunning(ctx context.Context) bool {
 	pod, err := c.clientset.CoreV1().Pods(c.namespace).Get(ctx, c.pod, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("%s: %v", errKubernetesAPI, err)
-		metrics.KubernetesRequestsTotal.WithLabelValues(extractError(err)).Inc()
+		metrics.KubernetesRequestsTotal.WithLabelValues("pod", extractError(err)).Inc()
 		return true
 	}
 
-	metrics.KubernetesRequestsTotal.WithLabelValues("OK").Inc()
+	metrics.KubernetesRequestsTotal.WithLabelValues("pod", "OK").Inc()
 	return pod.Status.Phase == "Running"
 }
 
@@ -123,11 +123,11 @@ func (c *KubernetesClient) isNodeReady(ctx context.Context) bool {
 	node, err := c.clientset.CoreV1().Nodes().Get(ctx, c.node, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("%s: %v", errKubernetesAPI, err)
-		metrics.KubernetesRequestsTotal.WithLabelValues(extractError(err)).Inc()
+		metrics.KubernetesRequestsTotal.WithLabelValues("node", extractError(err)).Inc()
 		return true
 	}
 
-	metrics.KubernetesRequestsTotal.WithLabelValues("OK").Inc()
+	metrics.KubernetesRequestsTotal.WithLabelValues("node", "OK").Inc()
 	for _, condition := range node.Status.Conditions {
 		if condition.Type == "Ready" && condition.Status == "True" {
 			return !isInMaintenance(node)
