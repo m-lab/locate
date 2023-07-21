@@ -123,9 +123,7 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 
 	sites := make([]site, 0)
 	for _, v := range m {
-		// Virtual sites do not need further filtering if the query is already requesting
-		// only virtual machines.
-		if opts.Type == "virtual" || pickWithProbability(v.registration.Probability) {
+		if alwaysPick(opts) || pickWithProbability(v.registration.Probability) {
 			sites = append(sites, *v)
 		}
 	}
@@ -259,6 +257,12 @@ func pickTargets(service string, sites []site) *TargetInfo {
 		URLs:    urls,
 		Ranks:   ranks,
 	}
+}
+
+func alwaysPick(opts *NearestOptions) bool {
+	// Sites do not need further filtering if the query is already requesting
+	// only virtual machines or a specific set of sites.
+	return opts.Type == "virtual" || len(opts.Sites) > 0
 }
 
 // pickWithProbability returns true if a pseudo-random number in the interval
