@@ -162,4 +162,14 @@ var (
 			Help: "Time of new registration retrieval from siteinfo.",
 		},
 	)
+
+	// HealthTransmissionDuration is a histogram for the latency of the heartbeat
+	// to assess local health and send it to the Locate.
+	HealthTransmissionDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "heartbeat_health_transmission_duration",
+			Help: "Latency for the heartbeat to assess local health and send it.",
+		},
+		[]string{"score"},
+	)
 )
