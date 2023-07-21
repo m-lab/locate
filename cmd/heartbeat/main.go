@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -132,7 +132,7 @@ func write(ws *connection.Conn, hc *health.Checker, ldr *registration.Loader) {
 			sendMessage(ws, hbm, "health")
 
 			// Record duration metric.
-			fmtScore := strconv.FormatFloat(score, 'E', -1, 64)
+			fmtScore := fmt.Sprintf("%.1f", score)
 			metrics.HealthTransmissionDuration.WithLabelValues(fmtScore).Observe(time.Since(t).Seconds())
 		}
 	}
