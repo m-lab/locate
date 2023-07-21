@@ -167,8 +167,9 @@ var (
 	// to assess local health and send it to the Locate.
 	HealthTransmissionDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name: "heartbeat_health_transmission_duration",
-			Help: "Latency for the heartbeat to assess local health and send it.",
+			Name:    "heartbeat_health_transmission_duration",
+			Help:    "Latency for the heartbeat to assess local health and send it.",
+			Buckets: prometheus.LinearBuckets(0, 2, 30),
 		},
 		[]string{"score"},
 	)
