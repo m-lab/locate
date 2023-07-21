@@ -836,6 +836,45 @@ func TestPickTargets(t *testing.T) {
 	}
 }
 
+func TestAlwaysPick(t *testing.T) {
+	tests := []struct {
+		name string
+		opts *NearestOptions
+		want bool
+	}{
+		{
+			name: "virtual-machines",
+			opts: &NearestOptions{
+				Type: "virtual",
+			},
+			want: true,
+		},
+		{
+			name: "sites",
+			opts: &NearestOptions{
+				Sites: []string{"foo"},
+			},
+			want: true,
+		},
+		{
+			name: "none",
+			opts: &NearestOptions{
+				Type: "physical",
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := alwaysPick(tt.opts)
+			if got != tt.want {
+				t.Errorf("alwaysPick() got: %v, want: %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPickWithProbability(t *testing.T) {
 	tests := []struct {
 		name        string
