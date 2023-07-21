@@ -23,6 +23,7 @@ func TestChecker_getHealth(t *testing.T) {
 				&KubernetesClient{
 					clientset: healthyClientset,
 				},
+				&EndpointClient{},
 			),
 			endpointStatus: 200,
 			want:           1,
@@ -31,6 +32,7 @@ func TestChecker_getHealth(t *testing.T) {
 			name: "health-1-k8s-nil",
 			checker: NewChecker(
 				&PortProbe{},
+				&EndpointClient{},
 			),
 			endpointStatus: 200,
 			want:           1,
@@ -44,6 +46,7 @@ func TestChecker_getHealth(t *testing.T) {
 				&KubernetesClient{
 					clientset: healthyClientset,
 				},
+				&EndpointClient{},
 			),
 			endpointStatus: 200,
 			want:           0,
@@ -55,6 +58,7 @@ func TestChecker_getHealth(t *testing.T) {
 				&KubernetesClient{
 					clientset: fake.NewSimpleClientset(),
 				},
+				&EndpointClient{},
 			),
 			endpointStatus: 200,
 			want:           1,
@@ -79,6 +83,7 @@ func TestChecker_getHealth(t *testing.T) {
 						},
 					),
 				},
+				&EndpointClient{},
 			),
 			endpointStatus: 200,
 			want:           0,
@@ -90,6 +95,7 @@ func TestChecker_getHealth(t *testing.T) {
 				&KubernetesClient{
 					clientset: healthyClientset,
 				},
+				&EndpointClient{},
 			),
 			endpointStatus: 500,
 			want:           0,
@@ -116,6 +122,7 @@ func TestChecker_getHealth(t *testing.T) {
 						},
 					),
 				},
+				&EndpointClient{},
 			),
 			want: 0,
 		},
@@ -125,6 +132,7 @@ func TestChecker_getHealth(t *testing.T) {
 				&PortProbe{
 					ports: map[string]bool{"65536": true},
 				},
+				&EndpointClient{},
 			),
 			want: 0,
 		},
