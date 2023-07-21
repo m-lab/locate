@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/m-lab/locate/cmd/heartbeat/health"
 	"github.com/m-lab/locate/cmd/heartbeat/registration"
 	"github.com/m-lab/locate/connection"
+	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 )
 
@@ -124,10 +126,15 @@ func write(ws *connection.Conn, hc *health.Checker, ldr *registration.Loader) {
 				log.Printf("updated registration to %v", reg)
 			}
 		case <-hbTicker.C:
+			t := time.Now()
 			score := getHealth(hc)
 			healthMsg := v2.Health{Score: score}
 			hbm := v2.HeartbeatMessage{Health: &healthMsg}
 			sendMessage(ws, hbm, "health")
+
+			// Record duration metric.
+			fmtScore := fmt.Sprintf("%.1f", score)
+			metrics.HealthTransmissionDuration.WithLabelValues(fmtScore).Observe(time.Since(t).Seconds())
 		}
 	}
 }
