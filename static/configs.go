@@ -25,9 +25,9 @@ const (
 	MemorystoreExportPeriod    = 10 * time.Second
 	PrometheusCheckPeriod      = time.Minute
 	RedisKeyExpirySecs         = 30
-	RegistrationLoadMin        = 1 * time.Minute
-	RegistrationLoadExpected   = 1 * time.Minute
-	RegistrationLoadMax        = 1 * time.Minute
+	RegistrationLoadMin        = 3 * time.Hour
+	RegistrationLoadExpected   = 12 * time.Hour
+	RegistrationLoadMax        = 24 * time.Hour
 	EarthHalfCircumferenceKm   = 20038
 )
 

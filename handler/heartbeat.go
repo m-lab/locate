@@ -63,7 +63,6 @@ func (c *Client) handleHeartbeats(ws conn) error {
 
 			switch {
 			case hbm.Registration != nil:
-				log.Printf("received registration %+v ", hbm.Registration)
 				if err := c.RegisterInstance(*hbm.Registration); err != nil {
 					closeConnection(experiment, err)
 					return err
@@ -74,7 +73,6 @@ func (c *Client) handleHeartbeats(ws conn) error {
 					metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Inc()
 				}
 			case hbm.Health != nil:
-				log.Printf("received health %+v ", hbm.Health)
 				if err := c.UpdateHealth(hostname, *hbm.Health); err != nil {
 					closeConnection(experiment, err)
 					return err

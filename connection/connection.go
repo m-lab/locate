@@ -45,15 +45,16 @@ type Conn struct {
 	// MaxElapsedTime is the amount of time after which the ExponentialBackOff
 	// returns Stop. It never stops if MaxElapsedTime == 0.
 	MaxElapsedTime time.Duration
-	dialer         websocket.Dialer
-	ws             *websocket.Conn
-	url            url.URL
-	header         http.Header
-	dialMessage    interface{}
-	ticker         time.Ticker
-	mu             sync.Mutex
-	isDialed       bool
-	isConnected    bool
+	// DialMessage is the message sent when the connection is started.
+	DialMessage interface{}
+	dialer      websocket.Dialer
+	ws          *websocket.Conn
+	url         url.URL
+	header      http.Header
+	ticker      time.Ticker
+	mu          sync.Mutex
+	isDialed    bool
+	isConnected bool
 }
 
 // NewConn creates a new Conn with default values.
@@ -86,7 +87,7 @@ func (c *Conn) Dial(address string, header http.Header, dialMsg interface{}) err
 		return errors.New("malformed ws or wss URL")
 	}
 	c.url = *u
-	c.dialMessage = dialMsg
+	c.DialMessage = dialMsg
 	c.header = header
 	c.dialer = websocket.Dialer{}
 	c.isDialed = true
@@ -196,7 +197,7 @@ func (c *Conn) connect() error {
 	}
 
 	if c.isConnected {
-		err = c.write(websocket.TextMessage, c.dialMessage)
+		err = c.write(websocket.TextMessage, c.DialMessage)
 	}
 	return err
 }
