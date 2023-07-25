@@ -147,7 +147,7 @@ func getHealth(hc *health.Checker) float64 {
 
 func sendMessage(ws *connection.Conn, hbm v2.HeartbeatMessage, msgType string) {
 	// If a new registration message was found, update the websocket's dial message.
-	// The message sent whenever the connection is restarted (i.e., once per hour in App Engine).
+	// The message is sent whenever the connection is restarted (i.e., once per hour in App Engine).
 	if msgType == "registration" {
 		ws.DialMessage = hbm
 	}
