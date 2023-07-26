@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"net/url"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/connection"
 	"github.com/m-lab/locate/connection/testdata"
 )
 
@@ -60,4 +62,38 @@ func Test_main(t *testing.T) {
 	}()
 
 	main()
+}
+
+func Test_sendMessage(t *testing.T) {
+	tests := []struct {
+		name        string
+		msg         v2.HeartbeatMessage
+		msgType     string
+		wantDialMsg interface{}
+	}{
+		{
+			name:        "registration-change-dial-msg",
+			msg:         v2.HeartbeatMessage{Registration: &v2.Registration{City: "changed"}},
+			msgType:     "registration",
+			wantDialMsg: v2.HeartbeatMessage{Registration: &v2.Registration{City: "changed"}},
+		},
+		{
+			name:        "health-no-change",
+			msg:         v2.HeartbeatMessage{Health: &v2.Health{}},
+			msgType:     "health",
+			wantDialMsg: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ws := connection.NewConn()
+			defer ws.Close()
+
+			sendMessage(ws, tt.msg, tt.msgType)
+			if !reflect.DeepEqual(ws.DialMessage, tt.wantDialMsg) {
+				t.Errorf("sendMessage() error updating websocket dial message; got: %v, want: %v",
+					ws.DialMessage, tt.wantDialMsg)
+			}
+		})
+	}
 }
