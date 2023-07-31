@@ -46,11 +46,11 @@ func (c *client[V]) Put(key string, field string, value redis.Scanner, expire bo
 
 	_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
 	if err != nil {
-		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", "expiration", "EXPIRE error").Observe(time.Since(t).Seconds())
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "EXPIRE error").Observe(time.Since(t).Seconds())
 		return err
 	}
 
-	metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", "expiration", "OK").Observe(time.Since(t).Seconds())
+	metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field+" with expiration", "OK").Observe(time.Since(t).Seconds())
 	return nil
 }
 
