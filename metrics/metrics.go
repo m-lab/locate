@@ -54,6 +54,18 @@ var (
 		[]string{"experiment"},
 	)
 
+	// LocateMemorystoreRequestDuration is a histogram that tracks the latency of
+	// requests from the Locate to Memorystore.
+	LocateMemorystoreRequestDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "locate_memorystore_request_duration",
+			Help: "A histogram of request latency to Memorystore.",
+			Buckets: []float64{.005, .01, .025, .05, .1, .25, .5, 1,
+				2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
+		},
+		[]string{"type", "field", "status"},
+	)
+
 	// ImportMemorystoreTotal counts the number of times the Locate Service has imported
 	// the data in Memorystore.
 	ImportMemorystoreTotal = promauto.NewCounterVec(

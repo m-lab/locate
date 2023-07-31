@@ -78,6 +78,21 @@ func TestPut_Success(t *testing.T) {
 	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET").Expect(1)
+	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, false)
+
+	if conn.Stats(hset) != 1 {
+		t.Fatal("Put() failure, HSET command should have been called")
+	}
+
+	if err != nil {
+		t.Errorf("Put() error: %+v, want: nil", err)
+	}
+}
+
+func TestPut_SuccessWithEXPIRE(t *testing.T) {
+	conn, client := setUpTest[v2.HeartbeatMessage]()
+
+	hset := conn.GenericCommand("HSET").Expect(1)
 	expire := conn.GenericCommand("EXPIRE").Expect(1)
 	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, true)
 

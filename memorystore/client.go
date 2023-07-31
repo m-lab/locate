@@ -2,8 +2,10 @@ package memorystore
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 )
 
@@ -20,20 +22,36 @@ func NewClient[V any](pool *redis.Pool) *client[V] {
 // Put sets a Redis Hash using the `HSET key field value` command.
 // If successful, it also sets a timeout on the key.
 func (c *client[V]) Put(key string, field string, value redis.Scanner, expire bool) error {
+	t := time.Now()
 	conn := c.pool.Get()
 	defer conn.Close()
 
 	b, err := json.Marshal(value)
 	if err != nil {
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "marshal error").Observe(time.Since(t).Seconds())
 		return err
 	}
 
 	args := redis.Args{}.Add(key).Add(field).AddFlat(string(b))
 	_, err = conn.Do("HSET", args...)
-	if expire && err == nil {
-		_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
+	if err != nil {
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
+		return err
 	}
-	return err
+
+	if !expire {
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "OK").Observe(time.Since(t).Seconds())
+		return nil
+	}
+
+	_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
+	if err != nil {
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "EXPIRE error").Observe(time.Since(t).Seconds())
+		return err
+	}
+
+	metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field+" with expiration", "OK").Observe(time.Since(t).Seconds())
+	return nil
 }
 
 // GetAll uses the SCAN command to iterate over all the entries in Redis
@@ -42,6 +60,7 @@ func (c *client[V]) Put(key string, field string, value redis.Scanner, expire bo
 // return the entries if all of them are scanned successfully.
 // Otherwise, it will return an error.
 func (c *client[V]) GetAll() (map[string]V, error) {
+	t := time.Now()
 	conn := c.pool.Get()
 	defer conn.Close()
 
@@ -51,24 +70,28 @@ func (c *client[V]) GetAll() (map[string]V, error) {
 	for {
 		keys, err := redis.Values(conn.Do("SCAN", iter))
 		if err != nil {
+			metrics.LocateMemorystoreRequestDuration.WithLabelValues("get", "all", "SCAN error").Observe(time.Since(t).Seconds())
 			return nil, err
 		}
 
 		var temp []string
 		keys, err = redis.Scan(keys, &iter, &temp)
 		if err != nil {
+			metrics.LocateMemorystoreRequestDuration.WithLabelValues("get", "all", "SCAN copy error").Observe(time.Since(t).Seconds())
 			return nil, err
 		}
 
 		for _, k := range temp {
 			v, err := c.get(k, conn)
 			if err != nil {
+				metrics.LocateMemorystoreRequestDuration.WithLabelValues("get", "all", "HGETALL error").Observe(time.Since(t).Seconds())
 				return nil, err
 			}
 			values[k] = v
 		}
 
 		if iter == 0 {
+			metrics.LocateMemorystoreRequestDuration.WithLabelValues("get", "all", "OK").Observe(time.Since(t).Seconds())
 			return values, nil
 		}
 	}
