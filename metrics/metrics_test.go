@@ -11,7 +11,7 @@ func TestLintMetrics(t *testing.T) {
 	AppEngineTotal.WithLabelValues("country")
 	CurrentHeartbeatConnections.WithLabelValues("experiment").Set(0)
 	LocateHealthStatus.WithLabelValues("experiment").Set(0)
-	LocateMemorystoreRequestDuration.WithLabelValues("type", "field", "status")
+	LocateMemorystoreRequestDuration.WithLabelValues("type", "command", "status")
 	ImportMemorystoreTotal.WithLabelValues("status")
 	PrometheusHealthCollectionDuration.WithLabelValues("code")
 	ServerDistanceRanking.WithLabelValues("index")
