@@ -66,10 +66,11 @@ func (c *client[V]) PutIfExists(key string, field string, value redis.Scanner, e
 		return err
 	}
 
-	script := "\"if redis.call('EXISTS', KEYS[1]) == 1 then redis.call('HSET', KEYS[1], ARGV[1], ARGV[2]) END\""
-	args := redis.Args{}.Add(script).Add(1).Add(key).Add(field).AddFlat(string(b))
-	fmt.Println("PutIfExists args: ", args)
-	_, err = conn.Do("EVAL", args)
+	script := "if redis.call('EXISTS', KEYS[1]) == 1 then redis.call('HSET', KEYS[1], ARGV[1], ARGV[2]) END"
+	s := redis.NewScript(1, script)
+	// args := redis.Args{}.Add(script).Add(1).Add(key).Add(field).AddFlat(string(b))
+	// fmt.Println("PutIfExists args: ", args)
+	_, err = s.Do(conn, key, field, string(b))
 	fmt.Println("PutIfExists error: ", err)
 	if err != nil {
 		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
