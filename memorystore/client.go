@@ -2,6 +2,7 @@ package memorystore
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -34,6 +35,41 @@ func (c *client[V]) Put(key string, field string, value redis.Scanner, expire bo
 
 	args := redis.Args{}.Add(key).Add(field).AddFlat(string(b))
 	_, err = conn.Do("HSET", args...)
+	if err != nil {
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
+		return err
+	}
+
+	if !expire {
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "OK").Observe(time.Since(t).Seconds())
+		return nil
+	}
+
+	_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
+	if err != nil {
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "EXPIRE error").Observe(time.Since(t).Seconds())
+		return err
+	}
+
+	metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field+" with expiration", "OK").Observe(time.Since(t).Seconds())
+	return nil
+}
+
+func (c *client[V]) PutIfExists(key string, field string, value redis.Scanner, expire bool) error {
+	t := time.Now()
+	conn := c.pool.Get()
+	defer conn.Close()
+
+	b, err := json.Marshal(value)
+	if err != nil {
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "marshal error").Observe(time.Since(t).Seconds())
+		return err
+	}
+
+	script := "if redis.call('EXISTS', KEYS[1]) == 1 then redis.call('HSET', KEYS[1], ARGV[1], ARGV[2]) END"
+	args := redis.Args{}.Add(script).Add(1).Add(key).Add(field).Add(string(b))
+	_, err = conn.Do("EVAL", args)
+	fmt.Println("PutIfExists error: ", err)
 	if err != nil {
 		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
 		return err

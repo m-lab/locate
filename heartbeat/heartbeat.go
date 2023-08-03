@@ -31,6 +31,7 @@ type heartbeatStatusTracker struct {
 // that are stored and can be retrived.
 type MemorystoreClient[V any] interface {
 	Put(key string, field string, value redis.Scanner, expire bool) error
+	PutIfExists(key string, field string, value redis.Scanner, expire bool) error
 	GetAll() (map[string]V, error)
 }
 
@@ -77,7 +78,7 @@ func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 // UpdateHealth updates the v2.Health field for the instance in the Memorystore client and
 // updates it locally.
 func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) error {
-	if err := h.Put(hostname, "Health", &hm, true); err != nil {
+	if err := h.PutIfExists(hostname, "Health", &hm, true); err != nil {
 		return fmt.Errorf("%w: failed to write Health message to Memorystore", err)
 	}
 	return h.updateHealth(hostname, hm)

@@ -28,6 +28,10 @@ func (c *fakeMemorystoreClient[V]) Put(key string, field string, value redis.Sca
 	return nil
 }
 
+func (c *fakeMemorystoreClient[V]) PutIfExists(key string, field string, value redis.Scanner, expire bool) error {
+	return nil
+}
+
 // GetAll returns an empty map and a nil error.
 func (c *fakeMemorystoreClient[V]) GetAll() (map[string]V, error) {
 	return c.m, nil
@@ -43,6 +47,10 @@ type fakeErrorMemorystoreClient[V any] struct{}
 // Put returns a FakeError.
 func (c *fakeErrorMemorystoreClient[V]) Put(key string, field string, value redis.Scanner, expire bool) error {
 	return FakeError
+}
+
+func (c *fakeErrorMemorystoreClient[V]) PutIfExists(key string, field string, value redis.Scanner, expire bool) error {
+	return nil
 }
 
 // GetAll returns an empty map and a FakeError.
