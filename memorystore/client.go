@@ -66,8 +66,9 @@ func (c *client[V]) PutIfExists(key string, field string, value redis.Scanner, e
 		return err
 	}
 
-	script := "if redis.call('EXISTS', KEYS[1]) == 1 then redis.call('HSET', KEYS[1], ARGV[1], ARGV[2]) END"
-	args := redis.Args{}.Add(script).Add(1).Add(key).Add(field).Add(string(b))
+	script := fmt.Sprintf("if redis.call('EXISTS', %s) == 1 then redis.call('HSET', %s, %s, %s) END", key, key, field, string(b))
+	args := redis.Args{}.Add(script).Add(0)
+	fmt.Println("PutIfExists args: ", args)
 	_, err = conn.Do("EVAL", args)
 	fmt.Println("PutIfExists error: ", err)
 	if err != nil {
