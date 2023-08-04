@@ -16,6 +16,12 @@ const (
 		end`
 )
 
+// PutOptions defines the parameters that can be used for PUT operations.
+type PutOptions struct {
+	Exists bool // Specifies whether the entry should already exist.
+	Expire bool // Specifies whether an expiration should be added to the entry.
+}
+
 type client[V any] struct {
 	pool *redis.Pool
 }
@@ -28,7 +34,7 @@ func NewClient[V any](pool *redis.Pool) *client[V] {
 
 // Put sets a Redis Hash using the `HSET key field value` command.
 // If successful, it also sets a timeout on the key.
-func (c *client[V]) Put(key string, field string, value redis.Scanner, expire bool) error {
+func (c *client[V]) Put(key string, field string, value redis.Scanner, opts *PutOptions) error {
 	t := time.Now()
 	conn := c.pool.Get()
 	defer conn.Close()
@@ -39,47 +45,23 @@ func (c *client[V]) Put(key string, field string, value redis.Scanner, expire bo
 		return err
 	}
 
-	args := redis.Args{}.Add(key).Add(field).AddFlat(string(b))
-	_, err = conn.Do("HSET", args...)
-	if err != nil {
-		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
-		return err
+	if opts.Exists {
+		args := redis.Args{}.Add(script).Add(1).Add(key).Add(field).AddFlat(string(b))
+		_, err = conn.Do("EVAL", args...)
+		if err != nil {
+			metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "EVAL error").Observe(time.Since(t).Seconds())
+			return err
+		}
+	} else {
+		args := redis.Args{}.Add(key).Add(field).AddFlat(string(b))
+		_, err = conn.Do("HSET", args...)
+		if err != nil {
+			metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
+			return err
+		}
 	}
 
-	if !expire {
-		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "OK").Observe(time.Since(t).Seconds())
-		return nil
-	}
-
-	_, err = conn.Do("EXPIRE", key, static.RedisKeyExpirySecs)
-	if err != nil {
-		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "EXPIRE error").Observe(time.Since(t).Seconds())
-		return err
-	}
-
-	metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field+" with expiration", "OK").Observe(time.Since(t).Seconds())
-	return nil
-}
-
-func (c *client[V]) PutIfExists(key string, field string, value redis.Scanner, expire bool) error {
-	t := time.Now()
-	conn := c.pool.Get()
-	defer conn.Close()
-
-	b, err := json.Marshal(value)
-	if err != nil {
-		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "marshal error").Observe(time.Since(t).Seconds())
-		return err
-	}
-
-	args := redis.Args{}.Add(script).Add(1).Add(key).Add(field).AddFlat(string(b))
-	_, err = conn.Do("EVAL", args...)
-	if err != nil {
-		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
-		return err
-	}
-
-	if !expire {
+	if !opts.Expire {
 		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "OK").Observe(time.Since(t).Seconds())
 		return nil
 	}

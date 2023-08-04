@@ -9,6 +9,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/m-lab/go/host"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/memorystore"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 )
@@ -30,8 +31,7 @@ type heartbeatStatusTracker struct {
 // The interface takes in a type argument which specifies the types of values
 // that are stored and can be retrived.
 type MemorystoreClient[V any] interface {
-	Put(key string, field string, value redis.Scanner, expire bool) error
-	PutIfExists(key string, field string, value redis.Scanner, expire bool) error
+	Put(key string, field string, value redis.Scanner, opts *memorystore.PutOptions) error
 	GetAll() (map[string]V, error)
 }
 
@@ -67,7 +67,8 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 // locally.
 func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 	hostname := rm.Hostname
-	if err := h.Put(hostname, "Registration", &rm, true); err != nil {
+	opts := &memorystore.PutOptions{Exists: false, Expire: false}
+	if err := h.Put(hostname, "Registration", &rm, opts); err != nil {
 		return fmt.Errorf("%w: failed to write Registration message to Memorystore", err)
 	}
 
@@ -78,7 +79,8 @@ func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 // UpdateHealth updates the v2.Health field for the instance in the Memorystore client and
 // updates it locally.
 func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) error {
-	if err := h.PutIfExists(hostname, "Health", &hm, true); err != nil {
+	opts := &memorystore.PutOptions{Exists: true, Expire: true}
+	if err := h.Put(hostname, "Health", &hm, opts); err != nil {
 		return fmt.Errorf("%w: failed to write Health message to Memorystore", err)
 	}
 	return h.updateHealth(hostname, hm)
@@ -164,9 +166,10 @@ func (h *heartbeatStatusTracker) updateHealth(hostname string, hm v2.Health) err
 // in Memorystore and locally.
 func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMessage, pm *v2.Prometheus) error {
 	hostname := instance.Registration.Hostname
+	opts := &memorystore.PutOptions{Exists: true, Expire: false}
 
 	// Update in Memorystore.
-	err := h.Put(hostname, "Prometheus", pm, false)
+	err := h.Put(hostname, "Prometheus", pm, opts)
 	if err != nil {
 		return fmt.Errorf("%w: failed to write Prometheus message to Memorystore", err)
 	}

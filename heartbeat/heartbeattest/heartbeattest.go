@@ -5,6 +5,7 @@ import (
 
 	"github.com/gomodule/redigo/redis"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/memorystore"
 )
 
 var (
@@ -24,11 +25,7 @@ type fakeMemorystoreClient[V any] struct {
 }
 
 // Put returns nil.
-func (c *fakeMemorystoreClient[V]) Put(key string, field string, value redis.Scanner, expire bool) error {
-	return nil
-}
-
-func (c *fakeMemorystoreClient[V]) PutIfExists(key string, field string, value redis.Scanner, expire bool) error {
+func (c *fakeMemorystoreClient[V]) Put(key string, field string, value redis.Scanner, opts *memorystore.PutOptions) error {
 	return nil
 }
 
@@ -45,12 +42,8 @@ func (c *fakeMemorystoreClient[V]) FakeAdd(key string, value V) {
 type fakeErrorMemorystoreClient[V any] struct{}
 
 // Put returns a FakeError.
-func (c *fakeErrorMemorystoreClient[V]) Put(key string, field string, value redis.Scanner, expire bool) error {
+func (c *fakeErrorMemorystoreClient[V]) Put(key string, field string, value redis.Scanner, opts *memorystore.PutOptions) error {
 	return FakeError
-}
-
-func (c *fakeErrorMemorystoreClient[V]) PutIfExists(key string, field string, value redis.Scanner, expire bool) error {
-	return nil
 }
 
 // GetAll returns an empty map and a FakeError.

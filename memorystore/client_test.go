@@ -29,10 +29,10 @@ func TestPut_MarshalError(t *testing.T) {
 	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET")
-
 	r := *testdata.FakeRegistration.Registration
 	r.Latitude = math.Inf(1)
-	err := client.Put(testdata.FakeHostname, "Registration", &r, true)
+	opts := &PutOptions{Exists: false, Expire: true}
+	err := client.Put(testdata.FakeHostname, "Registration", &r, opts)
 
 	if conn.Stats(hset) > 0 {
 		t.Fatal("Put() failure, HSET command should not be called, want: marshal error")
@@ -47,7 +47,8 @@ func TestPut_HSETError(t *testing.T) {
 	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET").ExpectError(errors.New("HSET error"))
-	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, true)
+	opts := &PutOptions{Exists: false, Expire: true}
+	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, opts)
 
 	if conn.Stats(hset) != 1 {
 		t.Fatal("Put() failure, HSET command should have been called")
@@ -58,12 +59,29 @@ func TestPut_HSETError(t *testing.T) {
 	}
 }
 
+func TestPut_EVALError(t *testing.T) {
+	conn, client := setUpTest[v2.HeartbeatMessage]()
+
+	hset := conn.GenericCommand("EVAL").ExpectError(errors.New("EVAL error"))
+	opts := &PutOptions{Exists: true, Expire: true}
+	err := client.Put(testdata.FakeHostname, "Health", testdata.FakeHealth.Health, opts)
+
+	if conn.Stats(hset) != 1 {
+		t.Fatal("Put() failure, EVAL command should have been called")
+	}
+
+	if err == nil {
+		t.Error("Put() error: nil, want: EVAL error")
+	}
+}
+
 func TestPut_EXPIREError(t *testing.T) {
 	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET").Expect(1)
 	expire := conn.GenericCommand("EXPIRE").ExpectError(errors.New("EXPIRE error"))
-	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, true)
+	opts := &PutOptions{Exists: false, Expire: true}
+	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, opts)
 
 	if conn.Stats(hset) != 1 || conn.Stats(expire) != 1 {
 		t.Fatal("Put() failure, HSET and EXPIRE commands should have been called")
@@ -78,10 +96,27 @@ func TestPut_Success(t *testing.T) {
 	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET").Expect(1)
-	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, false)
+	opts := &PutOptions{Exists: false, Expire: false}
+	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, opts)
 
 	if conn.Stats(hset) != 1 {
 		t.Fatal("Put() failure, HSET command should have been called")
+	}
+
+	if err != nil {
+		t.Errorf("Put() error: %+v, want: nil", err)
+	}
+}
+
+func TestPut_SuccessWithEXISTS(t *testing.T) {
+	conn, client := setUpTest[v2.HeartbeatMessage]()
+
+	hset := conn.GenericCommand("EVAL").Expect(1)
+	opts := &PutOptions{Exists: true, Expire: false}
+	err := client.Put(testdata.FakeHostname, "Health", testdata.FakeHealth.Health, opts)
+
+	if conn.Stats(hset) != 1 {
+		t.Fatal("Put() failure, EVAL command should have been called")
 	}
 
 	if err != nil {
@@ -94,7 +129,8 @@ func TestPut_SuccessWithEXPIRE(t *testing.T) {
 
 	hset := conn.GenericCommand("HSET").Expect(1)
 	expire := conn.GenericCommand("EXPIRE").Expect(1)
-	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, true)
+	opts := &PutOptions{Exists: false, Expire: true}
+	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, opts)
 
 	if conn.Stats(hset) != 1 || conn.Stats(expire) != 1 {
 		t.Fatal("Put() failure, HSET and EXPIRE commands should have been called")
