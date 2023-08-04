@@ -8,7 +8,7 @@ endpoints_api_service:
   rollout_strategy: managed
 
 resources:
-  cpu: 2
+  cpu: 4
   memory_gb: 8
 
 network:
@@ -17,6 +17,8 @@ network:
     - 9090/tcp
 
 automatic_scaling:
+  min_num_instances: 15
+  max_num_instances: 40
   cool_down_period_sec: 300
 
 liveness_check:
