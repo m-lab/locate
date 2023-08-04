@@ -2,7 +2,6 @@ package memorystore
 
 import (
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -73,8 +72,7 @@ func (c *client[V]) PutIfExists(key string, field string, value redis.Scanner, e
 		return err
 	}
 
-	fmtValue := strings.ReplaceAll(string(b), `\"`, `\\"`)
-	args := redis.Args{}.Add(script).Add(1).Add(key).Add(field).Add(fmtValue)
+	args := redis.Args{}.Add(script).Add(1).Add(key).Add(field).AddFlat(string(b))
 	_, err = conn.Do("EVAL", args...)
 	if err != nil {
 		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
