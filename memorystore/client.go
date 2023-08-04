@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	scriptSrc = `if redis.call('EXISTS', KEYS[1]) == 1
-				then return redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
-				else error('key not found')
-				end`
+	script = `if redis.call('EXISTS', KEYS[1]) == 1
+		then return redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
+		else error('key not found')
+		end`
 )
 
 type client[V any] struct {
@@ -73,9 +73,9 @@ func (c *client[V]) PutIfExists(key string, field string, value redis.Scanner, e
 		return err
 	}
 
-	script := redis.NewScript(1, scriptSrc)
 	fmtValue := strings.ReplaceAll(string(b), `\"`, `\\"`)
-	_, err = script.Do(conn, key, field, fmtValue)
+	args := redis.Args{}.Add(script).Add(1).Add(key).Add(field).Add(fmtValue)
+	_, err = conn.Do("EVAL", args...)
 	if err != nil {
 		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
 		return err
