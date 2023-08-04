@@ -38,7 +38,7 @@ steps:
 # Deployment of APIs in mlab-ns.
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.18
   env:
-  # Use cbif condition: only run these steps in this project
+  # Use cbif condition: only run these steps in this project.
   - PROJECT_IN=mlab-ns
   args:
   - cp cloudbuild/app.yaml.mlab-ns.template app.yaml
