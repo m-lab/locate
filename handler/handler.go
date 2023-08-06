@@ -188,6 +188,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 // Nearest uses an implementation of the LocatorV2 interface to look up
 // nearest servers.
 func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
+	t := time.Now()
 	req.ParseForm()
 	result := v2.NearestResult{}
 	experiment, service := getExperimentAndService(req.URL.Path)
@@ -201,6 +202,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 		writeResult(rw, result.Error.Status, &result)
 		metrics.RequestsTotal.WithLabelValues("nearest", "client location",
 			http.StatusText(result.Error.Status)).Inc()
+		metrics.NearestRequestDuration.WithLabelValues("client location error").Observe(time.Since(t).Seconds())
 		return
 	}
 
@@ -212,21 +214,23 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 		writeResult(rw, result.Error.Status, &result)
 		metrics.RequestsTotal.WithLabelValues("nearest", "parse client location",
 			http.StatusText(result.Error.Status)).Inc()
+		metrics.NearestRequestDuration.WithLabelValues("parse client location error").Observe(time.Since(t).Seconds())
 		return
 	}
 
 	// Find the nearest targets using the client parameters.
 	q := req.URL.Query()
-	t := q.Get("machine-type")
+	typ := q.Get("machine-type")
 	country := req.Header.Get("X-AppEngine-Country")
 	sites := q["site"]
-	opts := &heartbeat.NearestOptions{Type: t, Country: country, Sites: sites}
+	opts := &heartbeat.NearestOptions{Type: typ, Country: country, Sites: sites}
 	targetInfo, err := c.LocatorV2.Nearest(service, lat, lon, opts)
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
 		writeResult(rw, result.Error.Status, &result)
 		metrics.RequestsTotal.WithLabelValues("nearest", "server location",
 			http.StatusText(result.Error.Status)).Inc()
+		metrics.NearestRequestDuration.WithLabelValues("server location error").Observe(time.Since(t).Seconds())
 		return
 	}
 
@@ -236,6 +240,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	result.Results = targetInfo.Targets
 	writeResult(rw, http.StatusOK, &result)
 	metrics.RequestsTotal.WithLabelValues("nearest", "success", http.StatusText(http.StatusOK)).Inc()
+	metrics.NearestRequestDuration.WithLabelValues("OK").Observe(time.Since(t).Seconds())
 }
 
 // Live is a minimal handler to indicate that the server is operating at all.

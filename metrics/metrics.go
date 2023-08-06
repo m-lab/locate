@@ -19,6 +19,16 @@ var (
 		[]string{"type", "condition", "status"},
 	)
 
+	// NearestRequestDuration tracks the latency of /nearest requests served by the
+	// Locate service.
+	NearestRequestDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "locate_nearest_request_duration",
+			Help: "Tracks the latency of /nearest requests served by the Locate service.",
+		},
+		[]string{"status"},
+	)
+
 	// AppEngineTotal counts the number of times App Engine headers are
 	// used to try to find the client location.
 	//
