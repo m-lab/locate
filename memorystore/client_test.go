@@ -31,7 +31,7 @@ func TestPut_MarshalError(t *testing.T) {
 	hset := conn.GenericCommand("HSET")
 	r := *testdata.FakeRegistration.Registration
 	r.Latitude = math.Inf(1)
-	opts := &PutOptions{Exists: false, Expire: true}
+	opts := &PutOptions{MustExist: false, WithExpire: true}
 	err := client.Put(testdata.FakeHostname, "Registration", &r, opts)
 
 	if conn.Stats(hset) > 0 {
@@ -47,7 +47,7 @@ func TestPut_HSETError(t *testing.T) {
 	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET").ExpectError(errors.New("HSET error"))
-	opts := &PutOptions{Exists: false, Expire: true}
+	opts := &PutOptions{MustExist: false, WithExpire: true}
 	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, opts)
 
 	if conn.Stats(hset) != 1 {
@@ -63,7 +63,7 @@ func TestPut_EVALError(t *testing.T) {
 	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("EVAL").ExpectError(errors.New("EVAL error"))
-	opts := &PutOptions{Exists: true, Expire: true}
+	opts := &PutOptions{MustExist: true, WithExpire: true}
 	err := client.Put(testdata.FakeHostname, "Health", testdata.FakeHealth.Health, opts)
 
 	if conn.Stats(hset) != 1 {
@@ -80,7 +80,7 @@ func TestPut_EXPIREError(t *testing.T) {
 
 	hset := conn.GenericCommand("HSET").Expect(1)
 	expire := conn.GenericCommand("EXPIRE").ExpectError(errors.New("EXPIRE error"))
-	opts := &PutOptions{Exists: false, Expire: true}
+	opts := &PutOptions{MustExist: false, WithExpire: true}
 	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, opts)
 
 	if conn.Stats(hset) != 1 || conn.Stats(expire) != 1 {
@@ -96,7 +96,7 @@ func TestPut_Success(t *testing.T) {
 	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("HSET").Expect(1)
-	opts := &PutOptions{Exists: false, Expire: false}
+	opts := &PutOptions{MustExist: false, WithExpire: false}
 	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, opts)
 
 	if conn.Stats(hset) != 1 {
@@ -112,7 +112,7 @@ func TestPut_SuccessWithEXISTS(t *testing.T) {
 	conn, client := setUpTest[v2.HeartbeatMessage]()
 
 	hset := conn.GenericCommand("EVAL").Expect(1)
-	opts := &PutOptions{Exists: true, Expire: false}
+	opts := &PutOptions{MustExist: true, WithExpire: false}
 	err := client.Put(testdata.FakeHostname, "Health", testdata.FakeHealth.Health, opts)
 
 	if conn.Stats(hset) != 1 {
@@ -129,7 +129,7 @@ func TestPut_SuccessWithEXPIRE(t *testing.T) {
 
 	hset := conn.GenericCommand("HSET").Expect(1)
 	expire := conn.GenericCommand("EXPIRE").Expect(1)
-	opts := &PutOptions{Exists: false, Expire: true}
+	opts := &PutOptions{MustExist: false, WithExpire: true}
 	err := client.Put(testdata.FakeHostname, "Registration", testdata.FakeRegistration.Registration, opts)
 
 	if conn.Stats(hset) != 1 || conn.Stats(expire) != 1 {
