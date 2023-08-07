@@ -76,14 +76,13 @@ var (
 		[]string{"status"},
 	)
 
-	// PrometheusHealthCollectionDuration is a histogram that tracks the latency of the
-	// handler that collects Prometheus health signals.
-	PrometheusHealthCollectionDuration = promauto.NewHistogramVec(
+	// RequestHandlerDuration is a histogram that tracks the latency of each request handler.
+	RequestHandlerDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name: "prometheus_health_collection_duration",
-			Help: "A histogram of request latencies to the Prometheus health signal handler.",
+			Name: "locate_request_handler_duration",
+			Help: "A histogram of latencies for each request handler.",
 		},
-		[]string{"code"},
+		[]string{"method", "code"},
 	)
 
 	// ServerDistanceRanking is a histogram that tracks the ranked distance of the returned servers

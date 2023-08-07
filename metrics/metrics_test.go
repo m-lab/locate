@@ -13,7 +13,7 @@ func TestLintMetrics(t *testing.T) {
 	LocateHealthStatus.WithLabelValues("experiment").Set(0)
 	LocateMemorystoreRequestDuration.WithLabelValues("type", "command", "status")
 	ImportMemorystoreTotal.WithLabelValues("status")
-	PrometheusHealthCollectionDuration.WithLabelValues("code")
+	RequestHandlerDuration.WithLabelValues("code")
 	ServerDistanceRanking.WithLabelValues("index")
 	MetroDistanceRanking.WithLabelValues("index")
 	ConnectionRequestsTotal.WithLabelValues("status")
