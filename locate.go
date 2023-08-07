@@ -176,19 +176,22 @@ func main() {
 	mux := http.NewServeMux()
 	// PLATFORM APIs
 	// Services report their health to the heartbeat service.
-	mux.HandleFunc("/v2/platform/heartbeat", http.HandlerFunc(c.Heartbeat))
+	mux.HandleFunc("/v2/platform/heartbeat", promhttp.InstrumentHandlerDuration(
+		metrics.PrometheusHealthCollectionDuration, http.HandlerFunc(c.Heartbeat)))
 	// Collect Prometheus health signals.
-	mux.HandleFunc("/v2/platform/prometheus",
-		promhttp.InstrumentHandlerDuration(metrics.PrometheusHealthCollectionDuration,
-			http.HandlerFunc(c.Prometheus)))
+	mux.HandleFunc("/v2/platform/prometheus", promhttp.InstrumentHandlerDuration(
+		metrics.PrometheusHealthCollectionDuration, http.HandlerFunc(c.Prometheus)))
 	// End to end monitoring requests access tokens for specific targets.
-	mux.Handle("/v2/platform/monitoring/", monitoringChain)
+	mux.Handle("/v2/platform/monitoring/", promhttp.InstrumentHandlerDuration(
+		metrics.PrometheusHealthCollectionDuration, monitoringChain))
 
 	// USER APIs
 	// Clients request access tokens for specific services.
-	mux.HandleFunc("/v2/nearest/", http.HandlerFunc(c.Nearest))
+	mux.HandleFunc("/v2/nearest/", promhttp.InstrumentHandlerDuration(
+		metrics.PrometheusHealthCollectionDuration, http.HandlerFunc(c.Nearest)))
 	// REQUIRED: API keys parameters required for priority requests.
-	mux.HandleFunc("/v2/priority/nearest/", http.HandlerFunc(c.Nearest))
+	mux.HandleFunc("/v2/priority/nearest/", promhttp.InstrumentHandlerDuration(
+		metrics.PrometheusHealthCollectionDuration, http.HandlerFunc(c.Nearest)))
 
 	// Liveness and Readiness checks to support deployments.
 	mux.HandleFunc("/v2/live", c.Live)
