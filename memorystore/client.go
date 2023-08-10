@@ -15,16 +15,16 @@ const (
 	// when it is invoked in the Put method (e.g., redis.Args{}.Add(...)).
 	// The command used to interpret the script in Redis is the EVAL command.
 	// Its documentation can be found under https://redis.io/commands/eval/.
-	script = `if redis.call('EXISTS', KEYS[1]) == 1
-		then return redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
+	script = `if redis.call('HGET', KEYS[1], ARGV[1]) == 1
+		then return redis.call('HSET', KEYS[1], ARGV[2], ARGV[3])
 		else error('key not found')
 		end`
 )
 
 // PutOptions defines the parameters that can be used for PUT operations.
 type PutOptions struct {
-	MustExist  bool // Specifies whether the entry must already exist.
-	WithExpire bool // Specifies whether an expiration should be added to the entry.
+	FieldMustExist  string // Specifies a field that must already exist in the entry.
+	WithExpire bool   // Specifies whether an expiration should be added to the entry.
 }
 
 type client[V any] struct {
@@ -50,8 +50,8 @@ func (c *client[V]) Put(key string, field string, value redis.Scanner, opts *Put
 		return err
 	}
 
-	if opts.MustExist {
-		args := redis.Args{}.Add(script).Add(1).Add(key).Add(field).AddFlat(string(b))
+	if opts.FieldMustExist != "" {
+		args := redis.Args{}.Add(script).Add(1).Add(key).Add(opts.FieldMustExist).Add(field).AddFlat(string(b))
 		_, err = conn.Do("EVAL", args...)
 		if err != nil {
 			metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "EVAL error").Observe(time.Since(t).Seconds())

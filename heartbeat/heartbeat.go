@@ -67,7 +67,7 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 // locally.
 func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 	hostname := rm.Hostname
-	opts := &memorystore.PutOptions{MustExist: false, WithExpire: true}
+	opts := &memorystore.PutOptions{WithExpire: true}
 	if err := h.Put(hostname, "Registration", &rm, opts); err != nil {
 		return fmt.Errorf("%w: failed to write Registration message to Memorystore", err)
 	}
@@ -79,7 +79,7 @@ func (h *heartbeatStatusTracker) RegisterInstance(rm v2.Registration) error {
 // UpdateHealth updates the v2.Health field for the instance in the Memorystore client and
 // updates it locally.
 func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) error {
-	opts := &memorystore.PutOptions{MustExist: true, WithExpire: true}
+	opts := &memorystore.PutOptions{FieldMustExist: "Registration", WithExpire: true}
 	if err := h.Put(hostname, "Health", &hm, opts); err != nil {
 		return fmt.Errorf("%w: failed to write Health message to Memorystore", err)
 	}
@@ -166,7 +166,7 @@ func (h *heartbeatStatusTracker) updateHealth(hostname string, hm v2.Health) err
 // in Memorystore and locally.
 func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMessage, pm *v2.Prometheus) error {
 	hostname := instance.Registration.Hostname
-	opts := &memorystore.PutOptions{MustExist: true, WithExpire: false}
+	opts := &memorystore.PutOptions{FieldMustExist: "Registration", WithExpire: false}
 
 	// Update in Memorystore.
 	err := h.Put(hostname, "Prometheus", pm, opts)
