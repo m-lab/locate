@@ -9,6 +9,24 @@ import (
 	"github.com/m-lab/locate/static"
 )
 
+const (
+	// This is a Lua script that will be interpreted by the Redis server.
+	// The key/argument parameters (e.g., KEYS[1]) are passed to the script
+	// when it is invoked in the Put method (e.g., redis.Args{}.Add(...)).
+	// The command used to interpret the script in Redis is the EVAL command.
+	// Its documentation can be found under https://redis.io/commands/eval/.
+	script = `if redis.call('HEXISTS', KEYS[1], ARGV[1]) == 1
+		then return redis.call('HSET', KEYS[1], ARGV[2], ARGV[3])
+		else error('key not found')
+		end`
+)
+
+// PutOptions defines the parameters that can be used for PUT operations.
+type PutOptions struct {
+	FieldMustExist string // Specifies a field that must already exist in the entry.
+	WithExpire     bool   // Specifies whether an expiration should be added to the entry.
+}
+
 type client[V any] struct {
 	pool *redis.Pool
 }
@@ -20,8 +38,8 @@ func NewClient[V any](pool *redis.Pool) *client[V] {
 }
 
 // Put sets a Redis Hash using the `HSET key field value` command.
-// If successful, it also sets a timeout on the key.
-func (c *client[V]) Put(key string, field string, value redis.Scanner, expire bool) error {
+// If the `opts.WithExpire` option is true, it also (re)sets the key's timeout.
+func (c *client[V]) Put(key string, field string, value redis.Scanner, opts *PutOptions) error {
 	t := time.Now()
 	conn := c.pool.Get()
 	defer conn.Close()
@@ -32,14 +50,23 @@ func (c *client[V]) Put(key string, field string, value redis.Scanner, expire bo
 		return err
 	}
 
-	args := redis.Args{}.Add(key).Add(field).AddFlat(string(b))
-	_, err = conn.Do("HSET", args...)
-	if err != nil {
-		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
-		return err
+	if opts.FieldMustExist != "" {
+		args := redis.Args{}.Add(script).Add(1).Add(key).Add(opts.FieldMustExist).Add(field).AddFlat(string(b))
+		_, err = conn.Do("EVAL", args...)
+		if err != nil {
+			metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "EVAL error").Observe(time.Since(t).Seconds())
+			return err
+		}
+	} else {
+		args := redis.Args{}.Add(key).Add(field).AddFlat(string(b))
+		_, err = conn.Do("HSET", args...)
+		if err != nil {
+			metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "HSET error").Observe(time.Since(t).Seconds())
+			return err
+		}
 	}
 
-	if !expire {
+	if !opts.WithExpire {
 		metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "OK").Observe(time.Since(t).Seconds())
 		return nil
 	}
