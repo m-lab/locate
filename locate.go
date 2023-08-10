@@ -10,6 +10,7 @@ import (
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/gomodule/redigo/redis"
 	"github.com/justinas/alice"
+	promet "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/square/go-jose.v2/jwt"
 
@@ -177,21 +178,26 @@ func main() {
 	// PLATFORM APIs
 	// Services report their health to the heartbeat service.
 	mux.HandleFunc("/v2/platform/heartbeat", promhttp.InstrumentHandlerDuration(
-		metrics.RequestHandlerDuration, http.HandlerFunc(c.Heartbeat)))
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "platform/heartbeat"}),
+		http.HandlerFunc(c.Heartbeat)))
 	// Collect Prometheus health signals.
 	mux.HandleFunc("/v2/platform/prometheus", promhttp.InstrumentHandlerDuration(
-		metrics.RequestHandlerDuration, http.HandlerFunc(c.Prometheus)))
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "platform/prometheus"}),
+		http.HandlerFunc(c.Prometheus)))
 	// End to end monitoring requests access tokens for specific targets.
 	mux.Handle("/v2/platform/monitoring/", promhttp.InstrumentHandlerDuration(
-		metrics.RequestHandlerDuration, monitoringChain))
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "platform/monitoring"}),
+		monitoringChain))
 
 	// USER APIs
 	// Clients request access tokens for specific services.
 	mux.HandleFunc("/v2/nearest/", promhttp.InstrumentHandlerDuration(
-		metrics.RequestHandlerDuration, http.HandlerFunc(c.Nearest)))
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "nearest"}),
+		http.HandlerFunc(c.Nearest)))
 	// REQUIRED: API keys parameters required for priority requests.
 	mux.HandleFunc("/v2/priority/nearest/", promhttp.InstrumentHandlerDuration(
-		metrics.RequestHandlerDuration, http.HandlerFunc(c.Nearest)))
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "priority/nearest"}),
+		http.HandlerFunc(c.Nearest)))
 
 	// Liveness and Readiness checks to support deployments.
 	mux.HandleFunc("/v2/live", c.Live)
