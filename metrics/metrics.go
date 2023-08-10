@@ -82,7 +82,7 @@ var (
 			Name: "locate_request_handler_duration",
 			Help: "A histogram of latencies for each request handler.",
 		},
-		[]string{"code"},
+		[]string{"path", "code"},
 	)
 
 	// ServerDistanceRanking is a histogram that tracks the ranked distance of the returned servers
