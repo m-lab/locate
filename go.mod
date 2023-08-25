@@ -14,7 +14,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/justinas/alice v1.2.0
 	github.com/m-lab/access v0.0.10
-	github.com/m-lab/go v0.1.58
+	github.com/m-lab/go v0.1.66
 	github.com/m-lab/uuid-annotator v0.4.5
 	github.com/oschwald/geoip2-golang v1.5.0
 	github.com/prometheus/client_golang v1.13.0
