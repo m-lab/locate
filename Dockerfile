@@ -1,4 +1,4 @@
-FROM golang:1.18
+FROM golang:1.20
 ADD . /go/src/github.com/m-lab/locate
 WORKDIR /go/src/github.com/m-lab/locate
 RUN go get -v github.com/m-lab/locate && \
