@@ -34,7 +34,7 @@ import (
 var (
 	errFailedToLookupClient = errors.New("Failed to look up client location")
 	rand                    = mathx.NewRandom(time.Now().UnixNano())
-	earlyExitProbability    = 0.01
+	earlyExitProbability    = 0.1
 )
 
 // Signer defines how access tokens are signed.
