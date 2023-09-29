@@ -353,7 +353,7 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 }
 
 func allowRequest(req *http.Request) bool {
-	log.Println("Headers: %+v", req.Header)
+	log.Printf("Headers: %+v", req.Header)
 	time := req.URL.Query().Get("timestamp")
 	if time == "" {
 		return true
