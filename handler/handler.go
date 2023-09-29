@@ -35,6 +35,16 @@ var (
 	errFailedToLookupClient = errors.New("Failed to look up client location")
 	rand                    = mathx.NewRandom(time.Now().UnixNano())
 	earlyExitProbability    = 0.3
+	tooManyRequests         = "Too many requests per minute. Please contact support@measurementlab.net for support."
+	limitIntervals          = []interval{
+		{start: "01:00", end: "01:10"},
+		{start: "04:00", end: "04:10"},
+		{start: "10:00", end: "10:10"},
+		{start: "13:00", end: "13:10"},
+		{start: "16:00", end: "16:10"},
+		{start: "19:00", end: "19:10"},
+		{start: "22:00", end: "22:10"},
+	}
 )
 
 // Signer defines how access tokens are signed.
@@ -74,6 +84,11 @@ type ClientLocator interface {
 // PrometheusClient defines the interface to query Prometheus.
 type PrometheusClient interface {
 	Query(ctx context.Context, query string, ts time.Time, opts ...prom.Option) (model.Value, prom.Warnings, error)
+}
+
+type interval struct {
+	start string
+	end   string
 }
 
 type paramOpts struct {
@@ -189,8 +204,15 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 // nearest servers.
 func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
-	log.Printf("Query test: %+v\n", req.URL.Query())
 	result := v2.NearestResult{}
+
+	if !allowRequest(req) {
+		result.Error = v2.NewError("client", tooManyRequests, http.StatusNoContent)
+		writeResult(rw, result.Error.Status, &result)
+		metrics.RequestsTotal.WithLabelValues("nearest", "allow request", http.StatusText(result.Error.Status)).Inc()
+		return
+	}
+
 	experiment, service := getExperimentAndService(req.URL.Path)
 	setHeaders(rw)
 
@@ -328,6 +350,16 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 		urls[name] = target.String()
 	}
 	return urls
+}
+
+func allowRequest(req *http.Request) bool {
+	log.Println("Headers: %+v", req.Header)
+	time := req.URL.Query().Get("timestamp")
+	if time == "" {
+		return true
+	}
+
+	return true
 }
 
 // setHeaders sets the response headers for "nearest" requests.
