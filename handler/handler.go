@@ -189,6 +189,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 // nearest servers.
 func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
+	log.Printf("Query test: %+v\n", req.URL.Query())
 	result := v2.NearestResult{}
 	experiment, service := getExperimentAndService(req.URL.Path)
 	setHeaders(rw)
