@@ -365,9 +365,9 @@ func allowRequest(now time.Time, req *http.Request) bool {
 	t := fmt.Sprintf("%d:%d", now.Hour(), now.Minute())
 	log.Println("Limit test (t): ", t)
 	for _, interval := range limitIntervals {
-		fmt.Println("Limit test (interval): ", interval)
-		fmt.Println("Limit test (comp1): ", t >= interval.start)
-		fmt.Println("Limit test (comp2): ", t <= interval.end)
+		log.Println("Limit test (interval): ", interval)
+		log.Println("Limit test (comp1): ", t >= interval.start)
+		log.Println("Limit test (comp2): ", t <= interval.end)
 		if t >= interval.start && t <= interval.end {
 			return false
 		}
