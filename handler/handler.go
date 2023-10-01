@@ -44,7 +44,7 @@ var (
 		{start: "13:0", end: "13:10"},
 		{start: "16:0", end: "16:10"},
 		{start: "19:0", end: "19:10"},
-		{start: "22:0", end: "22:10"},
+		{start: "23:0", end: "23:59"}, // TODO(cristinaleon): Change to 22 after test.
 	}
 )
 
