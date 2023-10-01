@@ -355,6 +355,7 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 
 func allowRequest(now time.Time, req *http.Request) bool {
 	agent := req.Header.Get("User-Agent")
+	log.Println("Time: ", now.String())
 	log.Printf("User agent: '%s'", agent)
 	log.Println("Headers: ", req.Header)
 	// TODO(cristinaleon): Change after test.
