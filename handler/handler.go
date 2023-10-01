@@ -355,16 +355,19 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 
 func allowRequest(now time.Time, req *http.Request) bool {
 	agent := req.Header.Get("User-Agent")
-	log.Println("Time: ", now.String())
-	log.Printf("User agent: '%s'", agent)
-	log.Println("Headers: ", req.Header)
+	log.Println("Limit test (now): ", now.String())
+	log.Printf("Limit test (user agent): '%s'", agent)
 	// TODO(cristinaleon): Change after test.
 	if agent != "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36" {
 		return true
 	}
 
 	t := fmt.Sprintf("%d:%d", now.Hour(), now.Minute())
+	log.Println("Limit test (t): ", t)
 	for _, interval := range limitIntervals {
+		fmt.Println("Limit test (interval): ", interval)
+		fmt.Println("Limit test (comp1): ", t >= interval.start)
+		fmt.Println("Limit test (comp2): ", t <= interval.end)
 		if t >= interval.start && t <= interval.end {
 			return false
 		}
