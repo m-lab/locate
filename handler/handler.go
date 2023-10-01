@@ -37,13 +37,14 @@ var (
 	earlyExitProbability    = 0.3
 	tooManyRequests         = "Too many requests per minute. Please contact support@measurementlab.net for support."
 	limitIntervals          = []interval{
-		{start: "01:00", end: "01:10"},
-		{start: "04:00", end: "04:10"},
-		{start: "10:00", end: "10:10"},
-		{start: "13:00", end: "13:10"},
-		{start: "16:00", end: "16:10"},
-		{start: "19:00", end: "19:10"},
-		{start: "22:00", end: "22:10"},
+		{start: "1:0", end: "1:10"},
+		{start: "4:0", end: "4:10"},
+		{start: "7:0", end: "7:10"},
+		{start: "10:0", end: "10:10"},
+		{start: "13:0", end: "13:10"},
+		{start: "16:0", end: "16:10"},
+		{start: "19:0", end: "19:10"},
+		{start: "22:0", end: "22:10"},
 	}
 )
 
@@ -206,7 +207,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 	result := v2.NearestResult{}
 
-	if !allowRequest(req) {
+	if !allowRequest(time.Now().UTC(), req) {
 		result.Error = v2.NewError("client", tooManyRequests, http.StatusNoContent)
 		writeResult(rw, result.Error.Status, &result)
 		metrics.RequestsTotal.WithLabelValues("nearest", "allow request", http.StatusText(result.Error.Status)).Inc()
@@ -352,13 +353,18 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 	return urls
 }
 
-func allowRequest(req *http.Request) bool {
-	log.Printf("Headers: %+v", req.Header)
-	time := req.URL.Query().Get("timestamp")
-	if time == "" {
+func allowRequest(now time.Time, req *http.Request) bool {
+	agent := req.Header.Get("User-Agent")
+	if agent != "ndt7-client-go-cmd/0.5.0 ndt7-client-go/0.5.0" {
 		return true
 	}
 
+	t := fmt.Sprintf("%d:%d", now.Hour(), now.Minute())
+	for _, interval := range limitIntervals {
+		if t >= interval.start && t <= interval.end {
+			return false
+		}
+	}
 	return true
 }
 
