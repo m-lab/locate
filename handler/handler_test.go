@@ -571,26 +571,26 @@ func Test_allowRequest(t *testing.T) {
 			},
 			want: true,
 		},
-		// {
-		// 	name: "allowed-time",
-		// 	time: time.Date(2023, time.September, 30, 11, 00, 00, 00, time.UTC),
-		// 	req: &http.Request{
-		// 		Header: http.Header{
-		// 			"User-Agent": []string{"ndt7-client-go-cmd/0.5.0 ndt7-client-go/0.5.0"},
-		// 		},
-		// 	},
-		// 	want: true,
-		// },
-		// {
-		// 	name: "limited-time",
-		// 	time: time.Date(2023, time.September, 30, 04, 00, 00, 00, time.UTC),
-		// 	req: &http.Request{
-		// 		Header: http.Header{
-		// 			"User-Agent": []string{"ndt7-client-go-cmd/0.5.0 ndt7-client-go/0.5.0"},
-		// 		},
-		// 	},
-		// 	want: false,
-		// },
+		{
+			name: "allowed-time",
+			time: time.Date(2023, time.September, 30, 11, 00, 00, 00, time.UTC),
+			req: &http.Request{
+				Header: http.Header{
+					"User-Agent": []string{"ndt7-client-go-cmd/0.5.0 ndt7-client-go/0.5.0"},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "limited-time",
+			time: time.Date(2023, time.September, 30, 04, 00, 00, 00, time.UTC),
+			req: &http.Request{
+				Header: http.Header{
+					"User-Agent": []string{"ndt7-client-go-cmd/0.5.0 ndt7-client-go/0.5.0"},
+				},
+			},
+			want: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

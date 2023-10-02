@@ -355,7 +355,7 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 
 func allowRequest(now time.Time, req *http.Request) bool {
 	agent := req.Header.Get("User-Agent")
-	if agent != "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36" {
+	if agent != "ndt7-client-go-cmd/0.5.0 ndt7-client-go/0.5.0" {
 		return true
 	}
 
