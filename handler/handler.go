@@ -35,8 +35,8 @@ var (
 	errFailedToLookupClient = errors.New("Failed to look up client location")
 	rand                    = mathx.NewRandom(time.Now().UnixNano())
 	earlyExitProbability    = 0.3
-	tooManyRequests         = "Too many requests per minute. Please contact support@measurementlab.net for support."
-	limitIntervals          = []interval{
+	tooManyRequests         = "Too many requests per minute. Please contact support@measurementlab.net."
+	limitIntervals          = []limitInterval{
 		{hour: 1, minute: 10},
 		{hour: 4, minute: 10},
 		{hour: 7, minute: 10},
@@ -87,7 +87,8 @@ type PrometheusClient interface {
 	Query(ctx context.Context, query string, ts time.Time, opts ...prom.Option) (model.Value, prom.Warnings, error)
 }
 
-type interval struct {
+// limitInterval contains the time (UTC) to rate limit client requests.
+type limitInterval struct {
 	hour   int
 	minute int
 }
@@ -353,6 +354,9 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 	return urls
 }
 
+// allowRequest determines whether requests from periodic clients should
+// be served.
+// TODO(cristinaleon): Remove once issue is resolved.
 func allowRequest(now time.Time, req *http.Request) bool {
 	agent := req.Header.Get("User-Agent")
 	if agent != "ndt7-client-go-cmd/0.5.0 ndt7-client-go/0.5.0" {

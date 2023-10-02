@@ -562,7 +562,17 @@ func Test_allowRequest(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "allowed-user-agent",
+			name: "allowed-user-agent-allowed-time",
+			time: time.Date(2023, time.September, 30, 11, 00, 00, 00, time.UTC),
+			req: &http.Request{
+				Header: http.Header{
+					"User-Agent": []string{"foo"},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "allowed-user-agent-limited-time",
 			time: time.Date(2023, time.September, 30, 04, 00, 00, 00, time.UTC),
 			req: &http.Request{
 				Header: http.Header{
@@ -572,7 +582,7 @@ func Test_allowRequest(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "allowed-time",
+			name: "limited-user-agent-allowed-time",
 			time: time.Date(2023, time.September, 30, 11, 00, 00, 00, time.UTC),
 			req: &http.Request{
 				Header: http.Header{
@@ -582,7 +592,7 @@ func Test_allowRequest(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "limited-time",
+			name: "limited-user-agent-limited-time",
 			time: time.Date(2023, time.September, 30, 04, 00, 00, 00, time.UTC),
 			req: &http.Request{
 				Header: http.Header{
