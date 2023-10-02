@@ -209,7 +209,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	setHeaders(rw)
 
 	if !allowRequest(time.Now().UTC(), req) {
-		result.Error = v2.NewError("client", tooManyRequests, http.StatusNoContent)
+		result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
 		writeResult(rw, result.Error.Status, &result)
 		metrics.RequestsTotal.WithLabelValues("nearest", "allow request", http.StatusText(result.Error.Status)).Inc()
 		return
