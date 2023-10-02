@@ -37,14 +37,14 @@ var (
 	earlyExitProbability    = 0.3
 	tooManyRequests         = "Too many requests per minute. Please contact support@measurementlab.net for support."
 	limitIntervals          = []interval{
-		{start: "1:0", end: "1:10"},
-		{start: "4:0", end: "4:10"},
-		{start: "7:0", end: "7:10"},
-		{start: "10:0", end: "10:10"},
-		{start: "13:0", end: "13:10"},
-		{start: "16:0", end: "16:10"},
-		{start: "19:0", end: "19:10"},
-		{start: "23:0", end: "23:59"}, // TODO(cristinaleon): Change to 22 after test.
+		{hour: 2, minute: 10}, // TODO(cristinaleon): Change to 1 after test.
+		{hour: 4, minute: 10},
+		{hour: 7, minute: 10},
+		{hour: 10, minute: 10},
+		{hour: 13, minute: 10},
+		{hour: 16, minute: 10},
+		{hour: 19, minute: 10},
+		{hour: 22, minute: 10},
 	}
 )
 
@@ -88,8 +88,8 @@ type PrometheusClient interface {
 }
 
 type interval struct {
-	start string
-	end   string
+	hour   int
+	minute int
 }
 
 type paramOpts struct {
@@ -206,6 +206,7 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 	result := v2.NearestResult{}
+	setHeaders(rw)
 
 	if !allowRequest(time.Now().UTC(), req) {
 		result.Error = v2.NewError("client", tooManyRequests, http.StatusNoContent)
@@ -215,7 +216,6 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	experiment, service := getExperimentAndService(req.URL.Path)
-	setHeaders(rw)
 
 	// Look up client location.
 	loc, err := c.checkClientLocation(rw, req)
@@ -362,13 +362,8 @@ func allowRequest(now time.Time, req *http.Request) bool {
 		return true
 	}
 
-	t := fmt.Sprintf("%d:%d", now.Hour(), now.Minute())
-	log.Println("Limit test (t): ", t)
 	for _, interval := range limitIntervals {
-		log.Println("Limit test (interval): ", interval)
-		log.Println("Limit test (comp1): ", t >= interval.start)
-		log.Println("Limit test (comp2): ", t <= interval.end)
-		if t >= interval.start && t <= interval.end {
+		if now.Hour() == interval.hour && now.Minute() < interval.minute {
 			return false
 		}
 	}
