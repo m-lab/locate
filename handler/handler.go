@@ -37,7 +37,7 @@ var (
 	earlyExitProbability    = 0.3
 	tooManyRequests         = "Too many requests per minute. Please contact support@measurementlab.net for support."
 	limitIntervals          = []interval{
-		{hour: 2, minute: 10}, // TODO(cristinaleon): Change to 1 after test.
+		{hour: 1, minute: 10},
 		{hour: 4, minute: 10},
 		{hour: 7, minute: 10},
 		{hour: 10, minute: 10},
@@ -358,7 +358,7 @@ func allowRequest(now time.Time, req *http.Request) bool {
 	log.Println("Limit test (now): ", now.String())
 	log.Printf("Limit test (user agent): '%s'", agent)
 	// TODO(cristinaleon): Change after test.
-	if agent != "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36" {
+	if agent != "ndt7-client-go-cmd/0.5.0 ndt7-client-go/0.5.0" {
 		return true
 	}
 
