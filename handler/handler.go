@@ -37,14 +37,14 @@ var (
 	earlyExitProbability    = 0.3
 	tooManyRequests         = "Too many requests per minute. Please contact support@measurementlab.net."
 	limitIntervals          = []limitInterval{
-		{hour: 1, minute: 10},
-		{hour: 4, minute: 10},
-		{hour: 7, minute: 10},
-		{hour: 10, minute: 10},
-		{hour: 13, minute: 10},
-		{hour: 16, minute: 10},
-		{hour: 19, minute: 10},
-		{hour: 22, minute: 10},
+		{hour: 1, minute: 15},
+		{hour: 4, minute: 15},
+		{hour: 7, minute: 15},
+		{hour: 10, minute: 15},
+		{hour: 13, minute: 15},
+		{hour: 16, minute: 15},
+		{hour: 19, minute: 15},
+		{hour: 22, minute: 15},
 	}
 )
 
