@@ -34,7 +34,7 @@ import (
 var (
 	errFailedToLookupClient = errors.New("Failed to look up client location")
 	rand                    = mathx.NewRandom(time.Now().UnixNano())
-	earlyExitProbability    = 0.3
+	earlyExitProbability    = 0.5
 	tooManyRequests         = "Too many requests per minute. Please contact support@measurementlab.net."
 	limitIntervals          = []limitInterval{
 		{hour: 1, minute: 15},
