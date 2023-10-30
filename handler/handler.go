@@ -35,17 +35,6 @@ var (
 	errFailedToLookupClient = errors.New("Failed to look up client location")
 	rand                    = mathx.NewRandom(time.Now().UnixNano())
 	earlyExitProbability    = 0.5
-	tooManyRequests         = "Too many requests per minute. Please contact support@measurementlab.net."
-	limitIntervals          = []limitInterval{
-		{hour: 1, minute: 15},
-		{hour: 4, minute: 15},
-		{hour: 7, minute: 15},
-		{hour: 10, minute: 15},
-		{hour: 13, minute: 15},
-		{hour: 16, minute: 15},
-		{hour: 19, minute: 15},
-		{hour: 22, minute: 15},
-	}
 )
 
 // Signer defines how access tokens are signed.
@@ -85,12 +74,6 @@ type ClientLocator interface {
 // PrometheusClient defines the interface to query Prometheus.
 type PrometheusClient interface {
 	Query(ctx context.Context, query string, ts time.Time, opts ...prom.Option) (model.Value, prom.Warnings, error)
-}
-
-// limitInterval contains the time (UTC) to rate limit client requests.
-type limitInterval struct {
-	hour   int
-	minute int
 }
 
 type paramOpts struct {
@@ -207,16 +190,8 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 	result := v2.NearestResult{}
-	setHeaders(rw)
-
-	if !allowRequest(time.Now().UTC(), req) {
-		result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
-		writeResult(rw, result.Error.Status, &result)
-		metrics.RequestsTotal.WithLabelValues("nearest", "allow request", http.StatusText(result.Error.Status)).Inc()
-		return
-	}
-
 	experiment, service := getExperimentAndService(req.URL.Path)
+	setHeaders(rw)
 
 	// Look up client location.
 	loc, err := c.checkClientLocation(rw, req)
@@ -352,23 +327,6 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 		urls[name] = target.String()
 	}
 	return urls
-}
-
-// allowRequest determines whether requests from periodic clients should
-// be served.
-// TODO(cristinaleon): Remove once issue is resolved.
-func allowRequest(now time.Time, req *http.Request) bool {
-	agent := req.Header.Get("User-Agent")
-	if agent != "ndt7-client-go-cmd/0.5.0 ndt7-client-go/0.5.0" {
-		return true
-	}
-
-	for _, interval := range limitIntervals {
-		if now.Hour() == interval.hour && now.Minute() < interval.minute {
-			return false
-		}
-	}
-	return true
 }
 
 // setHeaders sets the response headers for "nearest" requests.
