@@ -478,6 +478,7 @@ func TestExtraParams(t *testing.T) {
 	tests := []struct {
 		name                 string
 		hostname             string
+		index                int
 		p                    paramOpts
 		earlyExitProbability float64
 		want                 url.Values
@@ -485,6 +486,7 @@ func TestExtraParams(t *testing.T) {
 		{
 			name:     "all-params",
 			hostname: "host",
+			index:    0,
 			p: paramOpts{
 				raw:     map[string][]string{"client_name": {"client"}},
 				version: "v2",
@@ -494,11 +496,13 @@ func TestExtraParams(t *testing.T) {
 				"client_name":    []string{"client"},
 				"locate_version": []string{"v2"},
 				"metro_rank":     []string{"0"},
+				"index":          []string{"0"},
 			},
 		},
 		{
 			name:     "no-client",
 			hostname: "host",
+			index:    0,
 			p: paramOpts{
 				version: "v2",
 				ranks:   map[string]int{"host": 0},
@@ -506,21 +510,25 @@ func TestExtraParams(t *testing.T) {
 			want: url.Values{
 				"locate_version": []string{"v2"},
 				"metro_rank":     []string{"0"},
+				"index":          []string{"0"},
 			},
 		},
 		{
 			name:     "unmatched-host",
 			hostname: "host",
+			index:    0,
 			p: paramOpts{
 				version: "v2",
 				ranks:   map[string]int{"different-host": 0},
 			},
 			want: url.Values{
 				"locate_version": []string{"v2"},
+				"index":          []string{"0"},
 			},
 		},
 		{
-			name: "early-exit-true",
+			name:  "early-exit-true",
+			index: 0,
 			p: paramOpts{
 				raw:     map[string][]string{"early_exit": {"250"}},
 				version: "v2",
@@ -529,10 +537,12 @@ func TestExtraParams(t *testing.T) {
 			want: url.Values{
 				"early_exit":     []string{"250"},
 				"locate_version": []string{"v2"},
+				"index":          []string{"0"},
 			},
 		},
 		{
-			name: "early-exit-false",
+			name:  "early-exit-false",
+			index: 0,
 			p: paramOpts{
 				raw:     map[string][]string{"early_exit": {"250"}},
 				version: "v2",
@@ -540,13 +550,14 @@ func TestExtraParams(t *testing.T) {
 			earlyExitProbability: 0,
 			want: url.Values{
 				"locate_version": []string{"v2"},
+				"index":          []string{"0"},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			earlyExitProbability = tt.earlyExitProbability
-			got := extraParams(tt.hostname, tt.p)
+			got := extraParams(tt.hostname, tt.index, tt.p)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("extraParams() = %v, want %v", got, tt.want)
 			}

@@ -114,7 +114,7 @@ func NewClientDirect(project string, private Signer, locator Locator, locatorV2 
 	}
 }
 
-func extraParams(hostname string, p paramOpts) url.Values {
+func extraParams(hostname string, index int, p paramOpts) url.Values {
 	v := url.Values{}
 	// Add client parameters.
 	for key := range p.raw {
@@ -135,6 +135,9 @@ func extraParams(hostname string, p paramOpts) url.Values {
 	if ok {
 		v.Set("metro_rank", strconv.Itoa(rank))
 	}
+
+	// Add result index.
+	v.Set("index", strconv.Itoa(index))
 
 	return v
 }
@@ -274,7 +277,7 @@ func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) 
 func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, pOpts paramOpts) {
 	for i, target := range targets {
 		token := c.getAccessToken(target.Machine, exp)
-		params := extraParams(target.Machine, pOpts)
+		params := extraParams(target.Machine, i, pOpts)
 		targets[i].URLs = c.getURLs(ports, target.Machine, exp, token, params)
 	}
 }
