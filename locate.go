@@ -26,6 +26,7 @@ import (
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/heartbeat"
+	"github.com/m-lab/locate/limits"
 	"github.com/m-lab/locate/memorystore"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/prometheus"
@@ -52,6 +53,7 @@ var (
 		Options: []string{"secretmanager", "local"},
 		Value:   "secretmanager",
 	}
+	lmts flagx.KeyValue
 )
 
 func init() {
@@ -72,6 +74,7 @@ func init() {
 	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
 	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
+	flag.Var(&lmts, "limit", "Cron schedule limit for user agent (agent=schedule).")
 }
 
 var mainCtx, mainCancel = context.WithCancel(context.Background())
@@ -134,7 +137,12 @@ func main() {
 	promClient, err := prometheus.NewClient(creds, promURL)
 	rtx.Must(err, "failed to create Prometheus client")
 
-	c := handler.NewClient(project, signer, srvLocator, srvLocatorV2, locators, promClient)
+	agentLimits := make(map[string]*limits.Cron)
+	for agent, schedule := range lmts.Get() {
+		agentLimits[agent] = limits.NewCron(schedule)
+	}
+
+	c := handler.NewClient(project, signer, srvLocator, srvLocatorV2, locators, promClient, agentLimits)
 
 	go func() {
 		// Check and reload db at least once a day.

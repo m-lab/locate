@@ -25,6 +25,7 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/heartbeat"
+	"github.com/m-lab/locate/limits"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -35,6 +36,7 @@ var (
 	errFailedToLookupClient = errors.New("Failed to look up client location")
 	rand                    = mathx.NewRandom(time.Now().UnixNano())
 	earlyExitProbability    = 0.9
+	tooManyRequests         = "Too many periodic requests. Please contact support@measurementlab.net."
 )
 
 // Signer defines how access tokens are signed.
@@ -51,6 +53,7 @@ type Client struct {
 	ClientLocator
 	PrometheusClient
 	targetTmpl *template.Template
+	limits     map[string]*limits.Cron
 }
 
 // Locator defines how the TranslatedQuery handler requests machines nearest to
@@ -88,7 +91,7 @@ func init() {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient) *Client {
+func NewClient(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient, lmts map[string]*limits.Cron) *Client {
 	return &Client{
 		Signer:           private,
 		project:          project,
@@ -97,6 +100,7 @@ func NewClient(project string, private Signer, locator Locator, locatorV2 Locato
 		ClientLocator:    client,
 		PrometheusClient: prom,
 		targetTmpl:       template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
+		limits:           lmts,
 	}
 }
 
@@ -193,8 +197,16 @@ func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
 func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 	result := v2.NearestResult{}
-	experiment, service := getExperimentAndService(req.URL.Path)
 	setHeaders(rw)
+
+	if c.limitRequest(time.Now().UTC(), req) {
+		result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
+		writeResult(rw, result.Error.Status, &result)
+		metrics.RequestsTotal.WithLabelValues("nearest", "allow request", http.StatusText(result.Error.Status)).Inc()
+		return
+	}
+
+	experiment, service := getExperimentAndService(req.URL.Path)
 
 	// Look up client location.
 	loc, err := c.checkClientLocation(rw, req)
@@ -330,6 +342,17 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 		urls[name] = target.String()
 	}
 	return urls
+}
+
+// limitRequest determines whether a client request should be rate-limited.
+func (c *Client) limitRequest(now time.Time, req *http.Request) bool {
+	agent := req.Header.Get("User-Agent")
+	l, ok := c.limits[agent]
+	if !ok {
+		// No limit defined for user agent.
+		return false
+	}
+	return l.IsLimited(now)
 }
 
 // setHeaders sets the response headers for "nearest" requests.
