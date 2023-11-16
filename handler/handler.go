@@ -202,7 +202,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	if c.limitRequest(time.Now().UTC(), req) {
 		result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
 		writeResult(rw, result.Error.Status, &result)
-		metrics.RequestsTotal.WithLabelValues("nearest", "allow request", http.StatusText(result.Error.Status)).Inc()
+		metrics.RequestsTotal.WithLabelValues("nearest", "request limit", http.StatusText(result.Error.Status)).Inc()
 		return
 	}
 
