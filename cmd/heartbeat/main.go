@@ -13,11 +13,13 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/memoryless"
 	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/cmd/heartbeat/health"
+	"github.com/m-lab/locate/cmd/heartbeat/health/loadbalanced"
 	"github.com/m-lab/locate/cmd/heartbeat/registration"
 	"github.com/m-lab/locate/connection"
 	"github.com/m-lab/locate/metrics"
@@ -31,6 +33,7 @@ var (
 	pod                 string
 	node                string
 	namespace           string
+	project             string
 	kubernetesAuth      = "/var/run/secrets/kubernetes.io/serviceaccount/"
 	kubernetesURL       = flagx.URL{}
 	registrationURL     = flagx.URL{}
@@ -38,6 +41,11 @@ var (
 	heartbeatPeriod     = static.HeartbeatPeriod
 	mainCtx, mainCancel = context.WithCancel(context.Background())
 )
+
+// Checker generates a local instance health score (0, 1).
+type Checker interface {
+	GetHealth(ctx context.Context) float64
+}
 
 func init() {
 	flag.StringVar(&heartbeatURL, "heartbeat-url", "ws://localhost:8080/v2/platform/heartbeat",
@@ -47,6 +55,7 @@ func init() {
 	flag.StringVar(&pod, "pod", "", "Kubernetes pod name")
 	flag.StringVar(&node, "node", "", "Kubernetes node name")
 	flag.StringVar(&namespace, "namespace", "", "Kubernetes namespace")
+	flag.StringVar(&project, "project", "", "Platform project")
 	flag.Var(&kubernetesURL, "kubernetes-url", "URL for Kubernetes API")
 	flag.Var(&registrationURL, "registration-url", "URL for site registration")
 	flag.Var(&services, "services", "Maps experiment target names to their set of services")
@@ -67,6 +76,8 @@ func main() {
 		Max:      static.RegistrationLoadMax,
 	}
 	svcs := services.Get()
+	host, err := host.Parse(hostname)
+	rtx.Must(err, "could not parse hostname")
 	ldr, err := registration.NewLoader(mainCtx, registrationURL.URL, hostname, experiment, svcs, ldrConfig)
 	rtx.Must(err, "could not initialize registration loader")
 	r, err := ldr.GetRegistration(mainCtx)
@@ -78,10 +89,16 @@ func main() {
 	err = conn.Dial(heartbeatURL, http.Header{}, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
+	_, mderr := os.ReadFile("metadata/loadbalanced")
 	probe := health.NewPortProbe(svcs)
 	ec := health.NewEndpointClient(static.HealthEndpointTimeout)
-	hc := &health.Checker{}
-	if kubernetesURL.URL == nil {
+	var hc Checker
+	if !os.IsNotExist(mderr) {
+		// compute, err := compute.NewService(mainCtx)
+		// rtx.Must(err, "could not start compute service")
+		// hc = loadbalanced.NewLBChecker(project, host, compute)
+		hc = loadbalanced.NewLBChecker(mainCtx, project, host)
+	} else if kubernetesURL.URL == nil {
 		hc = health.NewChecker(probe, ec)
 	} else {
 		k8s := health.MustNewKubernetesClient(kubernetesURL.URL, pod, node, namespace, kubernetesAuth)
@@ -93,7 +110,7 @@ func main() {
 
 // write starts a write loop to send health messages every
 // HeartbeatPeriod.
-func write(ws *connection.Conn, hc *health.Checker, ldr *registration.Loader) {
+func write(ws *connection.Conn, hc Checker, ldr *registration.Loader) {
 	defer ws.Close()
 	hbTicker := *time.NewTicker(heartbeatPeriod)
 	defer hbTicker.Stop()
@@ -139,7 +156,7 @@ func write(ws *connection.Conn, hc *health.Checker, ldr *registration.Loader) {
 	}
 }
 
-func getHealth(hc *health.Checker) float64 {
+func getHealth(hc Checker) float64 {
 	ctx, cancel := context.WithTimeout(mainCtx, heartbeatPeriod)
 	defer cancel()
 	return hc.GetHealth(ctx)
