@@ -2,6 +2,7 @@ package heartbeat
 
 import (
 	"errors"
+	"log"
 	"net/url"
 	"sort"
 	"strconv"
@@ -17,8 +18,13 @@ import (
 var (
 	// ErrNoAvailableServers is returned when there are no available servers
 	ErrNoAvailableServers = errors.New("no available M-Lab servers")
-	rand                  = mathx.NewRandom(time.Now().UnixNano())
+	t                     = time.Now().UnixNano()
+	rand                  = mathx.NewRandom(t)
 )
+
+func init() {
+	log.Println("Time now: ", t)
+}
 
 // Locator manages requests to "locate" mlab-ns servers.
 type Locator struct {
