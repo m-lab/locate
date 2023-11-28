@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"path"
@@ -20,7 +21,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/square/go-jose.v2/jwt"
 
-	"github.com/m-lab/go/mathx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
@@ -33,7 +33,6 @@ import (
 
 var (
 	errFailedToLookupClient = errors.New("Failed to look up client location")
-	rand                    = mathx.NewRandom(time.Now().UnixNano())
 	earlyExitProbability    = 0.9
 )
 
@@ -122,7 +121,7 @@ func extraParams(hostname string, index int, p paramOpts) url.Values {
 			// note: we only use the first value.
 			v.Set(key, p.raw.Get(key))
 		}
-		if key == "early_exit" && rand.Src.Float64() < earlyExitProbability {
+		if key == "early_exit" && rand.Float64() < earlyExitProbability {
 			v.Set(key, p.raw.Get(key))
 		}
 	}
