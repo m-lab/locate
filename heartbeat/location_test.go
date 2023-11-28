@@ -760,7 +760,15 @@ func TestPickTargets(t *testing.T) {
 			expected: &TargetInfo{
 				Targets: []v2.Target{
 					{
-						Machine: "mlab2-site1-metro0",
+						Machine: "mlab2-site2-metro0",
+						Location: &v2.Location{
+							City:    site2.registration.City,
+							Country: site2.registration.CountryCode,
+						},
+						URLs: make(map[string]string),
+					},
+					{
+						Machine: "mlab3-site1-metro0",
 						Location: &v2.Location{
 							City:    site1.registration.City,
 							Country: site1.registration.CountryCode,
@@ -776,14 +784,6 @@ func TestPickTargets(t *testing.T) {
 						URLs: make(map[string]string),
 					},
 					{
-						Machine: "mlab4-site2-metro0",
-						Location: &v2.Location{
-							City:    site2.registration.City,
-							Country: site2.registration.CountryCode,
-						},
-						URLs: make(map[string]string),
-					},
-					{
 						Machine: "mlab1-site4-metro2",
 						Location: &v2.Location{
 							City:    site4.registration.City,
@@ -794,10 +794,10 @@ func TestPickTargets(t *testing.T) {
 				},
 				URLs: NDT7Urls,
 				Ranks: map[string]int{
-					"mlab2-site1-metro0": 0,
 					"mlab1-site3-metro1": 1,
-					"mlab4-site2-metro0": 0,
 					"mlab1-site4-metro2": 2,
+					"mlab2-site2-metro0": 0,
+					"mlab3-site1-metro0": 0,
 				},
 			},
 		},
