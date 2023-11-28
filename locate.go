@@ -171,7 +171,6 @@ func main() {
 	// Close the Secrent Manager client connection.
 	client.Close()
 
-	// TODO: add verifier for heartbeat access tokens.
 	// TODO: add verifier for optional access tokens to support NextRequest.
 
 	mux := http.NewServeMux()
