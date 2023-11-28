@@ -29,7 +29,6 @@ import (
 	"github.com/m-lab/locate/memorystore"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/prometheus"
-	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/secrets"
 	"github.com/m-lab/locate/static"
 )
@@ -59,7 +58,6 @@ func init() {
 	flag.StringVar(&listenPort, "port", "8080", "AppEngine port environment variable")
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
 	flag.StringVar(&platform, "platform-project", "", "GCP project for platform machine names")
-	flag.StringVar(&legacyServer, "legacy-server", proxy.DefaultLegacyServer, "Base URL to mlab-ns server")
 	flag.StringVar(&signerSecretName, "signer-secret-name", "locate-service-signer-key", "Name of secret for locate signer key in Secret Manager")
 	flag.StringVar(&verifySecretName, "verify-secret-name", "locate-monitoring-service-verify-key", "Name of secret for monitoring verifier key in Secret Manager")
 	flag.StringVar(&redisAddr, "redis-address", "", "Primary endpoint for Redis instance")
@@ -105,8 +103,6 @@ func main() {
 	signer, err := cfg.LoadSigner(mainCtx, client, signerSecretName)
 	rtx.Must(err, "Failed to load signer key")
 
-	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
-
 	locators := clientgeo.MultiLocator{clientgeo.NewUserLocator()}
 	if locatorAE {
 		aeLocator := clientgeo.NewAppEngineLocator()
@@ -134,7 +130,7 @@ func main() {
 	promClient, err := prometheus.NewClient(creds, promURL)
 	rtx.Must(err, "failed to create Prometheus client")
 
-	c := handler.NewClient(project, signer, srvLocator, srvLocatorV2, locators, promClient)
+	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient)
 
 	go func() {
 		// Check and reload db at least once a day.
