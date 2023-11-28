@@ -296,7 +296,7 @@ func writeResult(rw http.ResponseWriter, status int, result interface{}) {
 }
 
 // getExperimentAndService takes an http request path and extracts the last two
-// fields. For correct requests (e.g. "/v2/query/ndt/ndt5"), this will be the
+// fields. For correct requests (e.g. "/v2/nearest/ndt/ndt5"), this will be the
 // experiment name (e.g. "ndt") and the datatype (e.g. "ndt5").
 func getExperimentAndService(p string) (string, string) {
 	datatype := path.Base(p)
