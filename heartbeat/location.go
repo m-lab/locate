@@ -224,7 +224,7 @@ func pickTargets(service string, sites []site) *TargetInfo {
 
 	for i := 0; i < numTargets; i++ {
 		// A rate of 6 yields index 0 around 95% of the time, index 1 a little less
-		// than 5% of the time, and higher indexes infrequently.
+		// than 5% of the time, and higher indices infrequently.
 		index := mathx.GetExpDistributedInt(6) % len(sites)
 		s := sites[index]
 		metrics.ServerDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(s.rank))
