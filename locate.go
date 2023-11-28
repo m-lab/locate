@@ -203,13 +203,6 @@ func main() {
 	mux.HandleFunc("/v2/live", c.Live)
 	mux.HandleFunc("/v2/ready", c.Ready)
 
-	// DEPRECATED APIs: TODO: retire after migrating clients.
-	mux.Handle("/v2/monitoring/", monitoringChain)
-	// Beta version of V2 nearest requests.
-	// TODO(cristinaleon): migrate clients off v2beta2 after v2 launch.
-	mux.HandleFunc("/v2beta2/nearest/", http.HandlerFunc(c.Nearest))
-	mux.HandleFunc("/v2beta1/query/", http.HandlerFunc(c.TranslatedQuery))
-
 	srv := &http.Server{
 		Addr:    ":" + listenPort,
 		Handler: mux,
