@@ -9,7 +9,7 @@ import (
 	"github.com/m-lab/locate/static"
 )
 
-// Monitoring implements /v2/monitoring requests.
+// Monitoring issues access tokens for end to end monitoring requests.
 func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 	result := v2.MonitoringResult{}
 

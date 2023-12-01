@@ -70,11 +70,11 @@ func Test_main(t *testing.T) {
 			}
 			privKey = []byte(insecurePrivateKey)
 			mux := http.NewServeMux()
-			mux.HandleFunc("/v2/monitoring/", handler)
+			mux.HandleFunc("/v2/platform/monitoring/", handler)
 			srv := httptest.NewServer(mux)
 			defer srv.Close()
 			var err error
-			locate.URL, err = url.Parse(srv.URL + "/v2/monitoring/")
+			locate.URL, err = url.Parse(srv.URL + "/v2/platform/monitoring/")
 			rtx.Must(err, "failed to parse url: %q", srv.URL)
 
 			main()

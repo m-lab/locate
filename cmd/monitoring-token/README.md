@@ -2,8 +2,8 @@
 
 The locate service issues access tokens based on the client use-case.
 
-Clients using the `/v2/query` path receive access tokens for a specific
-service. Clients using the `/v2/monitoring` path receive access tokens
+Clients using the `/v2/nearest` path receive access tokens for a specific
+service. Clients using the `/v2/platform/monitoring` path receive access tokens
 specifically for monitoring.
 
 These special purpose, monitoring access tokens allow the target server to
@@ -19,10 +19,10 @@ The locate service uses a private signing key that issues access tokens. A
 privileged, end to end monitoring client will also have the ability to create
 access tokens to request monitoring access tokens from the locate service.
 
-Basic sequence diagram for a /v2/monitoring request:
+Basic sequence diagram for a /v2/platform/monitoring request:
 
 ```txt
-Get access token: monitoring-token <------> locate/v2/monitoring
+Get access token: monitoring-token <------> locate/v2/platform/monitoring
 Use access token: e2e-client       -------> service
 ```
 
@@ -31,7 +31,7 @@ get an access token from the locate service, pass a service URL to a command
 through an environment variable. For example:
 
 ```sh
-export LOCATE_URL=https://locate-dot-mlab-sandbox.appspot.com/v2/monitoring/
+export LOCATE_URL=https://locate-dot-mlab-sandbox.appspot.com/v2/platform/monitoring/
 export MONITORING_SIGNER_KEY=/path/to/key.json
 
 monitoring-token \

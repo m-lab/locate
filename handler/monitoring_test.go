@@ -24,7 +24,7 @@ func TestClient_Monitoring(t *testing.T) {
 		name            string
 		claim           *jwt.Claims
 		signer          Signer
-		locator         Locator
+		locator         LocatorV2
 		path            string
 		wantTokenPrefix string
 		wantKey         string
@@ -39,7 +39,7 @@ func TestClient_Monitoring(t *testing.T) {
 				Expiry:   jwt.NewNumericDate(time.Now().Add(time.Minute)),
 			},
 			signer: &fakeSigner{},
-			locator: &fakeLocator{
+			locator: &fakeLocatorV2{
 				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
 			},
 			path:    "ndt/ndt5",
@@ -92,9 +92,9 @@ func TestClient_Monitoring(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cl := clientgeo.NewAppEngineLocator()
-			c := NewClient("mlab-sandbox", tt.signer, tt.locator, &fakeLocatorV2{}, cl, prom.NewAPI(nil))
+			c := NewClient("mlab-sandbox", tt.signer, tt.locator, cl, prom.NewAPI(nil))
 			rw := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/v2/monitoring/"+tt.path, nil)
+			req := httptest.NewRequest(http.MethodGet, "/v2/platform/monitoring/"+tt.path, nil)
 			req = req.Clone(controller.SetClaim(req.Context(), tt.claim))
 
 			c.Monitoring(rw, req)
