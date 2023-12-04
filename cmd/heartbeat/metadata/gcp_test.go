@@ -45,16 +45,18 @@ func TestNewGCPMetadata(t *testing.T) {
 			client: &fakeClient{
 				projErr: true,
 			},
-			want:    nil,
-			wantErr: true,
+			hostname: "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org-t95j",
+			want:     nil,
+			wantErr:  true,
 		},
 		{
 			name: "invalid-zone",
 			client: &fakeClient{
 				zoneErr: true,
 			},
-			want:    nil,
-			wantErr: true,
+			hostname: "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org-t95j",
+			want:     nil,
+			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
