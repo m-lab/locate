@@ -3,6 +3,7 @@ module github.com/m-lab/locate
 go 1.20
 
 require (
+	cloud.google.com/go/compute/metadata v0.2.3
 	cloud.google.com/go/secretmanager v1.11.2
 	github.com/apex/log v1.9.0
 	github.com/cenkalti/backoff/v4 v4.1.3
@@ -32,7 +33,6 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
