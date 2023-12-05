@@ -39,4 +39,5 @@ env_variables:
   REDIS_ADDRESS: {{REDIS_ADDRESS}}
   PROMETHEUSX_LISTEN_ADDRESS: ':9090' # Must match one of the forwarded_ports above.
   PROMETHEUS_URL: 'https://prometheus-basicauth.{{PLATFORM_PROJECT}}.measurementlab.net/'
-  LIMITS: {{LIMITS}}
+  AGENT_LIMITS: {{AGENT_LIMITS}}
+  DURATION_LIMITS: {{DURATION_LIMITS}}

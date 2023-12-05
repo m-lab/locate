@@ -213,7 +213,7 @@ func TestClient_Nearest(t *testing.T) {
 			if tt.cl == nil {
 				tt.cl = clientgeo.NewAppEngineLocator()
 			}
-			c := NewClient(tt.project, tt.signer, &fakeLocator{}, tt.locator, tt.cl, prom.NewAPI(nil), nil)
+			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.Nearest)
@@ -434,7 +434,7 @@ func TestClient_limitRequest(t *testing.T) {
 		{
 			name: "allowed-user-agent-limited-time",
 			limits: map[string]*limits.Cron{
-				"foo": limits.NewCron("* * * * *"), // Every minute of every hour.
+				"foo": limits.NewCron("* * * * *", time.Minute), // Every minute of every hour.
 			},
 			t: time.Now().UTC(),
 			req: &http.Request{
@@ -447,7 +447,7 @@ func TestClient_limitRequest(t *testing.T) {
 		{
 			name: "limited-user-agent-allowed-time",
 			limits: map[string]*limits.Cron{
-				"foo": limits.NewCron("*/30 * * * *"), // Every 30th minute.
+				"foo": limits.NewCron("*/30 * * * *", time.Minute), // Every 30th minute.
 			},
 			t: time.Date(2023, time.November, 16, 19, 29, 0, 0, time.UTC), // Request at minute 29.
 			req: &http.Request{
@@ -460,7 +460,7 @@ func TestClient_limitRequest(t *testing.T) {
 		{
 			name: "limited-user-agent-limited-time",
 			limits: map[string]*limits.Cron{
-				"foo": limits.NewCron("*/30 * * * *"), // Every 30th minute.
+				"foo": limits.NewCron("*/30 * * * *", time.Minute), // Every 30th minute.
 			},
 			t: time.Date(2023, time.November, 16, 19, 31, 0, 0, time.UTC), // Request at minute 31.
 			req: &http.Request{
