@@ -462,7 +462,7 @@ func TestClient_limitRequest(t *testing.T) {
 			limits: map[string]*limits.Cron{
 				"foo": limits.NewCron("*/30 * * * *", time.Minute), // Every 30th minute.
 			},
-			t: time.Date(2023, time.November, 16, 19, 31, 0, 0, time.UTC), // Request at minute 31.
+			t: time.Date(2023, time.November, 16, 19, 30, 0, 0, time.UTC), // Request at minute 30.
 			req: &http.Request{
 				Header: http.Header{
 					"User-Agent": []string{"foo"},
