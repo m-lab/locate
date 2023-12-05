@@ -17,7 +17,7 @@ type GCPChecker struct {
 // Metadata returns environmental metadata for a machine.
 type Metadata interface {
 	Project() string
-	InstanceName() string
+	Backend() string
 	Region() string
 	Group() string
 }
@@ -40,7 +40,7 @@ func NewGCPChecker(c GCEClient, md Metadata) *GCPChecker {
 func (c *GCPChecker) GetHealth(ctx context.Context) float64 {
 	g := c.md.Group()
 	req := &computepb.GetHealthRegionBackendServiceRequest{
-		BackendService: c.md.InstanceName(),
+		BackendService: c.md.Backend(),
 		Project:        c.md.Project(),
 		Region:         c.md.Region(),
 		ResourceGroupReferenceResource: &computepb.ResourceGroupReference{
@@ -53,10 +53,11 @@ func (c *GCPChecker) GetHealth(ctx context.Context) float64 {
 	}
 
 	for _, h := range lbHealth.HealthStatus {
-		if !strings.EqualFold(*h.HealthState, "HEALTHY") {
-			return 0
+		// The group is healthy if at least one of the instances has a 'HEALTHY' health state.
+		if strings.EqualFold(*h.HealthState, "HEALTHY") {
+			return 1
 		}
 	}
 
-	return 1
+	return 0
 }

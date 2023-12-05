@@ -41,7 +41,7 @@ var (
 	services            = flagx.KeyValueArray{}
 	heartbeatPeriod     = static.HeartbeatPeriod
 	mainCtx, mainCancel = context.WithCancel(context.Background())
-	lbPath              = "metadata/loadbalanced"
+	lbPath              = "/metadata/loadbalanced"
 )
 
 // Checker generates a health score for the heartbeat instance (0, 1).
@@ -92,7 +92,10 @@ func main() {
 	probe := health.NewPortProbe(svcs)
 	ec := health.NewEndpointClient(static.HealthEndpointTimeout)
 	var hc Checker
-	if lberr == nil { // Check if "loadbalanced" file exists.
+
+	// If the "loadbalanced" file exists, then the instance is a load balanced VM.
+	// If not, then it is a standalone instance.
+	if lberr == nil {
 		md, err := metadata.NewGCPMetadata(md.NewClient(http.DefaultClient), hostname)
 		rtx.Must(err, "failed to get VM metadata")
 		gceClient, err := compute.NewRegionBackendServicesRESTClient(mainCtx)

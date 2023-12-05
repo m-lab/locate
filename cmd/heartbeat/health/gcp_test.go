@@ -35,7 +35,7 @@ func TestGCPChecker_GetHealth(t *testing.T) {
 		{
 			name: "mix",
 			client: &fakeGCEClient{
-				status: []string{"UNHEALTHY", "HEALTHY"},
+				status: []string{"HEALTHY", "HEALTHY", "UNHEALTHY"},
 				err:    false,
 			},
 			want: 1,
@@ -78,7 +78,8 @@ func (c *fakeGCEClient) GetHealth(ctx context.Context, req *computepb.GetHealthR
 
 	health := make([]*computepb.HealthStatus, 0)
 	for _, s := range c.status {
-		health = append(health, &computepb.HealthStatus{HealthState: &s})
+		statusPtr := s
+		health = append(health, &computepb.HealthStatus{HealthState: &statusPtr})
 	}
 	return &computepb.BackendServiceGroupHealth{
 		HealthStatus: health,

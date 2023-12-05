@@ -104,13 +104,13 @@ func TestGCPMetadata_Project(t *testing.T) {
 	}
 }
 
-func TestGCPMetadata_InstanceName(t *testing.T) {
-	wantName := "fake-name"
+func TestGCPMetadata_Backend(t *testing.T) {
+	wantBackend := "fake-backend"
 	m := &GCPMetadata{
-		backend: wantName,
+		backend: wantBackend,
 	}
-	if got := m.InstanceName(); got != wantName {
-		t.Errorf("GCPMetadata.InstanceName() = %v, want %v", got, wantName)
+	if got := m.Backend(); got != wantBackend {
+		t.Errorf("GCPMetadata.Backend() = %v, want %v", got, wantBackend)
 	}
 }
 

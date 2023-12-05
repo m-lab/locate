@@ -29,6 +29,10 @@ func NewGCPMetadata(c Client, hostname string) (*GCPMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Backend refers to the GCP load balancer.
+	// Resources for a GCP load balancer all have the same name. That is,
+	// the VM hostname with dots turned to dashes (since GCP does not allow
+	// dots in names).
 	backend := strings.ReplaceAll(h.String(), ".", "-")
 
 	project, err := c.ProjectID()
@@ -55,8 +59,8 @@ func (m *GCPMetadata) Project() string {
 	return m.project
 }
 
-// InstanceName in GCE.
-func (m *GCPMetadata) InstanceName() string {
+// Backend in GCE.
+func (m *GCPMetadata) Backend() string {
 	return m.backend
 }
 
