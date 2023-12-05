@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"path"
@@ -20,7 +21,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/square/go-jose.v2/jwt"
 
-	"github.com/m-lab/go/mathx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
@@ -34,7 +34,6 @@ import (
 
 var (
 	errFailedToLookupClient = errors.New("Failed to look up client location")
-	rand                    = mathx.NewRandom(time.Now().UnixNano())
 	earlyExitProbability    = 0.9
 	tooManyRequests         = "Too many periodic requests. Please contact support@measurementlab.net."
 )
@@ -48,18 +47,11 @@ type Signer interface {
 type Client struct {
 	Signer
 	project string
-	Locator
 	LocatorV2
 	ClientLocator
 	PrometheusClient
 	targetTmpl *template.Template
 	limits     map[string]*limits.Cron
-}
-
-// Locator defines how the TranslatedQuery handler requests machines nearest to
-// the client.
-type Locator interface {
-	Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error)
 }
 
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
@@ -91,11 +83,10 @@ func init() {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient, lmts map[string]*limits.Cron) *Client {
+func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient, lmts map[string]*limits.Cron) *Client {
 	return &Client{
 		Signer:           private,
 		project:          project,
-		Locator:          locator,
 		LocatorV2:        locatorV2,
 		ClientLocator:    client,
 		PrometheusClient: prom,
@@ -105,11 +96,10 @@ func NewClient(project string, private Signer, locator Locator, locatorV2 Locato
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
-func NewClientDirect(project string, private Signer, locator Locator, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient) *Client {
+func NewClientDirect(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient) *Client {
 	return &Client{
 		Signer:           private,
 		project:          project,
-		Locator:          locator,
 		LocatorV2:        locatorV2,
 		ClientLocator:    client,
 		PrometheusClient: prom,
@@ -126,7 +116,7 @@ func extraParams(hostname string, index int, p paramOpts) url.Values {
 			// note: we only use the first value.
 			v.Set(key, p.raw.Get(key))
 		}
-		if key == "early_exit" && rand.Src.Float64() < earlyExitProbability {
+		if key == "early_exit" && rand.Float64() < earlyExitProbability {
 			v.Set(key, p.raw.Get(key))
 		}
 	}
@@ -144,52 +134,6 @@ func extraParams(hostname string, index int, p paramOpts) url.Values {
 	v.Set("index", strconv.Itoa(index))
 
 	return v
-}
-
-// TranslatedQuery uses the legacy mlab-ns service for liveness as a
-// transitional step in loading state directly.
-func (c *Client) TranslatedQuery(rw http.ResponseWriter, req *http.Request) {
-	req.ParseForm() // Parse any raw query parameters into req.Form url.Values.
-	result := v2.NearestResult{}
-	experiment, service := getExperimentAndService(req.URL.Path)
-	setHeaders(rw)
-
-	// Check whether the service is valid before all other steps to fail fast.
-	ports, ok := static.Configs[service]
-	if !ok {
-		result.Error = v2.NewError("config", "Unknown service: "+service, http.StatusBadRequest)
-		writeResult(rw, result.Error.Status, &result)
-		return
-	}
-
-	// Look up client location.
-	loc, err := c.checkClientLocation(rw, req)
-	if err != nil {
-		status := http.StatusServiceUnavailable
-		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", status)
-		writeResult(rw, result.Error.Status, &result)
-		return
-	}
-
-	// Find the nearest targets using provided lat,lon.
-	targets, err := c.Locator.Nearest(req.Context(), service, loc.Latitude, loc.Longitude)
-	if err != nil {
-		status := http.StatusInternalServerError
-		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", status)
-		writeResult(rw, result.Error.Status, &result)
-		return
-	}
-
-	// Update targets with empty URLs.
-	for i := range targets {
-		targets[i].URLs = map[string]string{}
-	}
-
-	pOpts := paramOpts{raw: req.Form, version: "v2_proxy"}
-	// Populate targets URLs and write out response.
-	c.populateURLs(targets, ports, experiment, pOpts)
-	result.Results = targets
-	writeResult(rw, http.StatusOK, &result)
 }
 
 // Nearest uses an implementation of the LocatorV2 interface to look up
@@ -375,7 +319,7 @@ func writeResult(rw http.ResponseWriter, status int, result interface{}) {
 }
 
 // getExperimentAndService takes an http request path and extracts the last two
-// fields. For correct requests (e.g. "/v2/query/ndt/ndt5"), this will be the
+// fields. For correct requests (e.g. "/v2/nearest/ndt/ndt5"), this will be the
 // experiment name (e.g. "ndt") and the datatype (e.g. "ndt5").
 func getExperimentAndService(p string) (string, string) {
 	datatype := path.Base(p)

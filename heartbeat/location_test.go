@@ -2,13 +2,13 @@ package heartbeat
 
 import (
 	"math"
+	"math/rand"
 	"net/url"
 	"reflect"
 	"sort"
 	"testing"
 
 	"github.com/m-lab/go/host"
-	"github.com/m-lab/go/mathx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
 )
@@ -340,7 +340,7 @@ func TestNearest(t *testing.T) {
 			tracker := NewHeartbeatStatusTracker(&memorystore)
 			locator := NewServerLocator(tracker)
 			locator.StopImport()
-			rand = mathx.NewRandom(1658458451000000000)
+			rand.Seed(1658458451000000000)
 
 			for _, i := range instances {
 				locator.RegisterInstance(*i.Registration)
@@ -760,7 +760,15 @@ func TestPickTargets(t *testing.T) {
 			expected: &TargetInfo{
 				Targets: []v2.Target{
 					{
-						Machine: "mlab2-site1-metro0",
+						Machine: "mlab2-site2-metro0",
+						Location: &v2.Location{
+							City:    site2.registration.City,
+							Country: site2.registration.CountryCode,
+						},
+						URLs: make(map[string]string),
+					},
+					{
+						Machine: "mlab3-site1-metro0",
 						Location: &v2.Location{
 							City:    site1.registration.City,
 							Country: site1.registration.CountryCode,
@@ -776,14 +784,6 @@ func TestPickTargets(t *testing.T) {
 						URLs: make(map[string]string),
 					},
 					{
-						Machine: "mlab4-site2-metro0",
-						Location: &v2.Location{
-							City:    site2.registration.City,
-							Country: site2.registration.CountryCode,
-						},
-						URLs: make(map[string]string),
-					},
-					{
 						Machine: "mlab1-site4-metro2",
 						Location: &v2.Location{
 							City:    site4.registration.City,
@@ -794,10 +794,10 @@ func TestPickTargets(t *testing.T) {
 				},
 				URLs: NDT7Urls,
 				Ranks: map[string]int{
-					"mlab2-site1-metro0": 0,
 					"mlab1-site3-metro1": 1,
-					"mlab4-site2-metro0": 0,
 					"mlab1-site4-metro2": 2,
+					"mlab2-site2-metro0": 0,
+					"mlab3-site1-metro0": 0,
 				},
 			},
 		},
@@ -826,7 +826,7 @@ func TestPickTargets(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Use a fixed seed so the pattern is only pseudorandom and can
 			// be verififed against expectations.
-			rand = mathx.NewRandom(1658340109320624212)
+			rand.Seed(1658340109320624212)
 			got := pickTargets("ndt/ndt7", tt.sites)
 
 			if !reflect.DeepEqual(got, tt.expected) {
@@ -905,7 +905,7 @@ func TestPickWithProbability(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rand = mathx.NewRandom(tt.seed)
+			rand.Seed(tt.seed)
 			got := pickWithProbability(tt.probability)
 
 			if got != tt.want {

@@ -19,19 +19,11 @@ func TestLocateServer_Success(t *testing.T) {
 		want int
 	}{
 		{
-			name: "success-locate-server",
-			srv: NewLocateServer(&Locator{
-				Servers: []string{"127.0.0.1"},
-			}),
-			path: "/v2/nearest",
-			want: 1,
-		},
-		{
 			name: "success-locate-server-v2",
 			srv: NewLocateServerV2(&LocatorV2{
 				Servers: []string{"127.0.0.1"},
 			}),
-			path: "/v2beta2/nearest",
+			path: "/v2/nearest",
 			want: 1,
 		},
 	}
@@ -63,18 +55,11 @@ func TestLocateServer_Error(t *testing.T) {
 		path string
 	}{
 		{
-			name: "error-locate-server",
-			srv: NewLocateServer(&Locator{
-				Err: errors.New("fake error"),
-			}),
-			path: "/v2/nearest",
-		},
-		{
 			name: "error-locate-server-v2",
 			srv: NewLocateServerV2(&LocatorV2{
 				Err: errors.New("fake error"),
 			}),
-			path: "/v2beta2/nearest",
+			path: "/v2/nearest",
 		},
 	}
 

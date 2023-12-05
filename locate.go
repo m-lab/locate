@@ -30,7 +30,6 @@ import (
 	"github.com/m-lab/locate/memorystore"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/prometheus"
-	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/secrets"
 	"github.com/m-lab/locate/static"
 )
@@ -61,7 +60,6 @@ func init() {
 	flag.StringVar(&listenPort, "port", "8080", "AppEngine port environment variable")
 	flag.StringVar(&project, "google-cloud-project", "", "AppEngine project environment variable")
 	flag.StringVar(&platform, "platform-project", "", "GCP project for platform machine names")
-	flag.StringVar(&legacyServer, "legacy-server", proxy.DefaultLegacyServer, "Base URL to mlab-ns server")
 	flag.StringVar(&signerSecretName, "signer-secret-name", "locate-service-signer-key", "Name of secret for locate signer key in Secret Manager")
 	flag.StringVar(&verifySecretName, "verify-secret-name", "locate-monitoring-service-verify-key", "Name of secret for monitoring verifier key in Secret Manager")
 	flag.StringVar(&redisAddr, "redis-address", "", "Primary endpoint for Redis instance")
@@ -108,8 +106,6 @@ func main() {
 	signer, err := cfg.LoadSigner(mainCtx, client, signerSecretName)
 	rtx.Must(err, "Failed to load signer key")
 
-	srvLocator := proxy.MustNewLegacyLocator(legacyServer, platform)
-
 	locators := clientgeo.MultiLocator{clientgeo.NewUserLocator()}
 	if locatorAE {
 		aeLocator := clientgeo.NewAppEngineLocator()
@@ -141,8 +137,7 @@ func main() {
 	for agent, schedule := range lmts.Get() {
 		agentLimits[agent] = limits.NewCron(schedule)
 	}
-
-	c := handler.NewClient(project, signer, srvLocator, srvLocatorV2, locators, promClient, agentLimits)
+	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient, agentLimits)
 
 	go func() {
 		// Check and reload db at least once a day.
@@ -179,7 +174,6 @@ func main() {
 	// Close the Secrent Manager client connection.
 	client.Close()
 
-	// TODO: add verifier for heartbeat access tokens.
 	// TODO: add verifier for optional access tokens to support NextRequest.
 
 	mux := http.NewServeMux()
@@ -210,13 +204,6 @@ func main() {
 	// Liveness and Readiness checks to support deployments.
 	mux.HandleFunc("/v2/live", c.Live)
 	mux.HandleFunc("/v2/ready", c.Ready)
-
-	// DEPRECATED APIs: TODO: retire after migrating clients.
-	mux.Handle("/v2/monitoring/", monitoringChain)
-	// Beta version of V2 nearest requests.
-	// TODO(cristinaleon): migrate clients off v2beta2 after v2 launch.
-	mux.HandleFunc("/v2beta2/nearest/", http.HandlerFunc(c.Nearest))
-	mux.HandleFunc("/v2beta1/query/", http.HandlerFunc(c.TranslatedQuery))
 
 	srv := &http.Server{
 		Addr:    ":" + listenPort,

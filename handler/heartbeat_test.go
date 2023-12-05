@@ -69,7 +69,7 @@ func TestClient_handleHeartbeats(t *testing.T) {
 
 func fakeClient(t heartbeat.StatusTracker) *Client {
 	locatorv2 := fakeLocatorV2{StatusTracker: t}
-	return NewClient("mlab-sandbox", &fakeSigner{}, &fakeLocator{}, &locatorv2,
+	return NewClient("mlab-sandbox", &fakeSigner{}, &locatorv2,
 		clientgeo.NewAppEngineLocator(), prom.NewAPI(nil), nil)
 }
 

@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	locate    = flagx.MustNewURL("http://localhost:8080/v2/monitoring/")
+	locate    = flagx.MustNewURL("http://localhost:8080/v2/platform/monitoring/")
 	privKey   flagx.FileBytes
 	machine   string
 	service   string
@@ -56,7 +56,7 @@ func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "Failed to read args from env")
 
-	// This process signs access tokens for /v2/monitoring requests to the
+	// This process signs access tokens for /v2/platform/monitoring requests to the
 	// locate service. NOTE: the locate service MUST be configured with the
 	// corresponding public key to verify these access tokens.
 	priv, err := token.NewSigner(privKey)

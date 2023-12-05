@@ -2,10 +2,10 @@ package heartbeat
 
 import (
 	"errors"
+	"math/rand"
 	"net/url"
 	"sort"
 	"strconv"
-	"time"
 
 	"github.com/m-lab/go/host"
 	"github.com/m-lab/go/mathx"
@@ -17,7 +17,6 @@ import (
 var (
 	// ErrNoAvailableServers is returned when there are no available servers
 	ErrNoAvailableServers = errors.New("no available M-Lab servers")
-	rand                  = mathx.NewRandom(time.Now().UnixNano())
 )
 
 // Locator manages requests to "locate" mlab-ns servers.
@@ -224,13 +223,15 @@ func pickTargets(service string, sites []site) *TargetInfo {
 	var urls []url.URL
 
 	for i := 0; i < numTargets; i++ {
-		index := rand.GetExpDistributedInt(1) % len(sites)
+		// A rate of 6 yields index 0 around 95% of the time, index 1 a little less
+		// than 5% of the time, and higher indices infrequently.
+		index := mathx.GetExpDistributedInt(6) % len(sites)
 		s := sites[index]
 		metrics.ServerDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(s.rank))
 		metrics.MetroDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(s.metroRank))
 		// TODO(cristinaleon): Once health values range between 0 and 1,
 		// pick based on health. For now, pick at random.
-		machineIndex := rand.GetRandomInt(len(s.machines))
+		machineIndex := mathx.GetRandomInt(len(s.machines))
 		machine := s.machines[machineIndex]
 
 		r := s.registration
@@ -268,7 +269,7 @@ func alwaysPick(opts *NearestOptions) bool {
 // pickWithProbability returns true if a pseudo-random number in the interval
 // [0.0,1.0) is less than the given site's defined probability.
 func pickWithProbability(probability float64) bool {
-	return rand.Src.Float64() < probability
+	return rand.Float64() < probability
 }
 
 // getURLs extracts the URL templates from v2.Registration.Services and outputs
