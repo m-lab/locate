@@ -93,6 +93,7 @@ func TestClient_Nearest(t *testing.T) {
 		cl         ClientLocator
 		project    string
 		latlon     string
+		limits     map[string]*limits.Cron
 		header     http.Header
 		wantLatLon string
 		wantKey    string
@@ -149,6 +150,17 @@ func TestClient_Nearest(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "error-limit-request",
+			path: "ndt/ndt5",
+			limits: map[string]*limits.Cron{
+				"foo": limits.NewCron("* * * * *", time.Minute),
+			},
+			header: http.Header{
+				"User-Agent": []string{"foo"},
+			},
+			wantStatus: http.StatusTooManyRequests,
 		},
 		{
 			name:   "success-nearest-server",
@@ -213,7 +225,7 @@ func TestClient_Nearest(t *testing.T) {
 			if tt.cl == nil {
 				tt.cl = clientgeo.NewAppEngineLocator()
 			}
-			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), nil)
+			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.Nearest)
