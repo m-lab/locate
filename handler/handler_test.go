@@ -93,7 +93,7 @@ func TestClient_Nearest(t *testing.T) {
 		cl         ClientLocator
 		project    string
 		latlon     string
-		limits     map[string]*limits.Cron
+		limits     limits.Agents
 		header     http.Header
 		wantLatLon string
 		wantKey    string
@@ -154,7 +154,7 @@ func TestClient_Nearest(t *testing.T) {
 		{
 			name: "error-limit-request",
 			path: "ndt/ndt5",
-			limits: map[string]*limits.Cron{
+			limits: limits.Agents{
 				"foo": limits.NewCron("* * * * *", time.Minute),
 			},
 			header: http.Header{
@@ -427,14 +427,14 @@ func TestExtraParams(t *testing.T) {
 func TestClient_limitRequest(t *testing.T) {
 	tests := []struct {
 		name   string
-		limits map[string]*limits.Cron
+		limits limits.Agents
 		t      time.Time
 		req    *http.Request
 		want   bool
 	}{
 		{
 			name:   "allowed-user-agent-allowed-time",
-			limits: map[string]*limits.Cron{},
+			limits: limits.Agents{},
 			t:      time.Now().UTC(),
 			req: &http.Request{
 				Header: http.Header{
@@ -445,7 +445,7 @@ func TestClient_limitRequest(t *testing.T) {
 		},
 		{
 			name: "allowed-user-agent-limited-time",
-			limits: map[string]*limits.Cron{
+			limits: limits.Agents{
 				"foo": limits.NewCron("* * * * *", time.Minute), // Every minute of every hour.
 			},
 			t: time.Now().UTC(),
@@ -458,7 +458,7 @@ func TestClient_limitRequest(t *testing.T) {
 		},
 		{
 			name: "limited-user-agent-allowed-time",
-			limits: map[string]*limits.Cron{
+			limits: limits.Agents{
 				"foo": limits.NewCron("*/30 * * * *", time.Minute), // Every 30th minute.
 			},
 			t: time.Date(2023, time.November, 16, 19, 29, 0, 0, time.UTC), // Request at minute 29.
@@ -471,7 +471,7 @@ func TestClient_limitRequest(t *testing.T) {
 		},
 		{
 			name: "limited-user-agent-limited-time",
-			limits: map[string]*limits.Cron{
+			limits: limits.Agents{
 				"foo": limits.NewCron("*/30 * * * *", time.Minute), // Every 30th minute.
 			},
 			t: time.Date(2023, time.November, 16, 19, 30, 0, 0, time.UTC), // Request at minute 30.
@@ -486,7 +486,7 @@ func TestClient_limitRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Client{
-				limits: tt.limits,
+				agentLimits: tt.limits,
 			}
 			if got := c.limitRequest(tt.t, tt.req); got != tt.want {
 				t.Errorf("Client.limitRequest() = %v, want %v", got, tt.want)

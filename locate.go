@@ -48,12 +48,11 @@ var (
 	promUserSecretName string
 	promPassSecretName string
 	promURL            string
+	limitsPath         string
 	keySource          = flagx.Enum{
 		Options: []string{"secretmanager", "local"},
 		Value:   "secretmanager",
 	}
-	agentLimits    flagx.KeyValueEscaped
-	durationLimits flagx.DurationArray
 )
 
 func init() {
@@ -73,8 +72,7 @@ func init() {
 	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
 	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
-	flag.Var(&agentLimits, "agent-limits", "Cron schedule limits for user agents (agent=schedule).")
-	flag.Var(&durationLimits, "duration-limits", "Time duration of client limits.")
+	flag.StringVar(&limitsPath, "limits-path", "config.yml", "Path to the limits config file")
 }
 
 var mainCtx, mainCancel = context.WithCancel(context.Background())
@@ -135,16 +133,8 @@ func main() {
 	promClient, err := prometheus.NewClient(creds, promURL)
 	rtx.Must(err, "failed to create Prometheus client")
 
-	if len(agentLimits.Get()) != len(durationLimits) {
-		log.Fatal("Must provide the same number of agents limits as durations.")
-	}
-
-	lmts := make(map[string]*limits.Cron)
-	i := 0
-	for agent, schedule := range agentLimits.Get() {
-		lmts[agent] = limits.NewCron(schedule, durationLimits[i])
-		i++
-	}
+	lmts, err := limits.ParseConfig(limitsPath)
+	rtx.Must(err, "failed to parse limits config")
 	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient, lmts)
 
 	go func() {

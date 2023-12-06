@@ -50,8 +50,8 @@ type Client struct {
 	LocatorV2
 	ClientLocator
 	PrometheusClient
-	targetTmpl *template.Template
-	limits     map[string]*limits.Cron
+	targetTmpl  *template.Template
+	agentLimits limits.Agents
 }
 
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
@@ -83,7 +83,7 @@ func init() {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient, lmts map[string]*limits.Cron) *Client {
+func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient, lmts limits.Agents) *Client {
 	return &Client{
 		Signer:           private,
 		project:          project,
@@ -91,7 +91,7 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 		ClientLocator:    client,
 		PrometheusClient: prom,
 		targetTmpl:       template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
-		limits:           lmts,
+		agentLimits:      lmts,
 	}
 }
 
@@ -291,7 +291,7 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 // limitRequest determines whether a client request should be rate-limited.
 func (c *Client) limitRequest(now time.Time, req *http.Request) bool {
 	agent := req.Header.Get("User-Agent")
-	l, ok := c.limits[agent]
+	l, ok := c.agentLimits[agent]
 	if !ok {
 		// No limit defined for user agent.
 		return false

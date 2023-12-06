@@ -20,6 +20,9 @@ type Cron struct {
 	duration time.Duration
 }
 
+// Agents holds the cron limits for a set of user agents.
+type Agents map[string]*Cron
+
 // IsLimited returns whether the input time is within a time-limited
 // window [start, end).
 func (c *Cron) IsLimited(t time.Time) bool {

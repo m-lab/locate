@@ -29,8 +29,6 @@ steps:
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
     -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
     -e 's/{{REDIS_ADDRESS}}/$_REDIS_ADDRESS/'
-    -e 's/{{AGENT_LIMITS}}/$_AGENT_LIMITS/'
-    -e 's/{{DURATION_LIMITS}}/$_DURATION_LIMITS/'
     app.yaml
   - gcloud --project $PROJECT_ID app deploy --promote app.yaml
   # After deploying the new service, deploy the openapi spec.
@@ -49,8 +47,6 @@ steps:
     -e 's/{{PROJECT}}/$PROJECT_ID/g'
     -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
     -e 's/{{REDIS_ADDRESS}}/$_REDIS_ADDRESS/'
-    -e 's/{{AGENT_LIMITS}}/$_AGENT_LIMITS/'
-    -e 's/{{DURATION_LIMITS}}/$_DURATION_LIMITS/'
     app.yaml
   - gcloud --project $PROJECT_ID app deploy --promote app.yaml
   # After deploying the new service, deploy the openapi spec.
