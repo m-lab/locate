@@ -15,12 +15,18 @@ func TestParseConfig(t *testing.T) {
 	}{
 		{
 			name: "success",
-			path: "testdata/config.yml",
+			path: "testdata/config.yaml",
 			want: Agents{
 				"foo": NewCron("* * * * *", time.Minute),
 				"bar": NewCron("7,8 0,15,30,45 * * * * *", time.Minute),
 			},
 			wantErr: false,
+		},
+		{
+			name:    "file-error",
+			path:    "",
+			want:    nil,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
