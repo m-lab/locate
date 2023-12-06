@@ -34,7 +34,6 @@ var (
 	pod                 string
 	node                string
 	namespace           string
-	project             string
 	kubernetesAuth      = "/var/run/secrets/kubernetes.io/serviceaccount/"
 	kubernetesURL       = flagx.URL{}
 	registrationURL     = flagx.URL{}
@@ -96,11 +95,11 @@ func main() {
 	// If the "loadbalanced" file exists, then the instance is a load balanced VM.
 	// If not, then it is a standalone instance.
 	if lberr == nil {
-		md, err := metadata.NewGCPMetadata(md.NewClient(http.DefaultClient), hostname)
+		gcpmd, err := metadata.NewGCPMetadata(md.NewClient(http.DefaultClient), hostname)
 		rtx.Must(err, "failed to get VM metadata")
 		gceClient, err := compute.NewRegionBackendServicesRESTClient(mainCtx)
 		rtx.Must(err, "failed to create GCE client")
-		hc = health.NewGCPChecker(gceClient, md)
+		hc = health.NewGCPChecker(gceClient, gcpmd)
 	} else if kubernetesURL.URL == nil {
 		hc = health.NewChecker(probe, ec)
 	} else {
