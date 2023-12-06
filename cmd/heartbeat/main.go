@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	compute "cloud.google.com/go/compute/apiv1"
+	md "cloud.google.com/go/compute/metadata"
 	"github.com/gorilla/websocket"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/memoryless"
@@ -18,6 +20,7 @@ import (
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/cmd/heartbeat/health"
+	"github.com/m-lab/locate/cmd/heartbeat/metadata"
 	"github.com/m-lab/locate/cmd/heartbeat/registration"
 	"github.com/m-lab/locate/connection"
 	"github.com/m-lab/locate/metrics"
@@ -37,7 +40,13 @@ var (
 	services            = flagx.KeyValueArray{}
 	heartbeatPeriod     = static.HeartbeatPeriod
 	mainCtx, mainCancel = context.WithCancel(context.Background())
+	lbPath              = "/metadata/loadbalanced"
 )
+
+// Checker generates a health score for the heartbeat instance (0, 1).
+type Checker interface {
+	GetHealth(ctx context.Context) float64 // Health score.
+}
 
 func init() {
 	flag.StringVar(&heartbeatURL, "heartbeat-url", "ws://localhost:8080/v2/platform/heartbeat",
@@ -78,10 +87,20 @@ func main() {
 	err = conn.Dial(heartbeatURL, http.Header{}, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
+	_, lberr := os.ReadFile(lbPath)
 	probe := health.NewPortProbe(svcs)
 	ec := health.NewEndpointClient(static.HealthEndpointTimeout)
-	hc := &health.Checker{}
-	if kubernetesURL.URL == nil {
+	var hc Checker
+
+	// If the "loadbalanced" file exists, then the instance is a load balanced VM.
+	// If not, then it is a standalone instance.
+	if lberr == nil {
+		gcpmd, err := metadata.NewGCPMetadata(md.NewClient(http.DefaultClient), hostname)
+		rtx.Must(err, "failed to get VM metadata")
+		gceClient, err := compute.NewRegionBackendServicesRESTClient(mainCtx)
+		rtx.Must(err, "failed to create GCE client")
+		hc = health.NewGCPChecker(gceClient, gcpmd)
+	} else if kubernetesURL.URL == nil {
 		hc = health.NewChecker(probe, ec)
 	} else {
 		k8s := health.MustNewKubernetesClient(kubernetesURL.URL, pod, node, namespace, kubernetesAuth)
@@ -93,7 +112,7 @@ func main() {
 
 // write starts a write loop to send health messages every
 // HeartbeatPeriod.
-func write(ws *connection.Conn, hc *health.Checker, ldr *registration.Loader) {
+func write(ws *connection.Conn, hc Checker, ldr *registration.Loader) {
 	defer ws.Close()
 	hbTicker := *time.NewTicker(heartbeatPeriod)
 	defer hbTicker.Stop()
@@ -139,7 +158,7 @@ func write(ws *connection.Conn, hc *health.Checker, ldr *registration.Loader) {
 	}
 }
 
-func getHealth(hc *health.Checker) float64 {
+func getHealth(hc Checker) float64 {
 	ctx, cancel := context.WithTimeout(mainCtx, heartbeatPeriod)
 	defer cancel()
 	return hc.GetHealth(ctx)
