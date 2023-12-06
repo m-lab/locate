@@ -1,6 +1,7 @@
 package limits
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -20,6 +21,7 @@ type Config []AgentConfig
 // ParseConfig interprets the configuration file and returns the set
 // of agent limits.
 func ParseConfig(path string) (Agents, error) {
+	fmt.Println(os.Getwd())
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
