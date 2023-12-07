@@ -92,7 +92,7 @@ func TestClient_Monitoring(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cl := clientgeo.NewAppEngineLocator()
-			c := NewClient("mlab-sandbox", tt.signer, tt.locator, cl, prom.NewAPI(nil))
+			c := NewClient("mlab-sandbox", tt.signer, tt.locator, cl, prom.NewAPI(nil), nil)
 			rw := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/v2/platform/monitoring/"+tt.path, nil)
 			req = req.Clone(controller.SetClaim(req.Context(), tt.claim))

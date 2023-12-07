@@ -26,6 +26,7 @@ import (
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/heartbeat"
+	"github.com/m-lab/locate/limits"
 	"github.com/m-lab/locate/memorystore"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/prometheus"
@@ -47,6 +48,7 @@ var (
 	promUserSecretName string
 	promPassSecretName string
 	promURL            string
+	limitsPath         string
 	keySource          = flagx.Enum{
 		Options: []string{"secretmanager", "local"},
 		Value:   "secretmanager",
@@ -70,6 +72,7 @@ func init() {
 	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
 	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
+	flag.StringVar(&limitsPath, "limits-path", "/go/src/github.com/m-lab/locate/limits/config.yaml", "Path to the limits config file")
 }
 
 var mainCtx, mainCancel = context.WithCancel(context.Background())
@@ -130,7 +133,9 @@ func main() {
 	promClient, err := prometheus.NewClient(creds, promURL)
 	rtx.Must(err, "failed to create Prometheus client")
 
-	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient)
+	lmts, err := limits.ParseConfig(limitsPath)
+	rtx.Must(err, "failed to parse limits config")
+	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient, lmts)
 
 	go func() {
 		// Check and reload db at least once a day.

@@ -18,6 +18,7 @@ import (
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
+	"github.com/m-lab/locate/limits"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -92,6 +93,7 @@ func TestClient_Nearest(t *testing.T) {
 		cl         ClientLocator
 		project    string
 		latlon     string
+		limits     limits.Agents
 		header     http.Header
 		wantLatLon string
 		wantKey    string
@@ -148,6 +150,17 @@ func TestClient_Nearest(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "error-limit-request",
+			path: "ndt/ndt5",
+			limits: limits.Agents{
+				"foo": limits.NewCron("* * * * *", time.Minute),
+			},
+			header: http.Header{
+				"User-Agent": []string{"foo"},
+			},
+			wantStatus: http.StatusTooManyRequests,
 		},
 		{
 			name:   "success-nearest-server",
@@ -212,7 +225,7 @@ func TestClient_Nearest(t *testing.T) {
 			if tt.cl == nil {
 				tt.cl = clientgeo.NewAppEngineLocator()
 			}
-			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil))
+			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.Nearest)
@@ -291,7 +304,7 @@ func TestClient_Ready(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil)
+			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/ready/", c.Ready)
@@ -406,6 +419,77 @@ func TestExtraParams(t *testing.T) {
 			got := extraParams(tt.hostname, tt.index, tt.p)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("extraParams() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClient_limitRequest(t *testing.T) {
+	tests := []struct {
+		name   string
+		limits limits.Agents
+		t      time.Time
+		req    *http.Request
+		want   bool
+	}{
+		{
+			name:   "allowed-user-agent-allowed-time",
+			limits: limits.Agents{},
+			t:      time.Now().UTC(),
+			req: &http.Request{
+				Header: http.Header{
+					"User-Agent": []string{"foo"},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "allowed-user-agent-limited-time",
+			limits: limits.Agents{
+				"foo": limits.NewCron("* * * * *", time.Minute), // Every minute of every hour.
+			},
+			t: time.Now().UTC(),
+			req: &http.Request{
+				Header: http.Header{
+					"User-Agent": []string{"bar"},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "limited-user-agent-allowed-time",
+			limits: limits.Agents{
+				"foo": limits.NewCron("*/30 * * * *", time.Minute), // Every 30th minute.
+			},
+			t: time.Date(2023, time.November, 16, 19, 29, 0, 0, time.UTC), // Request at minute 29.
+			req: &http.Request{
+				Header: http.Header{
+					"User-Agent": []string{"foo"},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "limited-user-agent-limited-time",
+			limits: limits.Agents{
+				"foo": limits.NewCron("*/30 * * * *", time.Minute), // Every 30th minute.
+			},
+			t: time.Date(2023, time.November, 16, 19, 30, 0, 0, time.UTC), // Request at minute 30.
+			req: &http.Request{
+				Header: http.Header{
+					"User-Agent": []string{"foo"},
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Client{
+				agentLimits: tt.limits,
+			}
+			if got := c.limitRequest(tt.t, tt.req); got != tt.want {
+				t.Errorf("Client.limitRequest() = %v, want %v", got, tt.want)
 			}
 		})
 	}
