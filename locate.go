@@ -72,7 +72,7 @@ func init() {
 	flag.BoolVar(&locatorMM, "locator-maxmind", false, "Use the MaxMind clientgeo locator")
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
 	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
-	flag.StringVar(&limitsPath, "limits-path", "/limits/config.yaml", "Path to the limits config file")
+	flag.StringVar(&limitsPath, "limits-path", "/go/src/github.com/m-lab/locate/limits/config.yaml", "Path to the limits config file")
 }
 
 var mainCtx, mainCancel = context.WithCancel(context.Background())
