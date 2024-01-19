@@ -73,6 +73,9 @@ func init() {
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
 	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
 	flag.StringVar(&limitsPath, "limits-path", "/go/src/github.com/m-lab/locate/limits/config.yaml", "Path to the limits config file")
+
+	// Enable logging with line numbers to trace error locations.
+	log.SetFlags(log.LUTC | log.Llongfile)
 }
 
 var mainCtx, mainCancel = context.WithCancel(context.Background())
@@ -86,17 +89,21 @@ type loader interface {
 func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Could not parse env args")
+	defer mainCancel()
 
 	prom := prometheusx.MustServeMetrics()
 	defer prom.Close()
 
 	// Create the Secret Manager client
-	client, err := secretmanager.NewClient(mainCtx)
-	rtx.Must(err, "Failed to create Secret Manager client")
+	var client *secretmanager.Client
+	var err error
 	var cfg loader
 
 	switch keySource.Value {
 	case "secretmanager":
+		// TODO(soltesz): encapsulate *secretmanager.Client in secrets.Config interface.
+		client, err = secretmanager.NewClient(mainCtx)
+		rtx.Must(err, "Failed to create Secret Manager client")
 		cfg = secrets.NewConfig(project)
 	case "local":
 		cfg = secrets.NewLocalConfig()
@@ -170,7 +177,9 @@ func main() {
 	monitoringChain := alice.New(tc.Limit).Then(http.HandlerFunc(c.Monitoring))
 
 	// Close the Secrent Manager client connection.
-	client.Close()
+	if client != nil {
+		client.Close()
+	}
 
 	// TODO: add verifier for optional access tokens to support NextRequest.
 
