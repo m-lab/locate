@@ -15,7 +15,6 @@ services:
             - '8080:8080'
         command:
             - -google-cloud-project=mlab-sandbox
-            - -legacy-server=https://mlab-sandbox.appspot.com
             - -platform-project=mlab-sandbox
             - -port=8080
             - -redis-address=redis:6379
