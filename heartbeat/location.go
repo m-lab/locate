@@ -30,6 +30,7 @@ type NearestOptions struct {
 	Type    string   // Limit results to only machines of this type.
 	Sites   []string // Limit results to only machines at these sites.
 	Country string   // Bias results to prefer machines in this country.
+	Strict  bool     // When used with Country, limit results to only machines in this country.
 }
 
 // TargetInfo returns the set of `v2.Target` to run the measurement on with the
@@ -150,6 +151,12 @@ func isValidInstance(service string, lat, lon float64, v v2.HeartbeatMessage, op
 
 	if opts.Sites != nil && !contains(opts.Sites, r.Site) {
 		return false, host.Name{}, 0
+	}
+
+	if opts.Country != "" && opts.Strict {
+		if r.CountryCode != opts.Country {
+			return false, host.Name{}, 0
+		}
 	}
 
 	if _, ok := r.Services[service]; !ok {
