@@ -332,6 +332,28 @@ func TestNearest(t *testing.T) {
 			expected: nil,
 			wantErr:  true,
 		},
+		{
+			name:    "NDT7-any-type-country",
+			service: "ndt/ndt7",
+			lat:     43.1988,
+			lon:     -75.3242,
+			opts:    &NearestOptions{Type: "", Country: "IT"},
+			expected: &TargetInfo{
+				Targets: []v2.Target{virtualTarget, physicalTarget},
+				URLs:    NDT7Urls,
+				Ranks:   map[string]int{virtualTarget.Machine: 0, physicalTarget.Machine: 1},
+			},
+			wantErr: false,
+		},
+		{
+			name:     "NDT7-any-type-country-strict",
+			service:  "ndt/ndt7",
+			lat:      43.1988,
+			lon:      -75.3242,
+			opts:     &NearestOptions{Type: "", Country: "IT", Strict: true},
+			expected: nil,
+			wantErr:  true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -350,7 +372,7 @@ func TestNearest(t *testing.T) {
 			got, err := locator.Nearest(tt.service, tt.lat, tt.lon, tt.opts)
 
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("Nearest() error got: %t, want %t", err != nil, tt.wantErr)
+				t.Fatalf("Nearest() error got: %t, want %t, err: %v", err != nil, tt.wantErr, err)
 			}
 
 			if !reflect.DeepEqual(got, tt.expected) {
@@ -374,6 +396,7 @@ func TestFilterSites(t *testing.T) {
 		service  string
 		typ      string
 		country  string
+		strict   bool
 		lat      float64
 		lon      float64
 		expected []site
@@ -423,11 +446,31 @@ func TestFilterSites(t *testing.T) {
 			lon:      1000,
 			expected: []site{},
 		},
+		{
+			name:     "country-with-strict",
+			service:  "ndt/ndt7",
+			typ:      "",
+			country:  "US",
+			strict:   true,
+			lat:      43.1988,
+			lon:      -75.3242,
+			expected: []site{virtualSite, physicalSite},
+		},
+		{
+			name:     "country-with-strict-no-results",
+			service:  "ndt/ndt7",
+			typ:      "",
+			country:  "IT",
+			strict:   true,
+			lat:      43.1988,
+			lon:      -75.3242,
+			expected: []site{},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := &NearestOptions{Type: tt.typ, Country: tt.country}
+			opts := &NearestOptions{Type: tt.typ, Country: tt.country, Strict: tt.strict}
 			got := filterSites(tt.service, tt.lat, tt.lon, instances, opts)
 
 			sortSites(got)
