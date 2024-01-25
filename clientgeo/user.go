@@ -54,7 +54,12 @@ func (u *UserLocator) Locate(req *http.Request) (*Location, error) {
 		loc.Headers.Set(hLocateClientlatlonMethod, "user-region")
 		return loc, err
 	}
-	if ll, ok := static.Countries[req.URL.Query().Get("country")]; ok {
+
+	// If the user requested a specific country without strict=true, set the
+	// lat/lon to the geographic center of that country. If the user requested
+	// a specific country with strict=true, keep lat/lon as it is.
+	if ll, ok := static.Countries[req.URL.Query().Get("country")]; ok &&
+		req.URL.Query().Get("strict") != "true" {
 		loc, err := splitLatLon(ll)
 		loc.Headers.Set(hLocateClientlatlon, ll)
 		loc.Headers.Set(hLocateClientlatlonMethod, "user-country")
