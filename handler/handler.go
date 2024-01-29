@@ -183,6 +183,11 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	if qsStrict, err := strconv.ParseBool(q.Get("strict")); err == nil {
 		strict = qsStrict
 	}
+	// If strict, override the country from the AppEngine header with the one in
+	// the querystring.
+	if strict {
+		country = q.Get("country")
+	}
 	opts := &heartbeat.NearestOptions{Type: t, Country: country, Sites: sites, Strict: strict}
 	targetInfo, err := c.LocatorV2.Nearest(service, lat, lon, opts)
 	if err != nil {

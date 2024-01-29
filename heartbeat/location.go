@@ -2,7 +2,6 @@ package heartbeat
 
 import (
 	"errors"
-	"log"
 	"math/rand"
 	"net/url"
 	"sort"
@@ -154,7 +153,6 @@ func isValidInstance(service string, lat, lon float64, v v2.HeartbeatMessage, op
 		return false, host.Name{}, 0
 	}
 
-	log.Printf("country %s, strict: %v\n", opts.Country, opts.Strict)
 	if opts.Country != "" && opts.Strict {
 		if r.CountryCode != opts.Country {
 			return false, host.Name{}, 0
