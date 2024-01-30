@@ -153,10 +153,8 @@ func isValidInstance(service string, lat, lon float64, v v2.HeartbeatMessage, op
 		return false, host.Name{}, 0
 	}
 
-	if opts.Country != "" && opts.Strict {
-		if r.CountryCode != opts.Country {
-			return false, host.Name{}, 0
-		}
+	if opts.Country != "" && opts.Strict && r.CountryCode != opts.Country {
+		return false, host.Name{}, 0
 	}
 
 	if _, ok := r.Services[service]; !ok {
