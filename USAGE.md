@@ -178,7 +178,7 @@ Via: 1.1 google
 Transfer-Encoding: chunked
 ```
 
-Additionally, the `country` parameter supports an additional option: `strict`.
+Additionally, the `country` parameter supports a `strict` option.
 If `strict=true`, Locate will only return servers in the requested country.
 
 Countries are specified using the [ISO 3166-1 alpha 2 country code][iso1]
