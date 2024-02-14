@@ -18,10 +18,10 @@ operations and describe currently supported queries in more detail.
 
 #### When best means "geographically close"
 
-GCP automatically adds client latitude and longitude to incoming [HTTP request 
-headers][headers]. The locate API uses this location to search for nearby M-Lab 
-servers that satisfy the client query. For additional information about how 
-GCP identifies a client's location, please see the section below, [How GCP 
+GCP automatically adds client latitude and longitude to incoming [HTTP request
+headers][headers]. The locate API uses this location to search for nearby M-Lab
+servers that satisfy the client query. For additional information about how
+GCP identifies a client's location, please see the section below, [How GCP
 identifies client location](#how-gcp-identifies-client-location).
 
 [headers]: https://cloud.google.com/load-balancing/docs/user-defined-request-headers#how_user-defined_request_headers_work
@@ -120,9 +120,9 @@ time before trying again.
 
 ## How GCP Identifies Client Location
 
-As mentioned above, the Locate service uses GCP to determine a client's 
-location and direct the client to the nearest M-Lab server. Using the Locate 
-service with no additional parameters will provide the Latitude & Longitude 
+As mentioned above, the Locate service uses GCP to determine a client's
+location and direct the client to the nearest M-Lab server. Using the Locate
+service with no additional parameters will provide the Latitude & Longitude
 from Appengine. For example, see the query and response below:
 
 ```
@@ -140,14 +140,14 @@ Via: 1.1 google
 Transfer-Encoding: chunked
 ```
 
-In this case, the Locate service used the Appengine provided latitude and 
-longitude values, derived from the [Appengine headers](headers), 
+In this case, the Locate service used the Appengine provided latitude and
+longitude values, derived from the [Appengine headers](headers),
 `X-Appengine-Country` and `X-Appengine-Region`.
 
 [headers]: https://cloud.google.com/appengine/docs/flexible/go/reference/request-headers
 
-A client may also use Locate service and specify a `country` or `region` 
-parameter to select a server nearest to that country or region. For example 
+A client may also use Locate service and specify a `country` or `region`
+parameter to select a server nearest to that country or region. For example
 see the queries and responses below:
 
 ```
@@ -178,14 +178,17 @@ Via: 1.1 google
 Transfer-Encoding: chunked
 ```
 
-Countries are specified using the [ISO 3166-1 alpha 2 country code][iso1] 
+Additionally, the `country` parameter supports a `strict` option.
+If `strict=true`, Locate will only return servers in the requested country.
+
+Countries are specified using the [ISO 3166-1 alpha 2 country code][iso1]
 (`country=IN`) or the [ISO 3166-2 region code][iso2] (`region=US-IL`).
 
 [iso1]: https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
 [iso2]: https://en.wikipedia.org/wiki/ISO_3166-2
 
- If Appengine does not know a client location, and the user does not provide a 
- location parameter, then the Locate API falls back to using a current Maxmind 
- db. If that also fails, then the Locate API will return a 503 error, Service 
- Unavailable. If the client is connecting from an IP address with an unknown 
+ If Appengine does not know a client location, and the user does not provide a
+ location parameter, then the Locate API falls back to using a current Maxmind
+ db. If that also fails, then the Locate API will return a 503 error, Service
+ Unavailable. If the client is connecting from an IP address with an unknown
  location, the Locate service cannot direct it to a nearby server.
