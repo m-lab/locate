@@ -212,6 +212,14 @@ func main() {
 	mux.HandleFunc("/v2/live", c.Live)
 	mux.HandleFunc("/v2/ready", c.Ready)
 
+	// LEGACY MLAB-NS resources.
+	mux.HandleFunc("/ndt", promhttp.InstrumentHandlerDuration(
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/ndt"}),
+		http.HandlerFunc(c.LegacyNearest)))
+	mux.HandleFunc("/ndt_ssl", promhttp.InstrumentHandlerDuration(
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/ndt_ssl"}),
+		http.HandlerFunc(c.LegacyNearest)))
+
 	srv := &http.Server{
 		Addr:    ":" + listenPort,
 		Handler: mux,
