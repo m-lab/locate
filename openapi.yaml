@@ -169,6 +169,49 @@ paths:
       tags:
         - platform
 
+  # Legacy resources
+  "/ndt":
+    get:
+      description: |-
+        Legacy support for the v1 mlab-ns /ndt resource.
+
+        This resource does not require an API key. Users should migrate to v2
+        resources for full support.
+
+      operationId: "v1-ndt"
+      produces:
+      - "application/json"
+      responses:
+        '200':
+          description: The result of the request.
+        '204':
+          description: No results available.
+        '500':
+          description: An error occurred while looking for the service.
+      tags:
+        - public
+
+  "/ndt_ssl":
+    get:
+      description: |-
+        Legacy support for the v1 mlab-ns /ndt_ssl resource.
+
+        This resource does not require an API key. Users should migrate to v2
+        resources for full support.
+
+      operationId: "v1-ndt-ssl"
+      produces:
+      - "application/json"
+      responses:
+        '200':
+          description: The result of the request.
+        '204':
+          description: No results available.
+        '500':
+          description: An error occurred while looking for the service.
+      tags:
+        - public
+
 definitions:
   # Define the query reply without being specific about the structure.
   ErrorResult:
