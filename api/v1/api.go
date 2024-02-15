@@ -8,9 +8,9 @@ type Result struct {
 	City    string   `json:"city"`
 	Country string   `json:"country"`
 	FQDN    string   `json:"fqdn"`
-	IP      []string `json:"ip"` // obsolete
+	IP      []string `json:"ip,omitempty"` // obsolete
 	Site    string   `json:"site"`
-	URL     string   `json:"url"` // obsolete
+	URL     string   `json:"url,omitempty"` // obsolete
 }
 
 // Results consist of multiple Result objects, for policy=geo_options requests.
