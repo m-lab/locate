@@ -80,3 +80,10 @@ var LegacyServices = map[string]string{
 	"ndt/ndt5":    "ndt_ssl",
 	"ndt/ndt7":    "ndt7",
 }
+
+// LegacyConvert translates between mlab-ns resource names and Locate v2 targets.
+var LegacyConvert = map[string]string{
+	"neubot":  "neubot/dash",
+	"ndt_ssl": "ndt/ndt5",
+	"ndt":     "ndt/ndt5",
+}
