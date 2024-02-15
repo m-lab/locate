@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 	"path"
 	"strconv"
 	"time"
 
 	"github.com/m-lab/go/host"
+	"github.com/m-lab/go/rtx"
 	v1 "github.com/m-lab/locate/api/v1"
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/metrics"
@@ -46,7 +48,7 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	setHeaders(rw)
 
 	if c.limitRequest(time.Now().UTC(), req) {
-		writeResult(rw, http.StatusTooManyRequests, &results)
+		writeResultLegacy(rw, http.StatusTooManyRequests, &results)
 		metrics.RequestsTotal.WithLabelValues("nearest", "request limit", http.StatusText(http.StatusTooManyRequests)).Inc()
 		return
 	}
@@ -57,7 +59,7 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	loc, err := c.checkClientLocation(rw, req)
 	if err != nil {
 		status := http.StatusServiceUnavailable
-		writeResult(rw, status, &results)
+		writeResultLegacy(rw, status, &results)
 		metrics.RequestsTotal.WithLabelValues("nearest", "client location", http.StatusText(status)).Inc()
 		return
 	}
@@ -67,21 +69,20 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	lon, errLon := strconv.ParseFloat(loc.Longitude, 64)
 	if errLat != nil || errLon != nil {
 		status := http.StatusInternalServerError
-		writeResult(rw, status, &results)
+		writeResultLegacy(rw, status, &results)
 		metrics.RequestsTotal.WithLabelValues("nearest", "parse client location", http.StatusText(status)).Inc()
 		return
 	}
 
 	q := req.URL.Query()
 	// Find the nearest targets using the client parameters.
-	country := req.Header.Get("X-AppEngine-Country")
 	// Unconditionally, limit to the physical nodes for legacy requests.
-	opts := &heartbeat.NearestOptions{Type: "physical", Country: country}
+	opts := &heartbeat.NearestOptions{Type: "physical"}
 	// TODO(soltesz): support 204 if no results found.
 	targetInfo, err := c.LocatorV2.Nearest(service, lat, lon, opts)
 	if err != nil {
 		status := http.StatusInternalServerError
-		writeResult(rw, status, &results)
+		writeResultLegacy(rw, status, &results)
 		metrics.RequestsTotal.WithLabelValues("nearest", "server location", http.StatusText(status)).Inc()
 		return
 	}
@@ -100,8 +101,16 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 		result = results[0]
 	}
 	// Default format is JSON.
-	writeResult(rw, http.StatusOK, result)
+	writeResultLegacy(rw, http.StatusOK, result)
 	metrics.RequestsTotal.WithLabelValues("nearest", "success", http.StatusText(http.StatusOK)).Inc()
+}
+
+func writeResultLegacy(rw http.ResponseWriter, status int, result interface{}) {
+	b, err := json.Marshal(result)
+	// Errors are only possible when marshalling incompatible types, like functions.
+	rtx.PanicOnError(err, "Failed to format result")
+	rw.WriteHeader(status)
+	rw.Write(b)
 }
 
 func translate(experiment string, info *heartbeat.TargetInfo) v1.Results {
