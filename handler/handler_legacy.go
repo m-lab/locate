@@ -2,6 +2,8 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"path"
 	"strconv"
@@ -15,66 +17,79 @@ import (
 	"github.com/m-lab/locate/static"
 )
 
-/*
-Based on historical use, most requests include no parameters. When requests
-included parameters, the following are most frequent.
-
-	no parameters		0.74
-	format=json			0.07
-	policy=geo_options	0.05
-	ip 					0.04
-	format=bt 			0.04
-	policy=geo 			0.03
-	policy=random      >0.01
-
-Options found in historical requests that will not be supported:
-  - address_family=ipv4 - not supportable
-  - address_family=ipv6 - not supportable
-  - policy=metro & metro - too few, site= is still available.
-  - longitude, latitude - never supported
-  - ip - not right now
-
-Supported options:
-  - format=json (default)
-  - policy=geo (default) (1 result)
-  - policy=geo_options (4 result)
-  - format=bt (1 result)
-  - policy=random (1 result)
-  - lat=xxx&lon=yyy
-*/
+// Based on historical use, most requests include no parameters. When requests
+// included parameters, the following are most frequent.
+//   - no parameters                    0.813
+//   - format=json                      0.068
+//   - format=bt&ip=&policy=geo_options 0.059
+//   - format=json&policy=geo           0.022
+//   - policy=geo                       0.012
+//   - policy=geo_options               0.011
+//   - policy=random                    0.003
+//   - address_family=ipv4&format=json  0.002
+//   - address_family=ipv6&format=json  0.002
+//   - format=json&metro=&policy=metro  0.001
+//
+// Options found in historical requests that will not be supported:
+//   - address_family=ipv4 - not supportable
+//   - address_family=ipv6 - not supportable
+//   - policy=metro & metro - too few and site= is still available.
+//   - longitude, latitude - never supported
+//   - ip - available via user location
+//
+// Supported options:
+//   - format=json        (default)
+//   - format=bt
+//   - policy=geo         (1 result) (default)
+//   - policy=geo_options (4 result)
+//   - policy=random      (1 result)
+//   - lat=xxx&lon=yyy    available via user location
 func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 	results := v1.Results{}
 	setHeaders(rw)
 
+	// Honor limits for request.
 	if c.limitRequest(time.Now().UTC(), req) {
-		writeResultLegacy(rw, http.StatusTooManyRequests, &results)
-		metrics.RequestsTotal.WithLabelValues("nearest", "request limit", http.StatusText(http.StatusTooManyRequests)).Inc()
+		writeJSONLegacy(rw, http.StatusTooManyRequests, results)
+		metrics.RequestsTotal.WithLabelValues("legacy", "request limit", http.StatusText(http.StatusTooManyRequests)).Inc()
 		return
 	}
 
+	// Check that the requested path is for a known service.
 	experiment, service := getLegacyExperimentAndService(req.URL.Path)
-
-	// Look up client location.
-	loc, err := c.checkClientLocation(rw, req)
-	if err != nil {
-		status := http.StatusServiceUnavailable
-		writeResultLegacy(rw, status, &results)
-		metrics.RequestsTotal.WithLabelValues("nearest", "client location", http.StatusText(status)).Inc()
-		return
+	if experiment == "" || service == "" {
+		writeJSONLegacy(rw, http.StatusBadRequest, results)
+		metrics.RequestsTotal.WithLabelValues("legacy", "bad request", http.StatusText(http.StatusBadRequest)).Inc()
 	}
 
-	// Parse client location.
-	lat, errLat := strconv.ParseFloat(loc.Latitude, 64)
-	lon, errLon := strconv.ParseFloat(loc.Longitude, 64)
-	if errLat != nil || errLon != nil {
-		status := http.StatusInternalServerError
-		writeResultLegacy(rw, status, &results)
-		metrics.RequestsTotal.WithLabelValues("nearest", "parse client location", http.StatusText(status)).Inc()
-		return
-	}
-
+	var lat, lon float64
 	q := req.URL.Query()
+	if q.Get("policy") == "random" {
+		// Generate a random lat/lon for server search.
+		lat = (rand.Float64() - 0.5) * 180 // [-90 to 90)
+		lon = (rand.Float64() - 0.5) * 360 // [-180 to 180)
+	} else {
+		// Look up client location.
+		loc, err := c.checkClientLocation(rw, req)
+		if err != nil {
+			status := http.StatusServiceUnavailable
+			writeJSONLegacy(rw, status, results)
+			metrics.RequestsTotal.WithLabelValues("legacy", "client location", http.StatusText(status)).Inc()
+			return
+		}
+		// Parse client location.
+		var errLat, errLon error
+		lat, errLat = strconv.ParseFloat(loc.Latitude, 64)
+		lon, errLon = strconv.ParseFloat(loc.Longitude, 64)
+		if errLat != nil || errLon != nil {
+			status := http.StatusInternalServerError
+			writeJSONLegacy(rw, status, results)
+			metrics.RequestsTotal.WithLabelValues("legacy", "parse client location", http.StatusText(status)).Inc()
+			return
+		}
+	}
+
 	// Find the nearest targets using the client parameters.
 	// Unconditionally, limit to the physical nodes for legacy requests.
 	opts := &heartbeat.NearestOptions{Type: "physical"}
@@ -82,8 +97,8 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	targetInfo, err := c.LocatorV2.Nearest(service, lat, lon, opts)
 	if err != nil {
 		status := http.StatusInternalServerError
-		writeResultLegacy(rw, status, &results)
-		metrics.RequestsTotal.WithLabelValues("nearest", "server location", http.StatusText(status)).Inc()
+		writeJSONLegacy(rw, status, results)
+		metrics.RequestsTotal.WithLabelValues("legacy", "server location", http.StatusText(status)).Inc()
 		return
 	}
 
@@ -91,22 +106,44 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	// Populate target URLs and write out response.
 	c.populateURLs(targetInfo.Targets, targetInfo.URLs, experiment, pOpts)
 	results = translate(experiment, targetInfo)
-	var result interface{}
-	// TODO(soltesz): format=bt & format=json
-	// TODO(soltesz): policy=geo & policy=geo_options & policy=random
+	// Default policy is a single result.
 	switch q.Get("policy") {
 	case "geo_options":
-		result = results
+		// all results
+		break
 	default:
-		result = results[0]
+		results = results[:1]
 	}
+
 	// Default format is JSON.
-	writeResultLegacy(rw, http.StatusOK, result)
-	metrics.RequestsTotal.WithLabelValues("nearest", "success", http.StatusText(http.StatusOK)).Inc()
+	switch q.Get("format") {
+	case "bt":
+		writeBTLegacy(rw, http.StatusOK, results)
+	default:
+		writeJSONLegacy(rw, http.StatusOK, results)
+	}
+	metrics.RequestsTotal.WithLabelValues("legacy", "success", http.StatusText(http.StatusOK)).Inc()
 }
 
-func writeResultLegacy(rw http.ResponseWriter, status int, result interface{}) {
-	b, err := json.Marshal(result)
+func writeBTLegacy(rw http.ResponseWriter, status int, results v1.Results) {
+	rw.WriteHeader(status)
+	for i := range results {
+		r := results[i]
+		s := fmt.Sprintf("%s, %s|%s\n", r.City, r.Country, r.FQDN)
+		rw.Write([]byte(s))
+	}
+}
+
+func writeJSONLegacy(rw http.ResponseWriter, status int, results v1.Results) {
+	var b []byte
+	var err error
+	if len(results) == 1 {
+		// Single results should be reported as a JSON object.
+		b, err = json.Marshal(results[0])
+	} else {
+		// Multiple results should be reported as a JSON array.
+		b, err = json.Marshal(results)
+	}
 	// Errors are only possible when marshalling incompatible types, like functions.
 	rtx.PanicOnError(err, "Failed to format result")
 	rw.WriteHeader(status)
@@ -127,7 +164,6 @@ func translate(experiment string, info *heartbeat.TargetInfo) v1.Results {
 			FQDN:    experiment + "-" + info.Targets[i].Machine,
 		})
 	}
-
 	return results
 }
 
