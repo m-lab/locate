@@ -17,6 +17,9 @@ import (
 	"github.com/m-lab/locate/static"
 )
 
+// LegacyNearest is provided for backward compatibility until
+// users can migrate to supported, v2 resources.
+//
 // Based on historical use, most requests include no parameters. When requests
 // included parameters, the following are most frequent.
 //   - no parameters                    0.813
@@ -46,12 +49,11 @@ import (
 //   - lat=xxx&lon=yyy    available via user location
 func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
-	results := v1.Results{}
 	setHeaders(rw)
 
-	// Honor limits for request.
+	// Honor limits for requests.
 	if c.limitRequest(time.Now().UTC(), req) {
-		writeJSONLegacy(rw, http.StatusTooManyRequests, results)
+		rw.WriteHeader(http.StatusTooManyRequests)
 		metrics.RequestsTotal.WithLabelValues("legacy", "request limit", http.StatusText(http.StatusTooManyRequests)).Inc()
 		return
 	}
@@ -59,8 +61,9 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	// Check that the requested path is for a known service.
 	experiment, service := getLegacyExperimentAndService(req.URL.Path)
 	if experiment == "" || service == "" {
-		writeJSONLegacy(rw, http.StatusBadRequest, results)
+		rw.WriteHeader(http.StatusBadRequest)
 		metrics.RequestsTotal.WithLabelValues("legacy", "bad request", http.StatusText(http.StatusBadRequest)).Inc()
+		return
 	}
 
 	var lat, lon float64
@@ -74,7 +77,7 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 		loc, err := c.checkClientLocation(rw, req)
 		if err != nil {
 			status := http.StatusServiceUnavailable
-			writeJSONLegacy(rw, status, results)
+			rw.WriteHeader(status)
 			metrics.RequestsTotal.WithLabelValues("legacy", "client location", http.StatusText(status)).Inc()
 			return
 		}
@@ -84,7 +87,7 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 		lon, errLon = strconv.ParseFloat(loc.Longitude, 64)
 		if errLat != nil || errLon != nil {
 			status := http.StatusInternalServerError
-			writeJSONLegacy(rw, status, results)
+			rw.WriteHeader(status)
 			metrics.RequestsTotal.WithLabelValues("legacy", "parse client location", http.StatusText(status)).Inc()
 			return
 		}
@@ -97,7 +100,7 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	targetInfo, err := c.LocatorV2.Nearest(service, lat, lon, opts)
 	if err != nil {
 		status := http.StatusInternalServerError
-		writeJSONLegacy(rw, status, results)
+		rw.WriteHeader(status)
 		metrics.RequestsTotal.WithLabelValues("legacy", "server location", http.StatusText(status)).Inc()
 		return
 	}
@@ -105,7 +108,7 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	pOpts := paramOpts{raw: req.Form, version: "v1", ranks: targetInfo.Ranks}
 	// Populate target URLs and write out response.
 	c.populateURLs(targetInfo.Targets, targetInfo.URLs, experiment, pOpts)
-	results = translate(experiment, targetInfo)
+	results := translate(experiment, targetInfo)
 	// Default policy is a single result.
 	switch q.Get("policy") {
 	case "geo_options":
@@ -125,6 +128,7 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	metrics.RequestsTotal.WithLabelValues("legacy", "success", http.StatusText(http.StatusOK)).Inc()
 }
 
+// writeBTLegacy supports a format used by the uTorrent client, one of the earliest integrations with NDT.
 func writeBTLegacy(rw http.ResponseWriter, status int, results v1.Results) {
 	rw.WriteHeader(status)
 	for i := range results {
@@ -134,6 +138,7 @@ func writeBTLegacy(rw http.ResponseWriter, status int, results v1.Results) {
 	}
 }
 
+// writeJSONLegacy supports the v1 result format, a single object for single results, or an array of objects for multiple results.
 func writeJSONLegacy(rw http.ResponseWriter, status int, results v1.Results) {
 	var b []byte
 	var err error
@@ -150,6 +155,7 @@ func writeJSONLegacy(rw http.ResponseWriter, status int, results v1.Results) {
 	rw.Write(b)
 }
 
+// translate converts from the native Locate v2 result form to the v1.Results structure.
 func translate(experiment string, info *heartbeat.TargetInfo) v1.Results {
 	results := v1.Results{}
 	for i := range info.Targets {
@@ -167,6 +173,8 @@ func translate(experiment string, info *heartbeat.TargetInfo) v1.Results {
 	return results
 }
 
+// getLegacyExperimentAndService converts a request path (e.g. /ndt) to a
+// service known to Locate v2 (e.g. ndt/ndt5)
 func getLegacyExperimentAndService(p string) (string, string) {
 	service, ok := static.LegacyConvert[p]
 	if !ok {
