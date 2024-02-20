@@ -175,8 +175,8 @@ paths:
       description: |-
         Legacy support for the v1 mlab-ns /ndt resource.
 
-        This resource does not require an API key. Users should migrate to v2
-        resources for full support.
+        Support is not guaranteed. Users should migrate to v2 resources for full
+        support.
 
       operationId: "v1-ndt"
       produces:
@@ -196,8 +196,8 @@ paths:
       description: |-
         Legacy support for the v1 mlab-ns /ndt_ssl resource.
 
-        This resource does not require an API key. Users should migrate to v2
-        resources for full support.
+        Support is not guaranteed. Users should migrate to v2 resources for full
+        support.
 
       operationId: "v1-ndt-ssl"
       produces:
