@@ -213,6 +213,9 @@ func main() {
 	mux.HandleFunc("/v2/ready", c.Ready)
 
 	// LEGACY MLAB-NS resources.
+	// The following resources are provided for backward compatibility until
+	// users can migrate to supported resources.
+	// TODO(soltesz): Remove support by end of 2024.
 	mux.HandleFunc("/ndt", promhttp.InstrumentHandlerDuration(
 		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/ndt"}),
 		http.HandlerFunc(c.LegacyNearest)))
