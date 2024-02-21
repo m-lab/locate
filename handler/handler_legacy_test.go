@@ -147,7 +147,8 @@ func TestClient_LegacyNearest(t *testing.T) {
 			locator: &fakeLocatorV2{
 				targets: []v2.Target{
 					{Machine: "mlab1-lga0t.measurement-lab.org", Location: &v2.Location{}},
-					{Machine: "mlab2-lga0t.measurement-lab.org", Location: &v2.Location{}}},
+					{Machine: "mlab2-lga0t.measurement-lab.org", Location: &v2.Location{}},
+					{Machine: "skip-bad-host-not-a-real-name", Location: &v2.Location{}}},
 				urls: []url.URL{
 					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
 					{Scheme: "wss", Host: ":3010", Path: "ndt_protocol"},
