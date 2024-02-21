@@ -16,6 +16,7 @@ func TestAppEngineLocator_Locate(t *testing.T) {
 	tests := []struct {
 		name       string
 		useHeaders map[string]string
+		useParam   string
 		want       *Location
 		wantErr    bool
 	}{
@@ -32,6 +33,13 @@ func TestAppEngineLocator_Locate(t *testing.T) {
 					hLocateClientlatlonMethod: []string{"appengine-latlong"},
 				},
 			},
+		},
+		{
+			name:       "error-user-provided-ip",
+			useHeaders: map[string]string{}, // none.
+			useParam:   "?ip=2.125.160.216",
+			want:       nil,
+			wantErr:    true,
 		},
 		{
 			name:       "error-missing-country",
@@ -93,7 +101,7 @@ func TestAppEngineLocator_Locate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sl := NewAppEngineLocator()
 			sl.Reload(context.Background()) // completes code coverage.
-			req := httptest.NewRequest(http.MethodGet, "/whatever", nil)
+			req := httptest.NewRequest(http.MethodGet, "/whatever"+tt.useParam, nil)
 			for key, value := range tt.useHeaders {
 				req.Header.Set(key, value)
 			}

@@ -23,6 +23,7 @@ func TestNewMaxmindLocator(t *testing.T) {
 	tests := []struct {
 		name       string
 		useHeaders map[string]string
+		useParam   string
 		remoteIP   string
 		want       *Location
 		filename   string
@@ -34,6 +35,20 @@ func TestNewMaxmindLocator(t *testing.T) {
 			useHeaders: map[string]string{
 				"X-Forwarded-For": "2.125.160.216, 192.168.0.2",
 			},
+			remoteIP: remoteIP + ":1234",
+			want: &Location{
+				Latitude:  "51.750000",
+				Longitude: "-1.250000",
+				Headers: http.Header{
+					hLocateClientlatlon:       []string{"51.750000,-1.250000"},
+					hLocateClientlatlonMethod: []string{"maxmind-remoteip"},
+				},
+			},
+			filename: "file:./testdata/fake.tar.gz",
+		},
+		{
+			name:     "success-using-user-provided-ip",
+			useParam: "?ip=2.125.160.216",
 			remoteIP: remoteIP + ":1234",
 			want: &Location{
 				Latitude:  "51.750000",
@@ -104,7 +119,7 @@ func TestNewMaxmindLocator(t *testing.T) {
 				locator = NewMaxmindLocator(ctx, localRawfile)
 			}
 
-			req := httptest.NewRequest(http.MethodGet, "/anytarget", nil)
+			req := httptest.NewRequest(http.MethodGet, "/anytarget"+tt.useParam, nil)
 			for key, value := range tt.useHeaders {
 				req.Header.Set(key, value)
 			}
