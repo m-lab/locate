@@ -175,8 +175,8 @@ paths:
       description: |-
         Legacy support for the v1 mlab-ns /ndt resource.
 
-        Support is not guaranteed. Users should migrate to v2 resources for full
-        support.
+        No support is offered for this resource. It may become unavailable at
+        any time. Users should migrate to v2 resources for full support.
 
       operationId: "v1-ndt"
       produces:
@@ -196,8 +196,8 @@ paths:
       description: |-
         Legacy support for the v1 mlab-ns /ndt_ssl resource.
 
-        Support is not guaranteed. Users should migrate to v2 resources for full
-        support.
+        No support is offered for this resource. It may become unavailable at
+        any time. Users should migrate to v2 resources for full support.
 
       operationId: "v1-ndt-ssl"
       produces:
