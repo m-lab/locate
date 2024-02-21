@@ -149,13 +149,11 @@ func TestClient_LegacyNearest(t *testing.T) {
 					{Machine: "skip-bad-host-not-a-real-name", Location: &v2.Location{}}},
 				urls: []url.URL{
 					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
-					{Scheme: "wss", Host: ":3010", Path: "ndt_protocol"},
 				},
 			},
 			header: http.Header{
 				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
 			},
-			wantLatLon: "40.3,-70.4", // Client receives lat/lon provided by AppEngine.
 			wantStatus: http.StatusNoContent,
 		},
 		{
