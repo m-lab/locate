@@ -288,11 +288,10 @@ func parseV1Results(req *http.Request) (*http.Response, v1.Results, error) {
 	if err != nil {
 		return resp, nil, err
 	}
-	if resp.StatusCode == http.StatusNoContent {
-		// Cannot unmarshal empty content.
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
 		return resp, nil, nil
 	}
-	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return resp, nil, err
@@ -302,15 +301,13 @@ func parseV1Results(req *http.Request) (*http.Response, v1.Results, error) {
 	}
 	s := string(b)
 	var r interface{}
+	// Peek at the content to infer the result type.
 	if s[0] == '[' {
 		r = &v1.Results{}
 	} else if s[0] == '{' {
 		r = &v1.Result{}
 	} else {
-		if resp.StatusCode != http.StatusOK {
-			return resp, nil, nil
-		}
-		// parse bt format for tests.
+		// Since there is content, assume it's the "BT" format for tests.
 		s = strings.TrimSpace(s)
 		f := strings.Split(s, "|")
 		cc := strings.Split(f[0], ", ")
@@ -327,6 +324,7 @@ func parseV1Results(req *http.Request) (*http.Response, v1.Results, error) {
 	if err != nil {
 		return resp, nil, err
 	}
+	// Return a type of v1.Results unconditionally.
 	var results v1.Results
 	switch v := r.(type) {
 	case *v1.Result:
