@@ -141,14 +141,31 @@ func TestClient_LegacyNearest(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			name:   "success-nearest-no-servers",
+			path:   "ndt",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{
+					{Machine: "skip-bad-host-not-a-real-name", Location: &v2.Location{}}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+					{Scheme: "wss", Host: ":3010", Path: "ndt_protocol"},
+				},
+			},
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+			},
+			wantLatLon: "40.3,-70.4", // Client receives lat/lon provided by AppEngine.
+			wantStatus: http.StatusNoContent,
+		},
+		{
 			name:   "success-nearest-servers",
 			path:   "ndt?policy=geo_options",
 			signer: &fakeSigner{},
 			locator: &fakeLocatorV2{
 				targets: []v2.Target{
 					{Machine: "mlab1-lga0t.measurement-lab.org", Location: &v2.Location{}},
-					{Machine: "mlab2-lga0t.measurement-lab.org", Location: &v2.Location{}},
-					{Machine: "skip-bad-host-not-a-real-name", Location: &v2.Location{}}},
+					{Machine: "mlab2-lga0t.measurement-lab.org", Location: &v2.Location{}}},
 				urls: []url.URL{
 					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
 					{Scheme: "wss", Host: ":3010", Path: "ndt_protocol"},

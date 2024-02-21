@@ -109,6 +109,11 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	// Populate target URLs and write out response.
 	c.populateURLs(targetInfo.Targets, targetInfo.URLs, experiment, pOpts)
 	results := translate(experiment, targetInfo)
+	if len(results) == 0 {
+		rw.WriteHeader(http.StatusNoContent)
+		metrics.RequestsTotal.WithLabelValues("legacy", "no content", http.StatusText(http.StatusNoContent)).Inc()
+		return
+	}
 	// Default policy is a single result.
 	switch q.Get("policy") {
 	case "geo_options":
