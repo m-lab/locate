@@ -52,7 +52,7 @@ func (sl *AppEngineLocator) Locate(req *http.Request) (*Location, error) {
 	// Allow user-provide ip to override app engine locations.
 	// NOTE: this depends on later client geo locators interpreting
 	// the ip parameter.
-	// TODO(soltesz): remove once v1 resources are removed.
+	// TODO(github.com/m-lab/locate/issues/185): remove once v1 resources are removed.
 	if req.URL.Query().Get("ip") != "" {
 		return nil, ErrUserIPOverride
 	}

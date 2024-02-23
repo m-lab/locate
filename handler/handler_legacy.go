@@ -96,7 +96,6 @@ func (c *Client) LegacyNearest(rw http.ResponseWriter, req *http.Request) {
 	// Find the nearest targets using the client parameters.
 	// Unconditionally, limit to the physical nodes for legacy requests.
 	opts := &heartbeat.NearestOptions{Type: "physical"}
-	// TODO(soltesz): support 204 if no results found.
 	targetInfo, err := c.LocatorV2.Nearest(service, lat, lon, opts)
 	if err != nil {
 		status := http.StatusInternalServerError
