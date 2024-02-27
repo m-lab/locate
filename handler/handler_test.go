@@ -3,7 +3,6 @@
 package handler
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -43,18 +42,6 @@ func (s *fakeSigner) Sign(cl jwt.Claims) (string, error) {
 		cl.Audience[0], cl.Subject, cl.Issuer, cl.Expiry.Time().Format(time.RFC3339),
 	}, "--")
 	return t, nil
-}
-
-type fakeLocator struct {
-	err     error
-	targets []v2.Target
-}
-
-func (l *fakeLocator) Nearest(ctx context.Context, service, lat, lon string) ([]v2.Target, error) {
-	if l.err != nil {
-		return nil, l.err
-	}
-	return l.targets, nil
 }
 
 type fakeLocatorV2 struct {
