@@ -18,6 +18,9 @@ var (
 	// ErrNullLatLon is returned with a 0,0 lat/lon value is provided.
 	ErrNullLatLon = errors.New("lat,lon value was null: " + nullLatLon)
 
+	// ErrUserIPOverride is returned when a request includes the "ip=" parameter.
+	ErrUserIPOverride = errors.New("skipped app engine for user ip parameter")
+
 	latlonMethod  = "appengine-latlong"
 	regionMethod  = "appengine-region"
 	countryMethod = "appengine-country"
@@ -44,6 +47,14 @@ func (sl *AppEngineLocator) Locate(req *http.Request) (*Location, error) {
 		"Region":      headers.Get("X-AppEngine-Region"),
 		"Proto":       headers.Get("X-Forwarded-Proto"),
 		"Path":        req.URL.Path,
+	}
+
+	// Allow user-provide ip to override app engine locations.
+	// NOTE: this depends on later client geo locators interpreting
+	// the ip parameter.
+	// TODO(github.com/m-lab/locate/issues/185): remove once v1 resources are removed.
+	if req.URL.Query().Get("ip") != "" {
+		return nil, ErrUserIPOverride
 	}
 
 	country := headers.Get("X-AppEngine-Country")
