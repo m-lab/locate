@@ -16,6 +16,7 @@ import (
 var (
 	validHostname           = "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org"
 	validHostnameWithSuffix = "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org-t95j"
+	validAutojoinHostname   = "ndt-lga12345-1a2b3c4d.mlab.sandbox.measurement-lab.org"
 	validURL                = "file:./testdata/registration.json"
 	validMsg                = &v2.Registration{
 		City:          "New York",
@@ -31,6 +32,21 @@ var (
 		Site:          "lga0t",
 		Type:          "physical",
 		Uplink:        "10g",
+	}
+	validAutojoinMsg = &v2.Registration{
+		City:          "New York",
+		CountryCode:   "US",
+		ContinentCode: "NA",
+		Hostname:      "ndt-lga12345-1a2b3c4d.mlab.sandbox.measurement-lab.org",
+		Latitude:      40.775,
+		Longitude:     -73.875,
+		Machine:       "1a2b3c4d",
+		Metro:         "lga",
+		Project:       "mlab-sandbox",
+		Probability:   1,
+		Site:          "lga12345",
+		Type:          "unknown",
+		Uplink:        "unknown",
 	}
 )
 
@@ -202,6 +218,22 @@ func Test_GetRegistration(t *testing.T) {
 			wantMsg:      nil,
 			wantSavedReg: v2.Registration{},
 		},
+		{
+			name:         "priority-to-non-service-key",
+			url:          validURL,
+			hostname:     validHostname,
+			wantErr:      false,
+			wantMsg:      validMsg,
+			wantSavedReg: *validMsg,
+		},
+		{
+			name:         "valid-autojoin-hostname-data",
+			url:          validURL,
+			hostname:     validAutojoinHostname,
+			wantErr:      false,
+			wantMsg:      validAutojoinMsg,
+			wantSavedReg: *validAutojoinMsg,
+		},
 	}
 
 	for _, tt := range tests {
@@ -224,7 +256,7 @@ func Test_GetRegistration(t *testing.T) {
 			}
 
 			if diff := deep.Equal(gotMsg, tt.wantMsg); diff != nil {
-				t.Errorf("GetRegistration() message did not match; got: %+v, want: %+v", gotMsg, tt.wantMsg)
+				t.Errorf("GetRegistration() message did not match; got: \n%+v, want: \n%+v", gotMsg, tt.wantMsg)
 			}
 
 			if diff := deep.Equal(ldr.reg, tt.wantSavedReg); diff != nil {

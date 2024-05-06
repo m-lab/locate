@@ -68,7 +68,13 @@ func (ldr *Loader) GetRegistration(ctx context.Context) (*v2.Registration, error
 		return nil, err
 	}
 
-	if v, ok := registrations[ldr.hostname.String()]; ok {
+	// The registration key can be both a hostname or a hostname with a service,
+	// so the following code checks for both, with priority to hostnames w/o service.
+	v, ok := registrations[ldr.hostname.String()]
+	if !ok {
+		v, ok = registrations[ldr.hostname.StringWithService()]
+	}
+	if ok {
 		v.Hostname = ldr.hostname.StringWithService()
 		// If the registration has not changed, there is nothing new to return.
 		if cmp.Equal(ldr.reg, v) {

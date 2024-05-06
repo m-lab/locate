@@ -1,5 +1,5 @@
 {
-  "mlab1-lga0t.mlab-sandbox.measurement-lab.org": {
+   "mlab1-lga0t.mlab-sandbox.measurement-lab.org": {
       "City": "New York",
       "ContinentCode": "NA",
       "CountryCode": "US",
@@ -11,5 +11,33 @@
       "Site": "lga0t",
       "Type": "physical",
       "Uplink": "10g"
+   },
+   "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org": {
+      "City": "New York",
+      "ContinentCode": "NA",
+      "CountryCode": "US",
+      "Latitude": 40.7667,
+      "Longitude": -73.8667,
+      "Machine": "mlab1-withservice",
+      "Metro": "lga",
+      "Project": "mlab-sandbox",
+      "Site": "lga0t",
+      "Type": "physical",
+      "Uplink": "10g"
+   },
+   "ndt-lga12345-1a2b3c4d.mlab.sandbox.measurement-lab.org": {
+      "City": "New York",
+      "CountryCode": "US",
+      "ContinentCode": "NA",
+      "Hostname": "ndt-lga12345-1a2b3c4d.mlab.sandbox.measurement-lab.org",
+      "Latitude": 40.775,
+      "Longitude": -73.875,
+      "Machine": "1a2b3c4d",
+      "Metro": "lga",
+      "Project": "mlab-sandbox",
+      "Probability": 1,
+      "Site": "lga12345",
+      "Type": "unknown",
+      "Uplink": "unknown"
    }
 }
