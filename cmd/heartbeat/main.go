@@ -30,6 +30,7 @@ import (
 var (
 	heartbeatURL        string
 	hostname            string
+	hostnameFile        flagx.FileBytes
 	experiment          string
 	pod                 string
 	node                string
@@ -51,7 +52,8 @@ type Checker interface {
 func init() {
 	flag.StringVar(&heartbeatURL, "heartbeat-url", "ws://localhost:8080/v2/platform/heartbeat",
 		"URL for locate service")
-	flag.StringVar(&hostname, "hostname", "", "The service hostname")
+	flag.StringVar(&hostname, "hostname", "", "The service hostname (takes precedence over -hostname-file)")
+	flag.Var(&hostnameFile, "hostname-file", "A file containing the service hostname")
 	flag.StringVar(&experiment, "experiment", "", "Experiment name")
 	flag.StringVar(&pod, "pod", "", "Kubernetes pod name")
 	flag.StringVar(&node, "node", "", "Kubernetes node name")
@@ -64,6 +66,12 @@ func init() {
 func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "failed to read args from env")
+
+	// Read hostname from file if possible. If both -hostname-file and -hostname
+	// are provided, -hostname takes precedence.
+	if hostnameFile.String() != "" {
+		hostname = hostnameFile.String()
+	}
 
 	// Start metrics server.
 	prom := prometheusx.MustServeMetrics()
