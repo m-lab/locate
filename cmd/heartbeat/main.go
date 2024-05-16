@@ -67,9 +67,8 @@ func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "failed to read args from env")
 
-	// Read hostname from file if possible. If both -hostname-file and -hostname
-	// are provided, -hostname takes precedence.
-	if hostnameFile.String() != "" && hostname == "" {
+	// If -hostname-file was set, use it instead of -hostname.
+	if hostnameFile.String() != "" {
 		hostname = hostnameFile.String()
 	}
 
