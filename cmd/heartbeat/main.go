@@ -69,7 +69,7 @@ func main() {
 
 	// Read hostname from file if possible. If both -hostname-file and -hostname
 	// are provided, -hostname takes precedence.
-	if hostnameFile.String() != "" {
+	if hostnameFile.String() != "" && hostname == "" {
 		hostname = hostnameFile.String()
 	}
 
