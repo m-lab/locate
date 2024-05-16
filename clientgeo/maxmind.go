@@ -86,7 +86,10 @@ func (mml *MaxmindLocator) Locate(req *http.Request) (*Location, error) {
 func ipFromRequest(req *http.Request) (net.IP, error) {
 	fwdIPs := strings.Split(req.Header.Get("X-Forwarded-For"), ", ")
 	var ip net.IP
-	if fwdIPs[0] != "" {
+	rawip := req.URL.Query().Get("ip")
+	if rawip != "" {
+		ip = net.ParseIP(rawip)
+	} else if fwdIPs[0] != "" {
 		ip = net.ParseIP(fwdIPs[0])
 	} else {
 		h, _, err := net.SplitHostPort(req.RemoteAddr)
