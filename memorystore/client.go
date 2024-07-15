@@ -81,6 +81,22 @@ func (c *client[V]) Put(key string, field string, value redis.Scanner, opts *Put
 	return nil
 }
 
+// Del removes a key from Redis using the `DEL key` command.
+func (c *client[V]) Del(key string) error {
+	t := time.Now()
+	conn := c.pool.Get()
+	defer conn.Close()
+
+	_, err := conn.Do("DEL", key)
+	if err != nil {
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("del", "", "DEL error").Observe(time.Since(t).Seconds())
+		return err
+	}
+
+	metrics.LocateMemorystoreRequestDuration.WithLabelValues("del", "", "OK").Observe(time.Since(t).Seconds())
+	return nil
+}
+
 // GetAll uses the SCAN command to iterate over all the entries in Redis
 // and returns a mapping of all the keys to their values.
 // It implements an "all or nothing" approach in which it will only
