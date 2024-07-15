@@ -89,11 +89,11 @@ func (c *client[V]) Del(key string) error {
 
 	_, err := conn.Do("DEL", key)
 	if err != nil {
-		metrics.LocateMemorystoreRequestDuration.WithLabelValues("del", key, "DEL error").Observe(time.Since(t).Seconds())
+		metrics.LocateMemorystoreRequestDuration.WithLabelValues("del", "", "DEL error").Observe(time.Since(t).Seconds())
 		return err
 	}
 
-	metrics.LocateMemorystoreRequestDuration.WithLabelValues("del", key, "OK").Observe(time.Since(t).Seconds())
+	metrics.LocateMemorystoreRequestDuration.WithLabelValues("del", "", "OK").Observe(time.Since(t).Seconds())
 	return nil
 }
 

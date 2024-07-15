@@ -283,3 +283,18 @@ func TestDel_Success(t *testing.T) {
 		t.Errorf("Del() error:  %+v, want: nil", err)
 	}
 }
+
+func TestDel_Error(t *testing.T) {
+	conn, client := setUpTest[v2.HeartbeatMessage]()
+
+	delCmd := conn.Command("DEL", testdata.FakeHostname).ExpectError(errors.New("DEL error"))
+	err := client.Del(testdata.FakeHostname)
+
+	if conn.Stats(delCmd) != 1 {
+		t.Fatal("Del() failure, DEL should have been called")
+	}
+
+	if err == nil {
+		t.Error("Del() error: nil, want: DEL error", err)
+	}
+}
