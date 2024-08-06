@@ -105,8 +105,9 @@ func main() {
 	// completes in 4 or 5 days, as of this comment 2024-08-06.
 	lbbytes, lberr := os.ReadFile(lbPath)
 
-	// If the "loadbalanced" file exists, then the instance is a load balanced VM.
-	// If not, then it is a standalone instance.
+	// If the "loadbalanced" file exists, then make sure that the content of the
+	// file is "true". If the file doesn't exist, then, for now, just consider
+	// the machine as not loadbalanced.
 	if string(lbbytes) == "true" && lberr == nil {
 		gcpmd, err := metadata.NewGCPMetadata(md.NewClient(http.DefaultClient), hostname)
 		rtx.Must(err, "failed to get VM metadata")
