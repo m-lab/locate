@@ -212,6 +212,17 @@ func main() {
 	mux.HandleFunc("/v2/live", c.Live)
 	mux.HandleFunc("/v2/ready", c.Ready)
 
+	// LEGACY MLAB-NS resources.
+	// The following resources are provided for backward compatibility until
+	// users can migrate to supported resources.
+	// TODO(github.com/m-lab/locate/issues/185): Remove support by end of 2024.
+	mux.HandleFunc("/ndt", promhttp.InstrumentHandlerDuration(
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/ndt"}),
+		http.HandlerFunc(c.LegacyNearest)))
+	mux.HandleFunc("/ndt_ssl", promhttp.InstrumentHandlerDuration(
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/ndt_ssl"}),
+		http.HandlerFunc(c.LegacyNearest)))
+
 	srv := &http.Server{
 		Addr:    ":" + listenPort,
 		Handler: mux,
