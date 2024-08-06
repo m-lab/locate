@@ -98,12 +98,16 @@ func main() {
 	ec := health.NewEndpointClient(static.HealthEndpointTimeout)
 	var hc Checker
 
+	// TODO(kinkade): cause a fatal error if lberr is not nil. Not fatally
+	// exiting on lberr is just a workaround to get this rolled out while we
+	// wait for every physical machine on the platform to actually have that
+	// file, which won't be the case until the rolling reboot in production
+	// completes in 4 or 5 days, as of this comment 2024-08-06.
 	lbbytes, lberr := os.ReadFile(lbPath)
-	rtx.Must(lberr, "failed to read metadata file 'loadbalanced'")
 
 	// If the "loadbalanced" file exists, then the instance is a load balanced VM.
 	// If not, then it is a standalone instance.
-	if string(lbbytes) == "true" {
+	if string(lbbytes) == "true" && lberr == nil {
 		gcpmd, err := metadata.NewGCPMetadata(md.NewClient(http.DefaultClient), hostname)
 		rtx.Must(err, "failed to get VM metadata")
 		gceClient, err := compute.NewRegionBackendServicesRESTClient(mainCtx)
