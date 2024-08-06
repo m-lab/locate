@@ -94,14 +94,18 @@ func main() {
 	err = conn.Dial(heartbeatURL, http.Header{}, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
-	_, lberr := os.ReadFile(lbPath)
 	probe := health.NewPortProbe(svcs)
 	ec := health.NewEndpointClient(static.HealthEndpointTimeout)
 	var hc Checker
 
+	lbbytes, lberr := os.ReadFile(lbPath)
+	if lberr != nil {
+		rtx.Must(err, "failed to read the value of metadata file 'loadbalanced'")
+	}
+
 	// If the "loadbalanced" file exists, then the instance is a load balanced VM.
 	// If not, then it is a standalone instance.
-	if lberr == nil {
+	if string(lbbytes) == "true" {
 		gcpmd, err := metadata.NewGCPMetadata(md.NewClient(http.DefaultClient), hostname)
 		rtx.Must(err, "failed to get VM metadata")
 		gceClient, err := compute.NewRegionBackendServicesRESTClient(mainCtx)
