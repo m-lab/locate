@@ -108,7 +108,7 @@ func main() {
 	// If the "loadbalanced" file exists, then make sure that the content of the
 	// file is "true". If the file doesn't exist, then, for now, just consider
 	// the machine as not loadbalanced.
-	if string(lbbytes) == "true" && lberr == nil {
+	if lberr == nil && string(lbbytes) == "true" {
 		gcpmd, err := metadata.NewGCPMetadata(md.NewClient(http.DefaultClient), hostname)
 		rtx.Must(err, "failed to get VM metadata")
 		gceClient, err := compute.NewRegionBackendServicesRESTClient(mainCtx)
