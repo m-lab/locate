@@ -99,9 +99,7 @@ func main() {
 	var hc Checker
 
 	lbbytes, lberr := os.ReadFile(lbPath)
-	if lberr != nil {
-		rtx.Must(err, "failed to read the value of metadata file 'loadbalanced'")
-	}
+	rtx.Must(lberr, "failed to read metadata file 'loadbalanced'")
 
 	// If the "loadbalanced" file exists, then the instance is a load balanced VM.
 	// If not, then it is a standalone instance.

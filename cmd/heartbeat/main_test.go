@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"net/url"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -22,6 +23,10 @@ func Test_main(t *testing.T) {
 	defer s.Close()
 	u, err := url.Parse(s.URL)
 	rtx.Must(err, "could not parse server URL")
+
+	lbPath = "/tmp/loadbalanced"
+	os.WriteFile(lbPath, []byte("false"), 0644)
+	defer os.Remove(lbPath)
 
 	flag.Set("heartbeat-url", s.URL)
 	flag.Set("hostname", "ndt-mlab1-lga0t.mlab-sandbox.measurement-lab.org")
