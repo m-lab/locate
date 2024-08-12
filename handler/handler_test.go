@@ -334,9 +334,10 @@ func TestExtraParams(t *testing.T) {
 			hostname: "host",
 			index:    0,
 			p: paramOpts{
-				raw:     map[string][]string{"client_name": {"client"}},
-				version: "v2",
-				ranks:   map[string]int{"host": 0},
+				raw:       map[string][]string{"client_name": {"client"}},
+				version:   "v2",
+				ranks:     map[string]int{"host": 0},
+				svcParams: map[string]float64{},
 			},
 			want: url.Values{
 				"client_name":    []string{"client"},
@@ -350,8 +351,9 @@ func TestExtraParams(t *testing.T) {
 			hostname: "host",
 			index:    0,
 			p: paramOpts{
-				version: "v2",
-				ranks:   map[string]int{"host": 0},
+				version:   "v2",
+				ranks:     map[string]int{"host": 0},
+				svcParams: map[string]float64{},
 			},
 			want: url.Values{
 				"locate_version": []string{"v2"},
@@ -364,8 +366,9 @@ func TestExtraParams(t *testing.T) {
 			hostname: "host",
 			index:    0,
 			p: paramOpts{
-				version: "v2",
-				ranks:   map[string]int{"different-host": 0},
+				version:   "v2",
+				ranks:     map[string]int{"different-host": 0},
+				svcParams: map[string]float64{},
 			},
 			want: url.Values{
 				"locate_version": []string{"v2"},
@@ -376,22 +379,26 @@ func TestExtraParams(t *testing.T) {
 			name:  "early-exit-true",
 			index: 0,
 			p: paramOpts{
-				raw:     map[string][]string{"early_exit": {"250"}},
+				raw:     map[string][]string{static.EarlyExitParameter: {"250"}},
 				version: "v2",
+				svcParams: map[string]float64{
+					static.EarlyExitParameter: 1,
+				},
 			},
 			earlyExitProbability: 1,
 			want: url.Values{
-				"early_exit":     []string{"250"},
-				"locate_version": []string{"v2"},
-				"index":          []string{"0"},
+				static.EarlyExitParameter: []string{"250"},
+				"locate_version":          []string{"v2"},
+				"index":                   []string{"0"},
 			},
 		},
 		{
 			name:  "early-exit-false",
 			index: 0,
 			p: paramOpts{
-				raw:     map[string][]string{"early_exit": {"250"}},
-				version: "v2",
+				raw:       map[string][]string{static.EarlyExitParameter: {"250"}},
+				version:   "v2",
+				svcParams: map[string]float64{static.EarlyExitParameter: 0},
 			},
 			earlyExitProbability: 0,
 			want: url.Values{
@@ -399,10 +406,31 @@ func TestExtraParams(t *testing.T) {
 				"index":          []string{"0"},
 			},
 		},
+		{
+			name:  "max-cwnd-gain-and-early-exit-true",
+			index: 0,
+			p: paramOpts{
+				raw: map[string][]string{
+					static.EarlyExitParameter:   {"250"},
+					static.MaxCwndGainParameter: {"512"},
+				},
+				version: "v2",
+				svcParams: map[string]float64{
+					static.EarlyExitParameter:   1,
+					static.MaxCwndGainParameter: 1,
+				},
+			},
+			earlyExitProbability: 1,
+			want: url.Values{
+				static.EarlyExitParameter:   []string{"250"},
+				static.MaxCwndGainParameter: []string{"512"},
+				"locate_version":            []string{"v2"},
+				"index":                     []string{"0"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			earlyExitProbability = tt.earlyExitProbability
 			got := extraParams(tt.hostname, tt.index, tt.p)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("extraParams() = %v, want %v", got, tt.want)

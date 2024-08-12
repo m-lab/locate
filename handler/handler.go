@@ -34,7 +34,6 @@ import (
 
 var (
 	errFailedToLookupClient = errors.New("Failed to look up client location")
-	earlyExitProbability    = 0.9
 	tooManyRequests         = "Too many periodic requests. Please contact support@measurementlab.net."
 )
 
@@ -72,9 +71,10 @@ type PrometheusClient interface {
 }
 
 type paramOpts struct {
-	raw     url.Values
-	version string
-	ranks   map[string]int
+	raw       url.Values
+	version   string
+	ranks     map[string]int
+	svcParams map[string]float64
 }
 
 func init() {
@@ -116,7 +116,9 @@ func extraParams(hostname string, index int, p paramOpts) url.Values {
 			// note: we only use the first value.
 			v.Set(key, p.raw.Get(key))
 		}
-		if key == "early_exit" && rand.Float64() < earlyExitProbability {
+
+		val, ok := p.svcParams[key]
+		if ok && rand.Float64() < val {
 			v.Set(key, p.raw.Get(key))
 		}
 	}
@@ -198,7 +200,12 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	pOpts := paramOpts{raw: req.Form, version: "v2", ranks: targetInfo.Ranks}
+	pOpts := paramOpts{
+		raw:       req.Form,
+		version:   "v2",
+		ranks:     targetInfo.Ranks,
+		svcParams: static.ServiceParams,
+	}
 	// Populate target URLs and write out response.
 	c.populateURLs(targetInfo.Targets, targetInfo.URLs, experiment, pOpts)
 	result.Results = targetInfo.Targets
