@@ -31,6 +31,7 @@ const (
 	EarthHalfCircumferenceKm   = 20038
 	EarlyExitParameter         = "early_exit"
 	MaxCwndGainParameter       = "max_cwnd_gain"
+	MaxElapsedTimeParameter    = "max_elapsed_time"
 )
 
 // URL creates inline url.URLs.
@@ -45,8 +46,9 @@ func URL(scheme, port, path string) url.URL {
 // ServiceParams is a map of common parameters passed in by services (as URL params)
 // with corresponding probabilities set by the Locate.
 var ServiceParams = map[string]float64{
-	EarlyExitParameter:   0.9,
-	MaxCwndGainParameter: 1,
+	EarlyExitParameter:      0.9,
+	MaxCwndGainParameter:    1,
+	MaxElapsedTimeParameter: 1,
 }
 
 // Configs is a temporary, static mapping of service names and their set of

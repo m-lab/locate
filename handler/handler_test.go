@@ -428,6 +428,28 @@ func TestExtraParams(t *testing.T) {
 				"index":                     []string{"0"},
 			},
 		},
+		{
+			name:  "max-cwnd-gain-and-max-elapsed-time-true",
+			index: 0,
+			p: paramOpts{
+				raw: map[string][]string{
+					static.MaxCwndGainParameter:    {"512"},
+					static.MaxElapsedTimeParameter: {"5"},
+				},
+				version: "v2",
+				svcParams: map[string]float64{
+					static.MaxElapsedTimeParameter: 1,
+					static.MaxCwndGainParameter:    1,
+				},
+			},
+			earlyExitProbability: 1,
+			want: url.Values{
+				static.MaxCwndGainParameter:    []string{"512"},
+				static.MaxElapsedTimeParameter: []string{"5"},
+				"locate_version":               []string{"v2"},
+				"index":                        []string{"0"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
