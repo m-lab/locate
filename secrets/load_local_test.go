@@ -33,7 +33,7 @@ func TestLocalConfig_LoadSigner(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := secrets.NewLocalConfig()
 			ctx := context.Background()
-			_, err := c.LoadSigner(ctx, nil, tt.file)
+			_, err := c.LoadSigner(ctx, tt.file)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LocalConfig.LoadSigner() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -67,7 +67,7 @@ func TestLocalConfig_LoadVerifier(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := secrets.NewLocalConfig()
 			ctx := context.Background()
-			_, err := c.LoadVerifier(ctx, nil, tt.file)
+			_, err := c.LoadVerifier(ctx, tt.file)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LocalConfig.LoadVerifier() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -117,7 +117,7 @@ func TestLocalConfig_LoadPrometheus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := secrets.NewLocalConfig()
 			ctx := context.Background()
-			got, err := c.LoadPrometheus(ctx, nil, tt.userFile, tt.passFile)
+			got, err := c.LoadPrometheus(ctx, tt.userFile, tt.passFile)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LocalConfig.LoadPrometheus() error = %v, wantErr %v", err, tt.wantErr)
 				return

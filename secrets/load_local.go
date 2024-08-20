@@ -19,7 +19,7 @@ func NewLocalConfig() *LocalConfig {
 }
 
 // LoadSigner reads the secret from the named file. The client parameter is ignored.
-func (c *LocalConfig) LoadSigner(ctx context.Context, client SecretClient, name string) (*token.Signer, error) {
+func (c *LocalConfig) LoadSigner(ctx context.Context, name string) (*token.Signer, error) {
 	key, err := ioutil.ReadFile(name)
 	if err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func (c *LocalConfig) LoadSigner(ctx context.Context, client SecretClient, name 
 }
 
 // LoadVerifier reads the secret from the named file. The client parameter is ignored.
-func (c *LocalConfig) LoadVerifier(ctx context.Context, client SecretClient, name string) (*token.Verifier, error) {
+func (c *LocalConfig) LoadVerifier(ctx context.Context, name string) (*token.Verifier, error) {
 	// TODO: consider supporting `name` as glob to load multiple verifier keys.
 	key, err := ioutil.ReadFile(name)
 	if err != nil {
@@ -39,7 +39,7 @@ func (c *LocalConfig) LoadVerifier(ctx context.Context, client SecretClient, nam
 
 // LoadPrometheus reads the username and password secrets from the named files.
 // The client parameter is ignored.
-func (c *LocalConfig) LoadPrometheus(ctx context.Context, client SecretClient, user, pass string) (*prometheus.Credentials, error) {
+func (c *LocalConfig) LoadPrometheus(ctx context.Context, user, pass string) (*prometheus.Credentials, error) {
 	u, err := ioutil.ReadFile(user)
 	if err != nil {
 		return nil, err

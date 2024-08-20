@@ -81,9 +81,9 @@ func init() {
 var mainCtx, mainCancel = context.WithCancel(context.Background())
 
 type loader interface {
-	LoadSigner(ctx context.Context, client secrets.SecretClient, name string) (*token.Signer, error)
-	LoadVerifier(ctx context.Context, client secrets.SecretClient, name string) (*token.Verifier, error)
-	LoadPrometheus(ctx context.Context, client secrets.SecretClient, user, pass string) (*prometheus.Credentials, error)
+	LoadSigner(ctx context.Context, name string) (*token.Signer, error)
+	LoadVerifier(ctx context.Context, name string) (*token.Verifier, error)
+	LoadPrometheus(ctx context.Context, user, pass string) (*prometheus.Credentials, error)
 }
 
 func main() {
@@ -95,22 +95,20 @@ func main() {
 	defer prom.Close()
 
 	// Create the Secret Manager client
-	var client *secretmanager.Client
-	var err error
 	var cfg loader
 
 	switch keySource.Value {
 	case "secretmanager":
-		// TODO(soltesz): encapsulate *secretmanager.Client in secrets.Config interface.
-		client, err = secretmanager.NewClient(mainCtx)
+		client, err := secretmanager.NewClient(mainCtx)
 		rtx.Must(err, "Failed to create Secret Manager client")
-		cfg = secrets.NewConfig(project)
+		cfg = secrets.NewConfig(project, client)
+		defer client.Close()
 	case "local":
 		cfg = secrets.NewLocalConfig()
 	}
 
 	// SIGNER - load the signer key.
-	signer, err := cfg.LoadSigner(mainCtx, client, signerSecretName)
+	signer, err := cfg.LoadSigner(mainCtx, signerSecretName)
 	rtx.Must(err, "Failed to load signer key")
 
 	locators := clientgeo.MultiLocator{clientgeo.NewUserLocator()}
@@ -135,7 +133,7 @@ func main() {
 	defer tracker.StopImport()
 	srvLocatorV2 := heartbeat.NewServerLocator(tracker)
 
-	creds, err := cfg.LoadPrometheus(mainCtx, client, promUserSecretName, promPassSecretName)
+	creds, err := cfg.LoadPrometheus(mainCtx, promUserSecretName, promPassSecretName)
 	rtx.Must(err, "failed to load Prometheus credentials")
 	promClient, err := prometheus.NewClient(creds, promURL)
 	rtx.Must(err, "failed to create Prometheus client")
@@ -166,7 +164,7 @@ func main() {
 	// the Google Secret Manager -> pass a slice of JWT keys (secrets) to
 	// token.NewVerifier(), which results in the `verifier` value assigned
 	// below.
-	verifier, err := cfg.LoadVerifier(mainCtx, client, verifySecretName)
+	verifier, err := cfg.LoadVerifier(mainCtx, verifySecretName)
 	rtx.Must(err, "Failed to create verifier")
 	exp := jwt.Expected{
 		Issuer:   static.IssuerMonitoring,
@@ -175,11 +173,6 @@ func main() {
 	tc, err := controller.NewTokenController(verifier, true, exp)
 	rtx.Must(err, "Failed to create token controller")
 	monitoringChain := alice.New(tc.Limit).Then(http.HandlerFunc(c.Monitoring))
-
-	// Close the Secrent Manager client connection.
-	if client != nil {
-		client.Close()
-	}
 
 	// TODO: add verifier for optional access tokens to support NextRequest.
 
