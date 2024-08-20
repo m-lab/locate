@@ -71,9 +71,6 @@ func (f *fakeIter) incrementIdx() {
 func Test_getSecret(t *testing.T) {
 	ctx := context.Background()
 
-	cfg := NewConfig("mlab-sandbox")
-	cfg.iter = &fakeIter{}
-
 	var secretData [][]byte
 	secretData = append(secretData, []byte("fake-secret"))
 
@@ -93,8 +90,10 @@ func Test_getSecret(t *testing.T) {
 			data:    secretData,
 			wantErr: tt.wantErr,
 		}
+		cfg := NewConfig("mlab-sandbox", client)
+		cfg.iter = &fakeIter{}
 
-		secret, err := cfg.getSecret(ctx, client, "fake-path")
+		secret, err := cfg.getSecret(ctx, "fake-path")
 
 		if (err != nil) != tt.wantErr {
 			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
@@ -111,8 +110,8 @@ func Test_getSecret(t *testing.T) {
 
 func Test_getSecretVersions(t *testing.T) {
 	ctx := context.Background()
-	cfg := NewConfig("mlab-sandbox")
 	client := &fakeSecretClient{}
+	cfg := NewConfig("mlab-sandbox", client)
 
 	tests := []struct {
 		name             string
@@ -171,7 +170,7 @@ func Test_getSecretVersions(t *testing.T) {
 			wantErr:  tt.wantIterErr,
 			versions: tt.versions,
 		}
-		versions, err := cfg.getSecretVersions(ctx, client, "test")
+		versions, err := cfg.getSecretVersions(ctx, "test")
 
 		if (err != nil) != tt.wantErr {
 			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
@@ -192,9 +191,6 @@ func Test_getSecretVersions(t *testing.T) {
 
 func Test_LoadSigner(t *testing.T) {
 	ctx := context.Background()
-
-	cfg := NewConfig("mlab-sandbox")
-	cfg.iter = &fakeIter{}
 
 	var signerKeys [][]byte
 
@@ -267,8 +263,9 @@ func Test_LoadSigner(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		cfg := NewConfig("mlab-sandbox", tt.client)
 		cfg.iter = tt.iter
-		_, err := cfg.LoadSigner(ctx, tt.client, "test")
+		_, err := cfg.LoadSigner(ctx, "test")
 
 		if (err != nil) != tt.wantErr {
 			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
@@ -278,9 +275,6 @@ func Test_LoadSigner(t *testing.T) {
 
 func Test_LoadVerifier(t *testing.T) {
 	ctx := context.Background()
-
-	cfg := NewConfig("mlab-sandbox")
-	cfg.iter = &fakeIter{}
 
 	var verifyKeys [][]byte
 
@@ -368,8 +362,10 @@ func Test_LoadVerifier(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		cfg := NewConfig("mlab-sandbox", tt.client)
 		cfg.iter = tt.iter
-		_, err := cfg.LoadVerifier(ctx, tt.client, "test2")
+
+		_, err := cfg.LoadVerifier(ctx, "test2")
 
 		if (err != nil) != tt.wantErr {
 			t.Fatalf("Got error: %v, but wantErr is %v", err, tt.wantErr)
@@ -379,8 +375,6 @@ func Test_LoadVerifier(t *testing.T) {
 
 func TestConfig_LoadPrometheus(t *testing.T) {
 	ctx := context.Background()
-
-	cfg := NewConfig("mlab-sandbox")
 
 	secretUser := "fake-user"
 	secretPass := "fake-pass"
@@ -415,7 +409,9 @@ func TestConfig_LoadPrometheus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := cfg.LoadPrometheus(ctx, tt.client, "fake-user", "fake-pass")
+			cfg := NewConfig("mlab-sandbox", tt.client)
+
+			got, err := cfg.LoadPrometheus(ctx, "fake-user", "fake-pass")
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Config.LoadPrometheus() error = %v, wantErr %v", err, tt.wantErr)

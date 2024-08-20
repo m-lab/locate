@@ -46,24 +46,26 @@ func (s *stdIter) Next(it *secretmanager.SecretVersionIterator) (*secretmanagerp
 type Config struct {
 	iter    iter
 	Project string
+	client  SecretClient
 }
 
 // NewConfig creates a new secret config.
-func NewConfig(project string) *Config {
+func NewConfig(project string, client SecretClient) *Config {
 	return &Config{
 		iter:    &stdIter{},
 		Project: project,
+		client:  client,
 	}
 }
 
 // getSecret fetches the version of a secret specified by 'path' from the Secret
 // Manager API.
-func (c *Config) getSecret(ctx context.Context, client SecretClient, path string) ([]byte, error) {
+func (c *Config) getSecret(ctx context.Context, path string) ([]byte, error) {
 	req := &secretmanagerpb.AccessSecretVersionRequest{
 		Name: path,
 	}
 
-	result, err := client.AccessSecretVersion(ctx, req)
+	result, err := c.client.AccessSecretVersion(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -73,13 +75,13 @@ func (c *Config) getSecret(ctx context.Context, client SecretClient, path string
 
 // getSecretVersions returns a slice of all *enabled* versions for a secret. It
 // will ignore disabled for destroyed versions of a secret.
-func (c *Config) getSecretVersions(ctx context.Context, client SecretClient, name string) ([]string, error) {
+func (c *Config) getSecretVersions(ctx context.Context, name string) ([]string, error) {
 	req := &secretmanagerpb.ListSecretVersionsRequest{
 		Parent:   c.path(name),
 		PageSize: 1000,
 	}
 
-	it := client.ListSecretVersions(ctx, req)
+	it := c.client.ListSecretVersions(ctx, req)
 	versions := []string{}
 	for {
 		resp, err := c.iter.Next(it)
@@ -104,13 +106,13 @@ func (c *Config) getSecretVersions(ctx context.Context, client SecretClient, nam
 
 // LoadSigner fetches the oldest enabled version of the named secret containing
 // the JWT signer key from the Secret Manager API and returns a *token.Signer.
-func (c *Config) LoadSigner(ctx context.Context, client SecretClient, name string) (*token.Signer, error) {
-	versions, err := c.getSecretVersions(ctx, client, name)
+func (c *Config) LoadSigner(ctx context.Context, name string) (*token.Signer, error) {
+	versions, err := c.getSecretVersions(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 	log.Printf("Loading JWT private signer key %q", versions[len(versions)-1])
-	key, err := c.getSecret(ctx, client, versions[len(versions)-1])
+	key, err := c.getSecret(ctx, versions[len(versions)-1])
 	if err != nil {
 		return nil, err
 	}
@@ -119,14 +121,14 @@ func (c *Config) LoadSigner(ctx context.Context, client SecretClient, name strin
 
 // LoadVerifier fetches all enabled versions of the named secret containing the
 // JWT verifier keys and returns a * token.Verifier.
-func (c *Config) LoadVerifier(ctx context.Context, client SecretClient, name string) (*token.Verifier, error) {
-	versions, err := c.getSecretVersions(ctx, client, name)
+func (c *Config) LoadVerifier(ctx context.Context, name string) (*token.Verifier, error) {
+	versions, err := c.getSecretVersions(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 	keys := [][]byte{}
 	for _, version := range versions {
-		key, err := c.getSecret(ctx, client, version)
+		key, err := c.getSecret(ctx, version)
 		if err != nil {
 			return nil, err
 		}
@@ -137,15 +139,15 @@ func (c *Config) LoadVerifier(ctx context.Context, client SecretClient, name str
 
 // LoadPrometheus fetches the latest version of the named secrets containing the
 // Prometheus username and password. It returns a *prometheus.Credentials object.
-func (c *Config) LoadPrometheus(ctx context.Context, client SecretClient, user, pass string) (*prometheus.Credentials, error) {
+func (c *Config) LoadPrometheus(ctx context.Context, user, pass string) (*prometheus.Credentials, error) {
 	userPath := path.Join(c.path(user), latestVersion)
-	u, err := c.getSecret(ctx, client, userPath)
+	u, err := c.getSecret(ctx, userPath)
 	if err != nil {
 		return nil, err
 	}
 
 	passPath := path.Join(c.path(pass), latestVersion)
-	p, err := c.getSecret(ctx, client, passPath)
+	p, err := c.getSecret(ctx, passPath)
 	if err != nil {
 		return nil, err
 	}
