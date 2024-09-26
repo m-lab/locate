@@ -22,7 +22,7 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Check that the given subject appears to be an M-Lab machine name.
-	_, err := host.Parse(cl.Subject)
+	m, err := host.Parse(cl.Subject)
 	if err != nil {
 		result.Error = v2.NewError("subject", "Subject must be specified", http.StatusBadRequest)
 		writeResult(rw, result.Error.Status, &result)
@@ -40,17 +40,23 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 
 	// Get monitoring subject access tokens for the given machine.
 	machine := cl.Subject
-	token := c.getAccessToken(machine, static.SubjectMonitoring)
-	urls := c.getURLs(ports, machine, experiment, token, nil)
+	token := c.getAccessToken(cl.Subject, static.SubjectMonitoring)
+	// NOTE: v2 vs v3 naming
+	// v2 monitoring uses the non-service, machine name as the subject.
+	// v3 monitoring uses the service name as the subject, so this should be a noop.
+	m.Service = experiment
+	urls := c.getURLs(ports, m.StringWithService(), token, nil)
 	result.AccessToken = token
 	result.Target = &v2.Target{
 		// Monitoring results only include one target.
-		Machine: machine,
-		URLs:    urls,
+		Machine:  machine,
+		Hostname: m.StringWithSuffix(),
+		URLs:     urls,
 	}
 	result.Results = append(result.Results, v2.Target{
-		Machine: machine,
-		URLs:    urls,
+		Machine:  machine,
+		Hostname: m.StringWithSuffix(),
+		URLs:     urls,
 	})
 	writeResult(rw, http.StatusOK, &result)
 }
