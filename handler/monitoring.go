@@ -45,17 +45,18 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 	// v2 monitoring uses the non-service, machine name as the subject.
 	// v3 monitoring uses the service name as the subject, so this should be a noop.
 	m.Service = experiment
-	urls := c.getURLs(ports, m.StringWithService(), token, nil)
+	hostname := m.StringWithService()
+	urls := c.getURLs(ports, hostname, token, nil)
 	result.AccessToken = token
 	result.Target = &v2.Target{
 		// Monitoring results only include one target.
 		Machine:  machine,
-		Hostname: m.StringWithSuffix(),
+		Hostname: hostname,
 		URLs:     urls,
 	}
 	result.Results = append(result.Results, v2.Target{
 		Machine:  machine,
-		Hostname: m.StringWithSuffix(),
+		Hostname: hostname,
 		URLs:     urls,
 	})
 	writeResult(rw, http.StatusOK, &result)
