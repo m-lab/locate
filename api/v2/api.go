@@ -53,12 +53,6 @@ type MonitoringResult struct {
 	// may use this value instead of specific Target.URLs.
 	AccessToken string `json:"access_token"`
 
-	// Target contains service URLs for monitoring the service on the target
-	// machine.
-	// TODO (kinkade): Remove this field once all monitoring clients are using
-	// the Results field below.
-	Target *Target `json:"target,omitempty"`
-
 	// Results is array of Targets matching the client request. In the case of
 	// monitoring requests this array will only contain a single element, but we
 	// leave it as an array so that the response of monitoring requests matches
@@ -100,6 +94,9 @@ type Location struct {
 type Target struct {
 	// Machine is the FQDN of the machine hosting the measurement service.
 	Machine string `json:"machine"`
+
+	// Hostname is the FQDN of the measurement service targeted in URLs.
+	Hostname string `json:"hostname"`
 
 	// Location contains metadata about the geographic location of the target machine.
 	Location *Location `json:"location,omitempty"`
