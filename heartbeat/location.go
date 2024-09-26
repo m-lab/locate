@@ -241,7 +241,6 @@ func pickTargets(service string, sites []site) *TargetInfo {
 
 		r := s.registration
 		m, _ := host.Parse(machine.name)
-		m.Service = ""
 		targets[i] = v2.Target{
 			Machine:  m.String(),
 			Hostname: machine.name,
