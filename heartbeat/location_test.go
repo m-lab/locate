@@ -651,7 +651,7 @@ func TestIsValidInstance(t *testing.T) {
 				t.Errorf("isValidInstance() got: %t, want: %t", got, tt.expected)
 			}
 
-			if gotHost != tt.expectedHost {
+			if gotHost != tt.expectedHost.StringWithService() {
 				t.Errorf("isValidInstance() host got: %#v, want: %#v", gotHost, tt.expectedHost)
 			}
 

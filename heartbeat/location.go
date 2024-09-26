@@ -88,7 +88,7 @@ func (l *Locator) Nearest(service string, lat, lon float64, opts *NearestOptions
 	// Pick.
 	result := pickTargets(service, sites)
 
-	if len(result.Targets) == 0 || len(result.Targets) == 0 {
+	if len(result.Targets) == 0 {
 		return nil, ErrNoAvailableServers
 	}
 
@@ -101,7 +101,7 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 	m := make(map[string]*site)
 
 	for _, v := range instances {
-		isValid, machineName, distance := isValidInstance(service, lat, lon, v, opts)
+		isValid, hostname, distance := isValidInstance(service, lat, lon, v, opts)
 		if !isValid {
 			continue
 		}
@@ -118,7 +118,7 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 			s.registration.Machine = ""
 			m[r.Site] = s
 		}
-		s.machines = append(s.machines, machine{name: machineName.String(), health: *v.Health})
+		s.machines = append(s.machines, machine{name: hostname, health: *v.Health})
 	}
 
 	sites := make([]site, 0)
@@ -133,40 +133,40 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 
 // isValidInstance returns whether a v2.HeartbeatMessage signals a valid
 // instance that can serve a request given its parameters.
-func isValidInstance(service string, lat, lon float64, v v2.HeartbeatMessage, opts *NearestOptions) (bool, host.Name, float64) {
+func isValidInstance(service string, lat, lon float64, v v2.HeartbeatMessage, opts *NearestOptions) (bool, string, float64) {
 	if !isHealthy(v) {
-		return false, host.Name{}, 0
+		return false, "", 0
 	}
 
 	r := v.Registration
 
-	machineName, err := host.Parse(r.Hostname)
+	_, err := host.Parse(r.Hostname)
 	if err != nil {
-		return false, host.Name{}, 0
+		return false, "", 0
 	}
 
 	if opts.Type != "" && opts.Type != r.Type {
-		return false, host.Name{}, 0
+		return false, "", 0
 	}
 
 	if opts.Sites != nil && !contains(opts.Sites, r.Site) {
-		return false, host.Name{}, 0
+		return false, "", 0
 	}
 
 	if opts.Country != "" && opts.Strict && r.CountryCode != opts.Country {
-		return false, host.Name{}, 0
+		return false, "", 0
 	}
 
 	if _, ok := r.Services[service]; !ok {
-		return false, host.Name{}, 0
+		return false, "", 0
 	}
 
 	distance := mathx.GetHaversineDistance(lat, lon, r.Latitude, r.Longitude)
 	if distance > static.EarthHalfCircumferenceKm {
-		return false, host.Name{}, 0
+		return false, "", 0
 	}
 
-	return true, machineName, distance
+	return true, r.Hostname, distance
 }
 
 func isHealthy(v v2.HeartbeatMessage) bool {
@@ -240,8 +240,11 @@ func pickTargets(service string, sites []site) *TargetInfo {
 		machine := s.machines[machineIndex]
 
 		r := s.registration
+		m, _ := host.Parse(machine.name)
+		m.Service = ""
 		targets[i] = v2.Target{
-			Machine: machine.name,
+			Machine:  m.String(),
+			Hostname: machine.name,
 			Location: &v2.Location{
 				City:    r.City,
 				Country: r.CountryCode,
