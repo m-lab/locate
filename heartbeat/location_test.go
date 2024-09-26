@@ -151,10 +151,12 @@ var (
 		machines: []machine{
 			{
 				name:   "mlab1-lga00.mlab-sandbox.measurement-lab.org",
+				host:   "ndt-mlab1-lga00.mlab-sandbox.measurement-lab.org",
 				health: v2.Health{Score: 1},
 			},
 			{
 				name:   "mlab2-lga00.mlab-sandbox.measurement-lab.org",
+				host:   "ndt-mlab2-lga00.mlab-sandbox.measurement-lab.org",
 				health: v2.Health{Score: 1},
 			},
 		},
@@ -179,6 +181,7 @@ var (
 		machines: []machine{
 			{
 				name:   "mlab1-lax00.mlab-sandbox.measurement-lab.org",
+				host:   "ndt-mlab1-lax00.mlab-sandbox.measurement-lab.org",
 				health: v2.Health{Score: 1},
 			},
 		},
@@ -203,6 +206,7 @@ var (
 		machines: []machine{
 			{
 				name:   "mlab1-pdx00.mlab-sandbox.measurement-lab.org",
+				host:   "wehe-mlab1-pdx00.mlab-sandbox.measurement-lab.org",
 				health: v2.Health{Score: 1},
 			},
 		},
@@ -210,7 +214,8 @@ var (
 
 	// Test Targets.
 	virtualTarget = v2.Target{
-		Machine: "mlab1-lga00.mlab-sandbox.measurement-lab.org",
+		Machine:  "mlab1-lga00.mlab-sandbox.measurement-lab.org",
+		Hostname: "ndt-mlab1-lga00.mlab-sandbox.measurement-lab.org",
 		Location: &v2.Location{
 			City:    "New York",
 			Country: "US",
@@ -218,7 +223,8 @@ var (
 		URLs: map[string]string{},
 	}
 	physicalTarget = v2.Target{
-		Machine: "mlab1-lax00.mlab-sandbox.measurement-lab.org",
+		Machine:  "mlab1-lax00.mlab-sandbox.measurement-lab.org",
+		Hostname: "ndt-mlab1-lax00.mlab-sandbox.measurement-lab.org",
 		Location: &v2.Location{
 			City:    "Los Angeles",
 			Country: "US",
@@ -226,7 +232,8 @@ var (
 		URLs: map[string]string{},
 	}
 	weheTarget = v2.Target{
-		Machine: "mlab1-pdx00.mlab-sandbox.measurement-lab.org",
+		Machine:  "mlab1-pdx00.mlab-sandbox.measurement-lab.org",
+		Hostname: "wehe-mlab1-pdx00.mlab-sandbox.measurement-lab.org",
 		Location: &v2.Location{
 			City:    "Portland",
 			Country: "US",
@@ -651,7 +658,7 @@ func TestIsValidInstance(t *testing.T) {
 				t.Errorf("isValidInstance() got: %t, want: %t", got, tt.expected)
 			}
 
-			if gotHost != tt.expectedHost.StringWithService() {
+			if gotHost != tt.expectedHost {
 				t.Errorf("isValidInstance() host got: %#v, want: %#v", gotHost, tt.expectedHost)
 			}
 
@@ -754,7 +761,12 @@ func TestPickTargets(t *testing.T) {
 			Metro:       "lga",
 		},
 		metroRank: 0,
-		machines:  []machine{{name: "mlab1-site1-metro0"}, {name: "mlab2-site1-metro0"}, {name: "mlab3-site1-metro0"}, {name: "mlab4-site-metro10"}},
+		machines: []machine{
+			{name: "mlab1-site1-metro0", host: "ndt-mlab1-site1-metro0"},
+			{name: "mlab2-site1-metro0", host: "ndt-mlab2-site1-metro0"},
+			{name: "mlab3-site1-metro0", host: "ndt-mlab3-site1-metro0"},
+			{name: "mlab4-site-metro10", host: "ndt-mlab4-site-metro10"},
+		},
 	}
 	site2 := site{
 		distance: 10,
@@ -765,7 +777,12 @@ func TestPickTargets(t *testing.T) {
 			Metro:       "lga",
 		},
 		metroRank: 0,
-		machines:  []machine{{name: "mlab1-site2-metro0"}, {name: "mlab2-site2-metro0"}, {name: "mlab3-site2-metro0"}, {name: "mlab4-site2-metro0"}},
+		machines: []machine{
+			{name: "mlab1-site2-metro0", host: "ndt-mlab1-site2-metro0"},
+			{name: "mlab2-site2-metro0", host: "ndt-mlab2-site2-metro0"},
+			{name: "mlab3-site2-metro0", host: "ndt-mlab3-site2-metro0"},
+			{name: "mlab4-site2-metro0", host: "ndt-mlab4-site2-metro0"},
+		},
 	}
 	site3 := site{
 		distance: 100,
@@ -776,7 +793,9 @@ func TestPickTargets(t *testing.T) {
 			Metro:       "lax",
 		},
 		metroRank: 1,
-		machines:  []machine{{name: "mlab1-site3-metro1"}},
+		machines: []machine{
+			{name: "mlab1-site3-metro1", host: "ndt-mlab1-site3-metro1"},
+		},
 	}
 	site4 := site{
 		distance: 110,
@@ -787,7 +806,9 @@ func TestPickTargets(t *testing.T) {
 			Metro:       "pdx",
 		},
 		metroRank: 2,
-		machines:  []machine{{name: "mlab1-site4-metro2"}},
+		machines: []machine{
+			{name: "mlab1-site4-metro2", host: "ndt-mlab1-site4-metro2"},
+		},
 	}
 
 	tests := []struct {
@@ -803,7 +824,8 @@ func TestPickTargets(t *testing.T) {
 			expected: &TargetInfo{
 				Targets: []v2.Target{
 					{
-						Machine: "mlab2-site2-metro0",
+						Machine:  "mlab2-site2-metro0",
+						Hostname: "ndt-mlab2-site2-metro0",
 						Location: &v2.Location{
 							City:    site2.registration.City,
 							Country: site2.registration.CountryCode,
@@ -811,7 +833,8 @@ func TestPickTargets(t *testing.T) {
 						URLs: make(map[string]string),
 					},
 					{
-						Machine: "mlab3-site1-metro0",
+						Machine:  "mlab3-site1-metro0",
+						Hostname: "ndt-mlab3-site1-metro0",
 						Location: &v2.Location{
 							City:    site1.registration.City,
 							Country: site1.registration.CountryCode,
@@ -819,7 +842,8 @@ func TestPickTargets(t *testing.T) {
 						URLs: make(map[string]string),
 					},
 					{
-						Machine: "mlab1-site3-metro1",
+						Machine:  "mlab1-site3-metro1",
+						Hostname: "ndt-mlab1-site3-metro1",
 						Location: &v2.Location{
 							City:    site3.registration.City,
 							Country: site3.registration.CountryCode,
@@ -827,7 +851,8 @@ func TestPickTargets(t *testing.T) {
 						URLs: make(map[string]string),
 					},
 					{
-						Machine: "mlab1-site4-metro2",
+						Machine:  "mlab1-site4-metro2",
+						Hostname: "ndt-mlab1-site4-metro2",
 						Location: &v2.Location{
 							City:    site4.registration.City,
 							Country: site4.registration.CountryCode,
@@ -852,7 +877,8 @@ func TestPickTargets(t *testing.T) {
 			expected: &TargetInfo{
 				Targets: []v2.Target{
 					{
-						Machine: "mlab2-site1-metro0",
+						Machine:  "mlab2-site1-metro0",
+						Hostname: "ndt-mlab2-site1-metro0",
 						Location: &v2.Location{
 							City:    site1.registration.City,
 							Country: site1.registration.CountryCode,
