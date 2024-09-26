@@ -53,6 +53,12 @@ type MonitoringResult struct {
 	// may use this value instead of specific Target.URLs.
 	AccessToken string `json:"access_token"`
 
+	// Target contains service URLs for monitoring the service on the target
+	// machine.
+	// TODO (kinkade): Remove this field once all monitoring clients are using
+	// the Results field below.
+	Target *Target `json:"target,omitempty"`
+
 	// Results is array of Targets matching the client request. In the case of
 	// monitoring requests this array will only contain a single element, but we
 	// leave it as an array so that the response of monitoring requests matches
