@@ -16,7 +16,7 @@ install:
 
 script:
 - go vet ./...
-- go test -p 1 ./... -cover=1 -coverprofile=_c.cov
+- go test -v -p 1 ./... -cover=1 -coverprofile=_c.cov
 - go test ./... -race
 
 after_success:
