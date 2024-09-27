@@ -1,7 +1,5 @@
 package main
 
-/*
-
 import (
 	"flag"
 	"net/http"
@@ -83,4 +81,3 @@ func Test_main(t *testing.T) {
 		})
 	}
 }
-*/

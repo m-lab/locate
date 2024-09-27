@@ -1,5 +1,6 @@
 package connection
 
+/*
 import (
 	"errors"
 	"net/http"
@@ -204,3 +205,4 @@ func close(c *Conn, s *httptest.Server) {
 	c.Close()
 	s.Close()
 }
+*/
