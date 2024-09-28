@@ -10,6 +10,11 @@ addons:
     packages:
     - ca-certificates
 
+before_install:
+- echo "${TRAVIS_GO_VERSION}"
+- echo "${TRAVIS_GO_IMPORT_PATH}"
+- travis_setup_go 1.20.14
+
 install:
 - go install -v ./...
 - go install github.com/mattn/goveralls@latest
