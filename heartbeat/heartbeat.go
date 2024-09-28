@@ -53,8 +53,10 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 		for {
 			select {
 			case <-h.stop:
+				fmt.Println("leaving status tracker!!!!")
 				return
 			case <-ticker.C:
+				fmt.Println("import memorystore!!!!")
 				h.importMemorystore()
 			}
 		}
