@@ -9,21 +9,14 @@ addons:
     packages:
     - ca-certificates
 
-before_install:
-# Force setup of go1.20.14 since travis evidently forces 1.23
-- rm -f /home/travis/gopath/bin/go # remove existing symbolic link for travis_setup_go.
-- travis_setup_go 1.20.14
-- go version
-- go env
-
 install:
-- go install -v ./...
-- go install github.com/mattn/goveralls@latest
+- go1.20.14 install -v ./...
+- go1.20.14 install github.com/mattn/goveralls@latest
 
 script:
-- go vet ./...
-- go test -timeout 5m -p 1 ./... -cover=1 -coverprofile=_c.cov
-- go test -timeout 5m ./... -race
+- go1.20.14 vet ./...
+- go1.20.14 test -timeout 5m -p 1 ./... -cover=1 -coverprofile=_c.cov
+- go1.20.14 test -timeout 5m ./... -race
 
 after_success:
 # Note: Do this in the after_success stage so that
