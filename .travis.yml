@@ -2,7 +2,7 @@ dist: jammy
 
 language: go
 go:
-- 1.20.x
+- go1.20.14
 
 addons:
   apt:
