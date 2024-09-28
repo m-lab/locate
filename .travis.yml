@@ -10,19 +10,20 @@ addons:
     packages:
     - ca-certificates
 
-before_install:
-- echo "${TRAVIS_GO_VERSION}"
-- echo "${TRAVIS_GO_IMPORT_PATH}"
-- travis_setup_go 1.20.14
+#before_install:
+#- echo "${TRAVIS_GO_VERSION}"
+  #- echo "${TRAVIS_GO_IMPORT_PATH}"
+  #- rm -f /home/travis/gopath/bin/go # remove existing symbolic link.
+  #- travis_setup_go 1.20.14
 
 install:
-- go install -v ./...
-- go install github.com/mattn/goveralls@latest
+- go1.20.14 install -v ./...
+- go1.20.14 install github.com/mattn/goveralls@latest
 
 script:
-- go vet ./...
-- go test -timeout 5m -v -p 1 ./... -cover=1 -coverprofile=_c.cov
-- go test -timeout 5m -v ./... -race
+- go1.20.14 vet ./...
+- go1.20.14 test -timeout 5m -v -p 1 ./... -cover=1 -coverprofile=_c.cov
+- go1.20.14 test -timeout 5m -v ./... -race
 
 after_success:
 # Note: Do this in the after_success stage so that
