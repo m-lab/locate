@@ -16,8 +16,8 @@ install:
 
 script:
 - go vet ./...
-- go test -v -p 1 ./... -cover=1 -coverprofile=_c.cov
-- go test ./... -race
+- go test -timeout 1m -v -p 1 ./... -cover=1 -coverprofile=_c.cov
+- go test -timeout 1m -v ./... -race
 
 after_success:
 # Note: Do this in the after_success stage so that
