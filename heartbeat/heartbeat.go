@@ -48,12 +48,7 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 	// Start import loop.
 	go func(h *heartbeatStatusTracker) {
 		ticker := *time.NewTicker(static.MemorystoreExportPeriod)
-		defer func() {
-			for range ticker.C {
-				// drain ticker
-			}
-			ticker.Stop()
-		}()
+		defer ticker.Stop()
 
 		for {
 			select {
