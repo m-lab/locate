@@ -1,6 +1,5 @@
 package heartbeat
 
-/*
 import (
 	"errors"
 	"reflect"
@@ -369,4 +368,3 @@ func TestGetPrometheusMessage(t *testing.T) {
 		})
 	}
 }
-*/
