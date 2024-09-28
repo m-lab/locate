@@ -10,10 +10,11 @@ addons:
     - ca-certificates
 
 before_install:
-- echo "${TRAVIS_GO_VERSION}"
-- echo "${TRAVIS_GO_IMPORT_PATH}"
-- rm -f /home/travis/gopath/bin/go # remove existing symbolic link.
+# Force setup of go1.20.14 since travis evidently forces 1.23
+- rm -f /home/travis/gopath/bin/go # remove existing symbolic link for travis_setup_go.
 - travis_setup_go 1.20.14
+- go version
+- go env
 
 install:
 - go install -v ./...
@@ -21,8 +22,8 @@ install:
 
 script:
 - go vet ./...
-- go test -timeout 5m -v -p 1 ./... -cover=1 -coverprofile=_c.cov
-- go test -timeout 5m -v ./... -race
+- go test -timeout 5m -p 1 ./... -cover=1 -coverprofile=_c.cov
+- go test -timeout 5m ./... -race
 
 after_success:
 # Note: Do this in the after_success stage so that
