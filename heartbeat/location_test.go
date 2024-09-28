@@ -368,7 +368,7 @@ func TestNearest(t *testing.T) {
 			memorystore := heartbeattest.FakeMemorystoreClient
 			tracker := NewHeartbeatStatusTracker(&memorystore)
 			locator := NewServerLocator(tracker)
-			defer locator.StopImport()
+			locator.StopImport()
 			rand.Seed(1658458451000000000)
 
 			for _, i := range instances {
