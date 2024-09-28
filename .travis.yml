@@ -1,8 +1,7 @@
 dist: jammy
 
 language: go
-go:
-- go1.20.14
+go: go1.20.14
 
 addons:
   apt:
@@ -17,13 +16,13 @@ addons:
   #- travis_setup_go 1.20.14
 
 install:
-- go1.20.14 install -v ./...
-- go1.20.14 install github.com/mattn/goveralls@latest
+- go install -v ./...
+- go install github.com/mattn/goveralls@latest
 
 script:
-- go1.20.14 vet ./...
-- go1.20.14 test -timeout 5m -v -p 1 ./... -cover=1 -coverprofile=_c.cov
-- go1.20.14 test -timeout 5m -v ./... -race
+- go vet ./...
+- go test -timeout 5m -v -p 1 ./... -cover=1 -coverprofile=_c.cov
+- go test -timeout 5m -v ./... -race
 
 after_success:
 # Note: Do this in the after_success stage so that
