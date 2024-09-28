@@ -9,11 +9,11 @@ addons:
     packages:
     - ca-certificates
 
-#before_install:
-#- echo "${TRAVIS_GO_VERSION}"
-  #- echo "${TRAVIS_GO_IMPORT_PATH}"
-  #- rm -f /home/travis/gopath/bin/go # remove existing symbolic link.
-  #- travis_setup_go 1.20.14
+before_install:
+- echo "${TRAVIS_GO_VERSION}"
+- echo "${TRAVIS_GO_IMPORT_PATH}"
+- rm -f /home/travis/gopath/bin/go # remove existing symbolic link.
+- travis_setup_go 1.20.14
 
 install:
 - go install -v ./...
