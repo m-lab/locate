@@ -53,6 +53,7 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 				// drain ticker
 			}
 			ticker.Stop()
+			fmt.Println("stopped ticker!!!!")
 		}()
 
 		for {
