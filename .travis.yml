@@ -1,5 +1,8 @@
 dist: jammy
 
+vm:
+  size: large
+
 language: go
 go:
 - "1.20"
@@ -16,8 +19,8 @@ install:
 
 script:
 - go vet ./...
-- go test -timeout 1m -v -p 1 ./... -cover=1 -coverprofile=_c.cov
-- go test -timeout 1m -v ./... -race
+- go test -timeout 5m -v -p 1 ./... -cover=1 -coverprofile=_c.cov
+- go test -timeout 5m -v ./... -race
 
 after_success:
 # Note: Do this in the after_success stage so that
