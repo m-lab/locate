@@ -101,6 +101,9 @@ type Target struct {
 	// Machine is the FQDN of the machine hosting the measurement service.
 	Machine string `json:"machine"`
 
+	// Hostname is the FQDN of the measurement service targeted in URLs.
+	Hostname string `json:"hostname"`
+
 	// Location contains metadata about the geographic location of the target machine.
 	Location *Location `json:"location,omitempty"`
 

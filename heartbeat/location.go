@@ -44,6 +44,7 @@ type TargetInfo struct {
 // machine associates a machine name with its v2.Health value.
 type machine struct {
 	name   string
+	host   string
 	health v2.Health
 }
 
@@ -88,7 +89,7 @@ func (l *Locator) Nearest(service string, lat, lon float64, opts *NearestOptions
 	// Pick.
 	result := pickTargets(service, sites)
 
-	if len(result.Targets) == 0 || len(result.Targets) == 0 {
+	if len(result.Targets) == 0 {
 		return nil, ErrNoAvailableServers
 	}
 
@@ -118,7 +119,10 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 			s.registration.Machine = ""
 			m[r.Site] = s
 		}
-		s.machines = append(s.machines, machine{name: machineName.String(), health: *v.Health})
+		s.machines = append(s.machines, machine{
+			name:   machineName.String(),
+			host:   machineName.StringWithService(),
+			health: *v.Health})
 	}
 
 	sites := make([]site, 0)
@@ -241,7 +245,8 @@ func pickTargets(service string, sites []site) *TargetInfo {
 
 		r := s.registration
 		targets[i] = v2.Target{
-			Machine: machine.name,
+			Machine:  machine.name,
+			Hostname: machine.host,
 			Location: &v2.Location{
 				City:    r.City,
 				Country: r.CountryCode,

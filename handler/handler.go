@@ -90,7 +90,7 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 		LocatorV2:        locatorV2,
 		ClientLocator:    client,
 		PrometheusClient: prom,
-		targetTmpl:       template.Must(template.New("name").Parse("{{.Experiment}}-{{.Machine}}{{.Host}}")),
+		targetTmpl:       template.Must(template.New("name").Parse("{{.Hostname}}{{.Ports}}")),
 		agentLimits:      lmts,
 	}
 }
@@ -104,7 +104,7 @@ func NewClientDirect(project string, private Signer, locatorV2 LocatorV2, client
 		ClientLocator:    client,
 		PrometheusClient: prom,
 		// Useful for the locatetest package when running a local server.
-		targetTmpl: template.Must(template.New("name").Parse("{{.Machine}}{{.Host}}")),
+		targetTmpl: template.Must(template.New("name").Parse("{{.Hostname}}{{.Ports}}")),
 	}
 }
 
@@ -250,7 +250,7 @@ func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp strin
 	for i, target := range targets {
 		token := c.getAccessToken(target.Machine, exp)
 		params := extraParams(target.Machine, i, pOpts)
-		targets[i].URLs = c.getURLs(ports, target.Machine, exp, token, params)
+		targets[i].URLs = c.getURLs(ports, target.Hostname, token, params)
 	}
 }
 
@@ -277,7 +277,7 @@ func (c *Client) getAccessToken(machine, subject string) string {
 // getURLs creates URLs for the named experiment, running on the named machine
 // for each given port. Every URL will include an `access_token=` parameter,
 // authorizing the measurement.
-func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, extra url.Values) map[string]string {
+func (c *Client) getURLs(ports static.Ports, hostname, token string, extra url.Values) map[string]string {
 	urls := map[string]string{}
 	// For each port config, prepare the target url with access_token and
 	// complete host field.
@@ -293,9 +293,8 @@ func (c *Client) getURLs(ports static.Ports, machine, experiment, token string, 
 
 		host := &bytes.Buffer{}
 		err := c.targetTmpl.Execute(host, map[string]string{
-			"Experiment": experiment,
-			"Machine":    machine,
-			"Host":       target.Host, // from URL template, so typically just the ":port".
+			"Hostname": hostname,
+			"Ports":    target.Host, // from URL template, so typically just the ":port".
 		})
 		rtx.PanicOnError(err, "bad template evaluation")
 		target.Host = host.String()
