@@ -29,8 +29,7 @@ import (
 
 var (
 	heartbeatURL        string
-	hostname            string
-	hostnameFile        flagx.FileBytes
+	hostname			flagx.StringFile
 	experiment          string
 	pod                 string
 	node                string
@@ -52,8 +51,7 @@ type Checker interface {
 func init() {
 	flag.StringVar(&heartbeatURL, "heartbeat-url", "ws://localhost:8080/v2/platform/heartbeat",
 		"URL for locate service")
-	flag.StringVar(&hostname, "hostname", "", "The service hostname (takes precedence over -hostname-file)")
-	flag.Var(&hostnameFile, "hostname-file", "A file containing the service hostname")
+	flag.Var(&hostname, "hostname", "The service hostname (may be read from @/path/file)")
 	flag.StringVar(&experiment, "experiment", "", "Experiment name")
 	flag.StringVar(&pod, "pod", "", "Kubernetes pod name")
 	flag.StringVar(&node, "node", "", "Kubernetes node name")
@@ -67,11 +65,6 @@ func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "failed to read args from env")
 
-	// If -hostname-file was set, use it instead of -hostname.
-	if hostnameFile.String() != "" {
-		hostname = hostnameFile.String()
-	}
-
 	// Start metrics server.
 	prom := prometheusx.MustServeMetrics()
 	defer prom.Close()
@@ -83,7 +76,7 @@ func main() {
 		Max:      static.RegistrationLoadMax,
 	}
 	svcs := services.Get()
-	ldr, err := registration.NewLoader(mainCtx, registrationURL.URL, hostname, experiment, svcs, ldrConfig)
+	ldr, err := registration.NewLoader(mainCtx, registrationURL.URL, hostname.Value, experiment, svcs, ldrConfig)
 	rtx.Must(err, "could not initialize registration loader")
 	r, err := ldr.GetRegistration(mainCtx)
 	rtx.Must(err, "could not load registration data")
@@ -109,7 +102,7 @@ func main() {
 	// file is "true". If the file doesn't exist, then, for now, just consider
 	// the machine as not loadbalanced.
 	if lberr == nil && string(lbbytes) == "true" {
-		gcpmd, err := metadata.NewGCPMetadata(md.NewClient(http.DefaultClient), hostname)
+		gcpmd, err := metadata.NewGCPMetadata(md.NewClient(http.DefaultClient), hostname.Value)
 		rtx.Must(err, "failed to get VM metadata")
 		gceClient, err := compute.NewRegionBackendServicesRESTClient(mainCtx)
 		rtx.Must(err, "failed to create GCE client")
