@@ -76,7 +76,8 @@ func main() {
 	rtx.Must(err, "Failed to sign claims")
 
 	// Add the token to the URL parameters in the request to the locate service.
-	params := url.Values{}
+	params, err := url.ParseQuery(locate.RawQuery)
+	rtx.Must(err, "failed to parse given query")
 	params.Set("access_token", token)
 	locate.RawQuery = params.Encode()
 	locate.Path = locate.Path + service

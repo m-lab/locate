@@ -38,6 +38,10 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Preserve other, given request parameters.
+	values := req.URL.Query()
+	values.Del("access_token")
+
 	// Get monitoring subject access tokens for the given machine.
 	machine := cl.Subject
 	token := c.getAccessToken(cl.Subject, static.SubjectMonitoring)
@@ -46,7 +50,7 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 	// v3 monitoring uses the service name as the subject, so this should be a noop.
 	m.Service = experiment
 	hostname := m.StringWithService()
-	urls := c.getURLs(ports, hostname, token, nil)
+	urls := c.getURLs(ports, hostname, token, values)
 	result.AccessToken = token
 	result.Target = &v2.Target{
 		// Monitoring results only include one target.
