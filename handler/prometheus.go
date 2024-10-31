@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -37,17 +38,20 @@ func (c *Client) Prometheus(rw http.ResponseWriter, req *http.Request) {
 	hostnames, err := c.query(req.Context(), e2eQuery, e2eLabel, e2eFunction)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
+		log.Printf("Error querying Prometheus for %s metric: %v", e2eQuery, err)
 		return
 	}
 
 	machines, err := c.query(req.Context(), gmxQuery, gmxLabel, gmxFunction)
 	if err != nil {
+		log.Printf("Error querying Prometheus for %s metric: %v", gmxQuery, err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	err = c.UpdatePrometheus(hostnames, machines)
 	if err != nil {
+		log.Printf("Error updating internal Prometheus state: %v", err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
