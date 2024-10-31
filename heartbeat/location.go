@@ -30,6 +30,7 @@ type NearestOptions struct {
 	Type    string   // Limit results to only machines of this type.
 	Sites   []string // Limit results to only machines at these sites.
 	Country string   // Bias results to prefer machines in this country.
+	Org     string   // Limit results to only machines from this organization.
 	Strict  bool     // When used with Country, limit results to only machines in this country.
 }
 
@@ -159,6 +160,18 @@ func isValidInstance(service string, lat, lon float64, v v2.HeartbeatMessage, op
 
 	if opts.Country != "" && opts.Strict && r.CountryCode != opts.Country {
 		return false, host.Name{}, 0
+	}
+
+	if opts.Org != "" {
+		// We are filtering on user-specified organization.
+		if opts.Org != "mlab" && machineName.Version == "v2" {
+			// All v2 names are "mlab" managed.
+			return false, host.Name{}, 0
+		}
+		if machineName.Version == "v3" && opts.Org != machineName.Org {
+			return false, host.Name{}, 0
+		}
+		// NOTE: Org == "mlab" will allow all v2 names.
 	}
 
 	if _, ok := r.Services[service]; !ok {

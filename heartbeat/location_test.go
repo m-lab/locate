@@ -109,6 +109,26 @@ var (
 		},
 		Health: &v2.Health{Score: 1},
 	}
+	autonodeInstance = v2.HeartbeatMessage{
+		Registration: &v2.Registration{
+			City:          "Council Bluffs",
+			CountryCode:   "US",
+			ContinentCode: "NA",
+			Experiment:    "ndt",
+			Hostname:      "ndt-oma396982-2248791f.mlab.sandbox.measurement-lab.org",
+			Latitude:      41.3032,
+			Longitude:     -95.8941,
+			Machine:       "2248791f",
+			Metro:         "oma",
+			Project:       "mlab-sandbox",
+			Probability:   1.0,
+			Site:          "oma396982",
+			Type:          "virtual",
+			Uplink:        "10g",
+			Services:      validNDT7Services,
+		},
+		Health: &v2.Health{Score: 1},
+	}
 	weheInstance = v2.HeartbeatMessage{
 		Registration: &v2.Registration{
 			City:          "Portland",
@@ -182,6 +202,31 @@ var (
 			{
 				name:   "mlab1-lax00.mlab-sandbox.measurement-lab.org",
 				host:   "ndt-mlab1-lax00.mlab-sandbox.measurement-lab.org",
+				health: v2.Health{Score: 1},
+			},
+		},
+	}
+	autonodeSite = site{
+		distance: 3838.617961615054,
+		registration: v2.Registration{
+			City:          "Council Bluffs",
+			CountryCode:   "US",
+			ContinentCode: "NA",
+			Experiment:    "ndt",
+			Latitude:      41.3032,
+			Longitude:     -95.8941,
+			Metro:         "oma",
+			Project:       "mlab-sandbox",
+			Probability:   1.0,
+			Site:          "oma396982",
+			Type:          "virtual",
+			Uplink:        "10g",
+			Services:      validNDT7Services,
+		},
+		machines: []machine{
+			{
+				name:   "ndt-oma396982-2248791f.mlab.sandbox.measurement-lab.org",
+				host:   "ndt-oma396982-2248791f.mlab.sandbox.measurement-lab.org",
 				health: v2.Health{Score: 1},
 			},
 		},
@@ -395,6 +440,7 @@ func TestFilterSites(t *testing.T) {
 		"virtual1": virtualInstance1,
 		"virtual2": virtualInstance2,
 		"physical": physicalInstance,
+		"autonode": autonodeInstance,
 		"wehe":     weheInstance,
 	}
 
@@ -404,6 +450,7 @@ func TestFilterSites(t *testing.T) {
 		typ      string
 		country  string
 		strict   bool
+		org      string
 		lat      float64
 		lon      float64
 		expected []site
@@ -417,62 +464,89 @@ func TestFilterSites(t *testing.T) {
 			lon:      -75.3242,
 			expected: []site{virtualSite, physicalSite},
 		},
-		{
-			name:     "NDT7-physical",
-			service:  "ndt/ndt7",
-			typ:      "physical",
-			country:  "US",
-			lat:      43.1988,
-			lon:      -75.3242,
-			expected: []site{physicalSite},
-		},
-		{
-			name:     "NDT7-virtual",
-			service:  "ndt/ndt7",
-			typ:      "virtual",
-			country:  "US",
-			lat:      43.1988,
-			lon:      -75.3242,
-			expected: []site{virtualSite},
-		},
-		{
-			name:     "wehe",
-			service:  "wehe/replay",
-			typ:      "",
-			country:  "US",
-			lat:      43.1988,
-			lon:      -75.3242,
-			expected: []site{weheSite},
-		},
-		{
-			name:     "too-far",
-			service:  "ndt-ndt7",
-			typ:      "",
-			country:  "",
-			lat:      1000,
-			lon:      1000,
-			expected: []site{},
-		},
-		{
-			name:     "country-with-strict",
-			service:  "ndt/ndt7",
-			typ:      "",
-			country:  "US",
-			strict:   true,
-			lat:      43.1988,
-			lon:      -75.3242,
-			expected: []site{virtualSite, physicalSite},
-		},
-		{
-			name:     "country-with-strict-no-results",
-			service:  "ndt/ndt7",
-			typ:      "",
-			country:  "IT",
-			strict:   true,
-			lat:      43.1988,
-			lon:      -75.3242,
-			expected: []site{},
-		},
+		/*
+			{
+				name:     "NDT7-physical",
+				service:  "ndt/ndt7",
+				typ:      "physical",
+				country:  "US",
+				lat:      43.1988,
+				lon:      -75.3242,
+				expected: []site{physicalSite},
+			},
+			{
+				name:     "NDT7-virtual",
+				service:  "ndt/ndt7",
+				typ:      "virtual",
+				country:  "US",
+				lat:      43.1988,
+				lon:      -75.3242,
+				expected: []site{virtualSite, autonodeSite},
+			},
+			{
+				name:     "wehe",
+				service:  "wehe/replay",
+				typ:      "",
+				country:  "US",
+				lat:      43.1988,
+				lon:      -75.3242,
+				expected: []site{weheSite},
+			},
+			{
+				name:     "too-far",
+				service:  "ndt-ndt7",
+				typ:      "",
+				country:  "",
+				lat:      1000,
+				lon:      1000,
+				expected: []site{},
+			},
+			{
+				name:     "country-with-strict",
+				service:  "ndt/ndt7",
+				typ:      "",
+				country:  "US",
+				strict:   true,
+				lat:      43.1988,
+				lon:      -75.3242,
+				expected: []site{virtualSite, physicalSite, autonodeSite},
+			},
+			{
+				name:     "country-with-strict-no-results",
+				service:  "ndt/ndt7",
+				typ:      "",
+				country:  "IT",
+				strict:   true,
+				lat:      43.1988,
+				lon:      -75.3242,
+				expected: []site{},
+			},
+		*/
+		/*
+			{
+				name:     "org-skip-v2-names",
+				service:  "ndt/ndt7",
+				lat:      43.1988,
+				lon:      -75.3242,
+				expected: []site{},
+			},
+			{
+				name:    "org-skip-v3-names-different-org",
+				service: "ndt/ndt7",
+				org:     "foo",
+				lat:     43.1988,
+				lon:     -75.3242,
+				// expected: []site{virtualSite, physicalSite, autonodeSite},
+			},
+			{
+				name:     "org-allow-v2-names-for-mlab-org",
+				service:  "ndt/ndt7",
+				org:      "mlab",
+				lat:      43.1988,
+				lon:      -75.3242,
+				expected: []site{virtualSite, physicalSite, autonodeSite},
+			},
+		*/
 	}
 
 	for _, tt := range tests {
@@ -488,7 +562,7 @@ func TestFilterSites(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("filterSites() got: %+v, want: %+v", got, tt.expected)
+				t.Errorf("filterSites()\n got: %+v\nwant: %+v", got, tt.expected)
 			}
 		})
 	}

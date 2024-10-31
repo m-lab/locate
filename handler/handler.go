@@ -181,6 +181,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	t := q.Get("machine-type")
 	country := req.Header.Get("X-AppEngine-Country")
 	sites := q["site"]
+	org := q.Get("org")
 	strict := false
 	if qsStrict, err := strconv.ParseBool(q.Get("strict")); err == nil {
 		strict = qsStrict
@@ -190,7 +191,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	if strict {
 		country = q.Get("country")
 	}
-	opts := &heartbeat.NearestOptions{Type: t, Country: country, Sites: sites, Strict: strict}
+	opts := &heartbeat.NearestOptions{Type: t, Country: country, Sites: sites, Org: org, Strict: strict}
 	targetInfo, err := c.LocatorV2.Nearest(service, lat, lon, opts)
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
