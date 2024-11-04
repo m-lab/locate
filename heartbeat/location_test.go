@@ -109,6 +109,26 @@ var (
 		},
 		Health: &v2.Health{Score: 1},
 	}
+	autonodeInstance = v2.HeartbeatMessage{
+		Registration: &v2.Registration{
+			City:          "Council Bluffs",
+			CountryCode:   "US",
+			ContinentCode: "NA",
+			Experiment:    "ndt",
+			Hostname:      "ndt-oma396982-2248791f.foo.sandbox.measurement-lab.org",
+			Latitude:      41.3032,
+			Longitude:     -95.8941,
+			Machine:       "2248791f",
+			Metro:         "oma",
+			Project:       "mlab-sandbox",
+			Probability:   1.0,
+			Site:          "oma396982",
+			Type:          "virtual",
+			Uplink:        "10g",
+			Services:      validNDT7Services,
+		},
+		Health: &v2.Health{Score: 1},
+	}
 	weheInstance = v2.HeartbeatMessage{
 		Registration: &v2.Registration{
 			City:          "Portland",
@@ -182,6 +202,31 @@ var (
 			{
 				name:   "mlab1-lax00.mlab-sandbox.measurement-lab.org",
 				host:   "ndt-mlab1-lax00.mlab-sandbox.measurement-lab.org",
+				health: v2.Health{Score: 1},
+			},
+		},
+	}
+	autonodeSite = site{
+		distance: 1701.749354381346,
+		registration: v2.Registration{
+			City:          "Council Bluffs",
+			CountryCode:   "US",
+			ContinentCode: "NA",
+			Experiment:    "ndt",
+			Latitude:      41.3032,
+			Longitude:     -95.8941,
+			Metro:         "oma",
+			Project:       "mlab-sandbox",
+			Probability:   1.0,
+			Site:          "oma396982",
+			Type:          "virtual",
+			Uplink:        "10g",
+			Services:      validNDT7Services,
+		},
+		machines: []machine{
+			{
+				name:   "ndt-oma396982-2248791f.foo.sandbox.measurement-lab.org",
+				host:   "ndt-oma396982-2248791f.foo.sandbox.measurement-lab.org",
 				health: v2.Health{Score: 1},
 			},
 		},
@@ -395,6 +440,7 @@ func TestFilterSites(t *testing.T) {
 		"virtual1": virtualInstance1,
 		"virtual2": virtualInstance2,
 		"physical": physicalInstance,
+		"autonode": autonodeInstance,
 		"wehe":     weheInstance,
 	}
 
@@ -404,6 +450,7 @@ func TestFilterSites(t *testing.T) {
 		typ      string
 		country  string
 		strict   bool
+		org      string
 		lat      float64
 		lon      float64
 		expected []site
@@ -415,7 +462,7 @@ func TestFilterSites(t *testing.T) {
 			country:  "US",
 			lat:      43.1988,
 			lon:      -75.3242,
-			expected: []site{virtualSite, physicalSite},
+			expected: []site{virtualSite, autonodeSite, physicalSite},
 		},
 		{
 			name:     "NDT7-physical",
@@ -433,7 +480,7 @@ func TestFilterSites(t *testing.T) {
 			country:  "US",
 			lat:      43.1988,
 			lon:      -75.3242,
-			expected: []site{virtualSite},
+			expected: []site{virtualSite, autonodeSite},
 		},
 		{
 			name:     "wehe",
@@ -461,7 +508,7 @@ func TestFilterSites(t *testing.T) {
 			strict:   true,
 			lat:      43.1988,
 			lon:      -75.3242,
-			expected: []site{virtualSite, physicalSite},
+			expected: []site{virtualSite, autonodeSite, physicalSite},
 		},
 		{
 			name:     "country-with-strict-no-results",
@@ -473,11 +520,35 @@ func TestFilterSites(t *testing.T) {
 			lon:      -75.3242,
 			expected: []site{},
 		},
+		{
+			name:     "org-skip-v2-names",
+			service:  "ndt/ndt7",
+			org:      "foo",
+			lat:      43.1988,
+			lon:      -75.3242,
+			expected: []site{autonodeSite},
+		},
+		{
+			name:     "org-skip-v3-names-different-org",
+			service:  "ndt/ndt7",
+			org:      "zoom",
+			lat:      43.1988,
+			lon:      -75.3242,
+			expected: []site{},
+		},
+		{
+			name:     "org-allow-v2-names-for-mlab-org",
+			service:  "ndt/ndt7",
+			org:      "mlab",
+			lat:      43.1988,
+			lon:      -75.3242,
+			expected: []site{virtualSite, physicalSite},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := &NearestOptions{Type: tt.typ, Country: tt.country, Strict: tt.strict}
+			opts := &NearestOptions{Type: tt.typ, Country: tt.country, Strict: tt.strict, Org: tt.org}
 			got := filterSites(tt.service, tt.lat, tt.lon, instances, opts)
 
 			sortSites(got)
@@ -488,7 +559,7 @@ func TestFilterSites(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("filterSites() got: %+v, want: %+v", got, tt.expected)
+				t.Errorf("filterSites()\n got: %+v\nwant: %+v", got, tt.expected)
 			}
 		})
 	}
