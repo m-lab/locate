@@ -35,28 +35,37 @@ var (
 
 // Prometheus is a handler that collects Prometheus health signals.
 func (c *Client) Prometheus(rw http.ResponseWriter, req *http.Request) {
-	hostnames, err := c.query(req.Context(), e2eQuery, e2eLabel, e2eFunction)
+	err := c.QueryPrometheus(req.Context())
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		log.Printf("Error querying Prometheus for %s metric: %v", e2eQuery, err)
-		return
-	}
-
-	machines, err := c.query(req.Context(), gmxQuery, gmxLabel, gmxFunction)
-	if err != nil {
-		log.Printf("Error querying Prometheus for %s metric: %v", gmxQuery, err)
-		rw.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	err = c.UpdatePrometheus(hostnames, machines)
-	if err != nil {
-		log.Printf("Error updating internal Prometheus state: %v", err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	rw.WriteHeader(http.StatusOK)
+}
+
+// QueryPrometheus runs a set a Prometheus queries and uses the results to update
+// the internal state.
+func (c *Client) QueryPrometheus(ctx context.Context) error {
+	hostnames, err := c.query(ctx, e2eQuery, e2eLabel, e2eFunction)
+	if err != nil {
+		log.Printf("Error querying Prometheus for %s metric: %v", e2eQuery, err)
+		return err
+	}
+
+	machines, err := c.query(ctx, gmxQuery, gmxLabel, gmxFunction)
+	if err != nil {
+		log.Printf("Error querying Prometheus for %s metric: %v", gmxQuery, err)
+		return err
+	}
+
+	err = c.UpdatePrometheus(hostnames, machines)
+	if err != nil {
+		log.Printf("Error updating internal Prometheus state: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 // query performs the provided PromQL query.
