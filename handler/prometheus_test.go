@@ -79,6 +79,51 @@ func TestClient_Prometheus(t *testing.T) {
 	}
 }
 
+func TestClient_UpdatePrometheusForMachine(t *testing.T) {
+	tests := []struct {
+		name    string
+		machine string
+		prom    PrometheusClient
+		tracker heartbeat.StatusTracker
+		wantErr bool
+	}{
+		{
+			name:    "success",
+			machine: "fake-machine-name",
+			prom: &fakePromClient{
+				queryResult: model.Vector{},
+			},
+			tracker: &heartbeattest.FakeStatusTracker{},
+			wantErr: false,
+		},
+		{
+			name:    "error",
+			machine: "fake-machine-name",
+			prom: &fakePromClient{
+				queryErr:    formatQuery(e2eQuery, "machine=fake-machine-name"),
+				queryResult: model.Vector{},
+			},
+			tracker: &heartbeattest.FakeStatusTracker{},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			locator := heartbeat.NewServerLocator(tt.tracker)
+			locator.StopImport()
+
+			c := &Client{
+				LocatorV2:        locator,
+				PrometheusClient: tt.prom,
+			}
+
+			if err := c.UpdatePrometheusForMachine(context.Background(), tt.machine); (err != nil) != tt.wantErr {
+				t.Errorf("Client.UpdatePrometheusForMachine() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestClient_query(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -166,7 +211,7 @@ func TestClient_query(t *testing.T) {
 				PrometheusClient: tt.prom,
 			}
 
-			got, err := c.query(context.TODO(), tt.query, tt.label, tt.f)
+			got, err := c.query(context.Background(), tt.query, "", tt.label, tt.f)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Client.query() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -174,6 +219,35 @@ func TestClient_query(t *testing.T) {
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Client.query() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_formatQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		query  string
+		filter string
+		want   string
+	}{
+		{
+			name:   "filter",
+			query:  "fake_metric",
+			filter: "machine=fake-machine-name",
+			want:   "fake_metric{machine=fake-machine-name}",
+		},
+		{
+			name:   "no-filter",
+			query:  "fake_metric",
+			filter: "",
+			want:   "fake_metric",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := formatQuery(tt.query, tt.filter); got != tt.want {
+				t.Errorf("formatQuery() = %v, want %v", got, tt.want)
 			}
 		})
 	}

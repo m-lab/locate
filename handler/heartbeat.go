@@ -69,15 +69,15 @@ func (c *Client) handleHeartbeats(ws conn) error {
 					return err
 				}
 
-				// Update Prometheus signals every time a Registration message is received.
-				if err := c.QueryPrometheus(context.Background()); err != nil {
-					log.Errorf("failed to query Prometheus, err: %v", err)
-				}
-
 				if hostname == "" {
 					hostname = hbm.Registration.Hostname
 					experiment = hbm.Registration.Experiment
 					metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Inc()
+				}
+
+				// Update Prometheus signals every time a Registration message is received.
+				if err := c.UpdatePrometheusForMachine(context.Background(), hbm.Registration.Machine); err != nil {
+					log.Errorf("failed to query Prometheus, err: %v", err)
 				}
 			case hbm.Health != nil:
 				if err := c.UpdateHealth(hostname, *hbm.Health); err != nil {

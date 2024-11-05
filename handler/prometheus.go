@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -17,8 +18,9 @@ var (
 	errCouldNotCast = errors.New("could not cast metric to vector")
 
 	// End-to-end query parameters.
-	e2eQuery = "script_success"
-	e2eLabel = model.LabelName("fqdn")
+	e2eQuery  = "script_success"
+	e2eParams = fmt.Sprintf("")
+	e2eLabel  = model.LabelName("fqdn")
 	// The script was successful if the value != 0.
 	e2eFunction = func(v float64) bool {
 		return v != 0
@@ -35,7 +37,7 @@ var (
 
 // Prometheus is a handler that collects Prometheus health signals.
 func (c *Client) Prometheus(rw http.ResponseWriter, req *http.Request) {
-	err := c.QueryPrometheus(req.Context())
+	err := c.updatePrometheus(req.Context(), "")
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
@@ -44,16 +46,23 @@ func (c *Client) Prometheus(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 }
 
-// QueryPrometheus runs a set a Prometheus queries and uses the results to update
-// the internal state.
-func (c *Client) QueryPrometheus(ctx context.Context) error {
-	hostnames, err := c.query(ctx, e2eQuery, e2eLabel, e2eFunction)
+// UpdatePrometheusForMachine updates the Prometheus signals for a single machine.
+func (c *Client) UpdatePrometheusForMachine(ctx context.Context, machine string) error {
+	err := c.updatePrometheus(ctx, fmt.Sprintf("machine=%s", machine))
+	if err != nil {
+		log.Printf("Error updating Prometheus signals for machine %s", machine)
+	}
+	return err
+}
+
+func (c *Client) updatePrometheus(ctx context.Context, filter string) error {
+	hostnames, err := c.query(ctx, e2eQuery, filter, e2eLabel, e2eFunction)
 	if err != nil {
 		log.Printf("Error querying Prometheus for %s metric: %v", e2eQuery, err)
 		return err
 	}
 
-	machines, err := c.query(ctx, gmxQuery, gmxLabel, gmxFunction)
+	machines, err := c.query(ctx, gmxQuery, filter, gmxLabel, gmxFunction)
 	if err != nil {
 		log.Printf("Error querying Prometheus for %s metric: %v", gmxQuery, err)
 		return err
@@ -69,7 +78,9 @@ func (c *Client) QueryPrometheus(ctx context.Context) error {
 }
 
 // query performs the provided PromQL query.
-func (c *Client) query(ctx context.Context, query string, labelName model.LabelName, f func(v float64) bool) (map[string]bool, error) {
+func (c *Client) query(ctx context.Context, query, filter string, labelName model.LabelName, f func(v float64) bool) (map[string]bool, error) {
+	query = formatQuery(query, filter)
+
 	result, _, err := c.PrometheusClient.Query(ctx, query, time.Now(), prom.WithTimeout(timeout))
 	if err != nil {
 		return nil, err
@@ -94,4 +105,11 @@ func getMetrics(vector model.Vector, labelName model.LabelName, f func(v float64
 	}
 
 	return metrics
+}
+
+func formatQuery(query, filter string) string {
+	if filter != "" {
+		return fmt.Sprintf("%s{%s}", query, filter)
+	}
+	return query
 }
