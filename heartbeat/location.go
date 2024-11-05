@@ -285,8 +285,8 @@ func pickTargets(service string, sites []site) *TargetInfo {
 
 func alwaysPick(opts *NearestOptions) bool {
 	// Sites do not need further filtering if the query is already requesting
-	// only virtual machines or a specific set of sites.
-	return opts.Type == "virtual" || len(opts.Sites) > 0
+	// only virtual machines or a specific set of sites or a specific org.
+	return opts.Type == "virtual" || len(opts.Sites) > 0 || opts.Org != ""
 }
 
 // pickWithProbability returns true if a pseudo-random number in the interval
