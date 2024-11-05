@@ -99,7 +99,7 @@ func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string
 			updateErr := h.updatePrometheusMessage(instance, pm)
 
 			if updateErr != nil {
-				log.Printf("Failed to write Prometheus message %v to Memorystore: %v", pm, updateErr)
+				log.Printf("Failed to write Prometheus message for instance %s to Memorystore: %v", instance.Registration.Hostname, updateErr)
 				err = errPrometheus
 			}
 		}
