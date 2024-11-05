@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -98,6 +99,7 @@ func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string
 			updateErr := h.updatePrometheusMessage(instance, pm)
 
 			if updateErr != nil {
+				log.Printf("Failed to write Prometheus message for instance %s to Memorystore: %v", instance.Registration.Hostname, updateErr)
 				err = errPrometheus
 			}
 		}
@@ -171,7 +173,7 @@ func (h *heartbeatStatusTracker) updatePrometheusMessage(instance v2.HeartbeatMe
 	// Update in Memorystore.
 	err := h.Put(hostname, "Prometheus", pm, opts)
 	if err != nil {
-		return fmt.Errorf("%w: failed to write Prometheus message to Memorystore", err)
+		return err
 	}
 
 	// Update locally.
