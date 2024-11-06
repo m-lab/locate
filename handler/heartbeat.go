@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -67,11 +68,15 @@ func (c *Client) handleHeartbeats(ws conn) error {
 					closeConnection(experiment, err)
 					return err
 				}
+
 				if hostname == "" {
 					hostname = hbm.Registration.Hostname
 					experiment = hbm.Registration.Experiment
 					metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Inc()
 				}
+
+				// Update Prometheus signals every time a Registration message is received.
+				c.UpdatePrometheusForMachine(context.Background(), hbm.Registration.Machine)
 			case hbm.Health != nil:
 				if err := c.UpdateHealth(hostname, *hbm.Health); err != nil {
 					closeConnection(experiment, err)
