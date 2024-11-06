@@ -18,6 +18,7 @@ var (
 	errCouldNotCast = errors.New("could not cast metric to vector")
 
 	// End-to-end query parameters.
+	// The raw query should be unfiltered.
 	e2eQuery = "script_success"
 	e2eLabel = model.LabelName("fqdn")
 	// The script was successful if the value != 0.
@@ -27,6 +28,7 @@ var (
 
 	// GMX query parameters.
 	gmxQuery = "gmx_machine_maintenance"
+	// The raw query should be unfiltered.
 	gmxLabel = model.LabelName("machine")
 	// The machine is not in maintenance if the value = 0.
 	gmxFunction = func(v float64) bool {
