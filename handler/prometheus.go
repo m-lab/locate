@@ -18,9 +18,8 @@ var (
 	errCouldNotCast = errors.New("could not cast metric to vector")
 
 	// End-to-end query parameters.
-	e2eQuery  = "script_success"
-	e2eParams = fmt.Sprintf("")
-	e2eLabel  = model.LabelName("fqdn")
+	e2eQuery = "script_success"
+	e2eLabel = model.LabelName("fqdn")
 	// The script was successful if the value != 0.
 	e2eFunction = func(v float64) bool {
 		return v != 0
@@ -79,9 +78,7 @@ func (c *Client) updatePrometheus(ctx context.Context, filter string) error {
 
 // query performs the provided PromQL query.
 func (c *Client) query(ctx context.Context, query, filter string, labelName model.LabelName, f func(v float64) bool) (map[string]bool, error) {
-	query = formatQuery(query, filter)
-
-	result, _, err := c.PrometheusClient.Query(ctx, query, time.Now(), prom.WithTimeout(timeout))
+	result, _, err := c.PrometheusClient.Query(ctx, formatQuery(query, filter), time.Now(), prom.WithTimeout(timeout))
 	if err != nil {
 		return nil, err
 	}

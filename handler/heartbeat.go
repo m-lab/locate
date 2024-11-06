@@ -76,9 +76,7 @@ func (c *Client) handleHeartbeats(ws conn) error {
 				}
 
 				// Update Prometheus signals every time a Registration message is received.
-				if err := c.UpdatePrometheusForMachine(context.Background(), hbm.Registration.Machine); err != nil {
-					log.Errorf("failed to query Prometheus, err: %v", err)
-				}
+				c.UpdatePrometheusForMachine(context.Background(), hbm.Registration.Machine)
 			case hbm.Health != nil:
 				if err := c.UpdateHealth(hostname, *hbm.Health); err != nil {
 					closeConnection(experiment, err)
