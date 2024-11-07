@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -277,8 +276,6 @@ type fakePromClient struct {
 }
 
 func (p *fakePromClient) Query(ctx context.Context, query string, ts time.Time, opts ...prom.Option) (model.Value, prom.Warnings, error) {
-	fmt.Println(query)
-	fmt.Println(p.queryErr)
 	if query == p.queryErr {
 		return nil, prom.Warnings{}, errFakeQuery
 	}
