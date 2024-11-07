@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/m-lab/go/host"
 	"github.com/m-lab/locate/static"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -47,9 +48,16 @@ func (c *Client) Prometheus(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 }
 
-// UpdatePrometheusForMachine updates the Prometheus signals for a single machine.
-func (c *Client) UpdatePrometheusForMachine(ctx context.Context, machine string) error {
-	err := c.updatePrometheus(ctx, fmt.Sprintf("machine=%s", machine))
+// UpdatePrometheusForMachine updates the Prometheus signals for a single machine hostname.
+func (c *Client) UpdatePrometheusForMachine(ctx context.Context, hostname string) error {
+	name, err := host.Parse(hostname)
+	if err != nil {
+		log.Printf("Error parsing hostname %s", hostname)
+		return err
+	}
+
+	machine := name.String()
+	err = c.updatePrometheus(ctx, fmt.Sprintf("machine=%s", machine))
 	if err != nil {
 		log.Printf("Error updating Prometheus signals for machine %s", machine)
 	}

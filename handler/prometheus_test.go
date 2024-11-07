@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/m-lab/go/host"
+	"github.com/m-lab/go/testingx"
+	"github.com/m-lab/locate/connection/testdata"
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -80,16 +83,19 @@ func TestClient_Prometheus(t *testing.T) {
 }
 
 func TestClient_UpdatePrometheusForMachine(t *testing.T) {
+	hostname, err := host.Parse(testdata.FakeHostname)
+	testingx.Must(t, err, "failed to parse hostname")
+
 	tests := []struct {
-		name    string
-		machine string
-		prom    PrometheusClient
-		tracker heartbeat.StatusTracker
-		wantErr bool
+		name     string
+		hostname string
+		prom     PrometheusClient
+		tracker  heartbeat.StatusTracker
+		wantErr  bool
 	}{
 		{
-			name:    "success",
-			machine: "fake-machine-name",
+			name:     "success",
+			hostname: hostname.StringAll(),
 			prom: &fakePromClient{
 				queryResult: model.Vector{},
 			},
@@ -97,10 +103,19 @@ func TestClient_UpdatePrometheusForMachine(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "error",
-			machine: "fake-machine-name",
+			name:     "prom-error",
+			hostname: hostname.StringAll(),
 			prom: &fakePromClient{
-				queryErr:    formatQuery(e2eQuery, "machine=fake-machine-name"),
+				queryErr:    formatQuery(e2eQuery, "machine="+hostname.String()),
+				queryResult: model.Vector{},
+			},
+			tracker: &heartbeattest.FakeStatusTracker{},
+			wantErr: true,
+		},
+		{
+			name:     "parse-error",
+			hostname: "invalid-hostname",
+			prom: &fakePromClient{
 				queryResult: model.Vector{},
 			},
 			tracker: &heartbeattest.FakeStatusTracker{},
@@ -117,7 +132,7 @@ func TestClient_UpdatePrometheusForMachine(t *testing.T) {
 				PrometheusClient: tt.prom,
 			}
 
-			if err := c.UpdatePrometheusForMachine(context.Background(), tt.machine); (err != nil) != tt.wantErr {
+			if err := c.UpdatePrometheusForMachine(context.Background(), tt.hostname); (err != nil) != tt.wantErr {
 				t.Errorf("Client.UpdatePrometheusForMachine() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
