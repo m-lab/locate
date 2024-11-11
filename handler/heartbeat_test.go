@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/model"
 )
 
 func TestClient_Heartbeat_Error(t *testing.T) {
@@ -62,6 +64,46 @@ func TestClient_handleHeartbeats(t *testing.T) {
 			err := c.handleHeartbeats(tt.ws)
 			if !errors.Is(err, wantErr) {
 				t.Errorf("Client.handleHeartbeats() error = %v, wantErr %v", err, wantErr)
+			}
+		})
+	}
+}
+
+func TestClient_promRegistration(t *testing.T) {
+	tests := []struct {
+		name    string
+		prom    *fakePromClient
+		host    string
+		wantErr bool
+	}{
+		{
+			name: "success",
+			prom: &fakePromClient{
+				queryResult: model.Vector{},
+			},
+			host:    testdata.FakeHostname,
+			wantErr: false,
+		},
+		{
+			name: "error",
+			prom: &fakePromClient{
+				queryResult: model.Vector{},
+			},
+			host:    "invalid-hostname",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			locator := heartbeat.NewServerLocator(&heartbeattest.FakeStatusTracker{})
+			locator.StopImport()
+
+			c := &Client{
+				LocatorV2:        locator,
+				PrometheusClient: tt.prom,
+			}
+			if err := c.promRegistration(context.Background(), tt.host); (err != nil) != tt.wantErr {
+				t.Errorf("Client.promRegistration() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
