@@ -76,7 +76,7 @@ func (c *Client) handleHeartbeats(ws conn) error {
 				}
 
 				// Update Prometheus signals every time a Registration message is received.
-				c.promRegistration(context.Background(), hbm.Registration.Hostname)
+				c.UpdatePrometheusForMachine(context.Background(), hbm.Registration.Hostname)
 			case hbm.Health != nil:
 				if err := c.UpdateHealth(hostname, *hbm.Health); err != nil {
 					closeConnection(experiment, err)
@@ -85,14 +85,6 @@ func (c *Client) handleHeartbeats(ws conn) error {
 			}
 		}
 	}
-}
-
-func (c *Client) promRegistration(ctx context.Context, host string) error {
-	if err := c.UpdatePrometheusForMachine(ctx, host); err != nil {
-		log.Printf("Failed to update Prometheus after Registration: %v", err)
-		return err
-	}
-	return nil
 }
 
 // setReadDeadline sets/resets the read deadline for the connection.
