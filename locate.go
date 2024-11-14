@@ -205,6 +205,9 @@ func main() {
 	mux.HandleFunc("/v2/live", c.Live)
 	mux.HandleFunc("/v2/ready", c.Ready)
 
+	// Return list of all heartbeat registrations
+	mux.HandleFunc("/v2/siteinfo/registrations", c.Registrations)
+
 	srv := &http.Server{
 		Addr:    ":" + listenPort,
 		Handler: mux,

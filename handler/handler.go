@@ -229,6 +229,11 @@ func (c *Client) Ready(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// Registrations returns an array of all machine registrations known to Locate.
+func (c *Client) Registrations(rw http.ResponseWriter, req *http.Request) {
+	writeResult(rw, http.StatusOK, c.LocatorV2.Instances())
+}
+
 // checkClientLocation looks up the client location and copies the location
 // headers to the response writer.
 func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) (*clientgeo.Location, error) {
