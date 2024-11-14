@@ -169,6 +169,19 @@ paths:
       tags:
         - platform
 
+  "/v2/siteinfo/registrations":
+    get:
+      description: |-
+        Returns an array of all heartbeat registrations
+      operationId: "v2-siteinfo-registrations"
+      produces:
+      - "application/json"
+      responses:
+        '200':
+          description: OK.
+      tags:
+        - siteinfo
+
 definitions:
   # Define the query reply without being specific about the structure.
   ErrorResult:
