@@ -106,7 +106,7 @@ func TestClient_UpdatePrometheusForMachine(t *testing.T) {
 			name:     "prom-error",
 			hostname: hostname.StringAll(),
 			prom: &fakePromClient{
-				queryErr:    formatQuery(e2eQuery, "machine="+hostname.String()),
+				queryErr:    formatQuery(e2eQuery, "machine=\""+hostname.String()+"\""),
 				queryResult: model.Vector{},
 			},
 			tracker: &heartbeattest.FakeStatusTracker{},

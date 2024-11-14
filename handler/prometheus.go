@@ -57,7 +57,7 @@ func (c *Client) UpdatePrometheusForMachine(ctx context.Context, hostname string
 	}
 
 	machine := name.String()
-	err = c.updatePrometheus(ctx, fmt.Sprintf("machine=%s", machine))
+	err = c.updatePrometheus(ctx, fmt.Sprintf("machine=\"%s\"", machine))
 	if err != nil {
 		log.Printf("Error updating Prometheus signals for machine %s", machine)
 	}
