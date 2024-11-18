@@ -32,9 +32,6 @@ The locate API also considers:
 * is the client request frequency within by our [acceptable use policy][aup]?
   (required)
 
-> PLANNED(v2): the locate API will bias results to be in the same country
-as the client.
-
 The locate API returns up to four results for the requested measurement
 service. The locate API may return fewer results when too few servers are
 healthy in a geographic region. The locate API may return an error when no
@@ -61,9 +58,11 @@ Well formed requests must specify a service name. For example:
 
 * ndt/ndt5 - NDT5 protocol for the NDT measurement service.
 * ndt/ndt7 - NDT7 protocol for the NDT measurement service.
+* wehe/replay - Replay protocol for the Wehe measurement service.
+* neubot/dash - Dash protocol for the Neubot measurement service.
 
 > PLANNED(v2): to discover the list of available services, the locate API
-will support queries to the base URL. Currently, only the ndt services are
+will support queries to the base URL. Currently, only the named services are
 supported.
 
 A complete locate request with service name (e.g. ndt/ndt7) looks like:
@@ -192,3 +191,23 @@ Countries are specified using the [ISO 3166-1 alpha 2 country code][iso1]
  db. If that also fails, then the Locate API will return a 503 error, Service
  Unavailable. If the client is connecting from an IP address with an unknown
  location, the Locate service cannot direct it to a nearby server.
+
+## Additional Request Parameters
+
+With the [Autojoin API][autojoin] and [autonode deployments][autonode], the
+M-Lab platform consists of infrastructure managed by multiple organizations. The
+Locate API allows clients to select the organization or site returned in
+results. This can be helpful for creating test portals or experiments that only
+target servers provided by a specific host organization.
+
+To select servers in a single organization, include `org=<org>`:
+* e.g. https://locate.measurementlab.net/v2/nearest/ndt/ndt7?org=mlab
+
+To select servers in a single site, include `site=<site>`:
+* e.g. https://locate.measurementlab.net/v2/nearest/ndt/ndt7?site=lga06
+
+If there are no healthy servers associated with the named org or site, then
+these queries may return an error.
+
+[autojoin]: https://github.com/m-lab/autojoin
+[autonode]: https://github.com/m-lab/autonode
