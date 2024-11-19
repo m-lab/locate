@@ -53,7 +53,8 @@ func (c *fakeErrorMemorystoreClient[V]) GetAll() (map[string]V, error) {
 
 // FakeStatusTracker provides a fake implementation of HeartbeatStatusTracker.
 type FakeStatusTracker struct {
-	Err error
+	Err           error
+	FakeInstances map[string]v2.HeartbeatMessage
 }
 
 // RegisterInstance returns the FakeStatusTracker's Err field.
@@ -73,6 +74,9 @@ func (t *FakeStatusTracker) UpdatePrometheus(hostnames, machines map[string]bool
 
 // Instances returns nil.
 func (t *FakeStatusTracker) Instances() map[string]v2.HeartbeatMessage {
+	if t.FakeInstances != nil {
+		return t.FakeInstances
+	}
 	return nil
 }
 

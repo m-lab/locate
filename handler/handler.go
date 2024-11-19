@@ -27,6 +27,7 @@ import (
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/limits"
 	"github.com/m-lab/locate/metrics"
+	"github.com/m-lab/locate/siteinfo"
 	"github.com/m-lab/locate/static"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -229,9 +230,31 @@ func (c *Client) Ready(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// Registrations returns an array of all machine registrations known to Locate.
+// Registrations returns information about registered machines. There are 3
+// supported query parameters:
+//
+// * format - defines the format of the returned JSON
+// * org - limits results to only records for the given organization
+// * exp - limits results to only records for the given experiment (e.g., ndt)
 func (c *Client) Registrations(rw http.ResponseWriter, req *http.Request) {
-	writeResult(rw, http.StatusOK, c.LocatorV2.Instances())
+	var err error
+	var result interface{}
+
+	q := req.URL.Query()
+	format := q.Get("format")
+
+	switch format {
+	default:
+		result, err = siteinfo.Machines(c.LocatorV2.Instances(), q)
+	}
+
+	if err != nil {
+		v2Error := v2.NewError("siteinfo", err.Error(), http.StatusInternalServerError)
+		writeResult(rw, http.StatusInternalServerError, v2Error)
+		return
+	}
+
+	writeResult(rw, http.StatusOK, result)
 }
 
 // checkClientLocation looks up the client location and copies the location

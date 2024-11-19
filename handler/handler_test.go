@@ -319,6 +319,53 @@ func TestClient_Ready(t *testing.T) {
 		})
 	}
 }
+func TestClient_Registrations(t *testing.T) {
+	tests := []struct {
+		name       string
+		instances  map[string]v2.HeartbeatMessage
+		fakeErr    error
+		wantStatus int
+	}{
+		{
+			name: "success-status-200",
+			instances: map[string]v2.HeartbeatMessage{
+				"ndt-mlab1-abc0t.mlab-sandbox.measurement-lab.org": {},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name: "error-status-500",
+			instances: map[string]v2.HeartbeatMessage{
+				"invalid-hostname.xyz": {},
+			},
+			fakeErr:    errors.New("fake error"),
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+	for _, tt := range tests {
+		fakeStatusTracker := &heartbeattest.FakeStatusTracker{
+			Err:           tt.fakeErr,
+			FakeInstances: tt.instances,
+		}
+
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: fakeStatusTracker}, nil, nil, nil)
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("/v2/siteinfo/registrations/", c.Registrations)
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2/siteinfo/registrations?org=mlab", nil)
+			rtx.Must(err, "failed to create request")
+			resp, err := http.DefaultClient.Do(req)
+			rtx.Must(err, "failed to issue request")
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("Registrations() wrong status; got %d; want %d", resp.StatusCode, tt.wantStatus)
+			}
+		})
+	}
+}
 
 func TestExtraParams(t *testing.T) {
 	tests := []struct {
