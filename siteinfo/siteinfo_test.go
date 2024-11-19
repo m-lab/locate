@@ -117,17 +117,17 @@ func TestMachines(t *testing.T) {
 		wantErr      bool
 	}{
 		{
-			name: "success-return-all-records",
+			name:      "success-return-all-records",
+			instances: testInstances,
 			expectedKeys: []string{
 				"msak-chs9999-ab285f12.mlab.sandbox.measurement-lab.org",
 				"ndt-dfw8888-73a354f1.testorg.sandbox.measurement-lab.org",
 				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
 			},
-			instances: testInstances,
-			wantErr:   false,
 		},
 		{
-			name: "success-return-mlab-records",
+			name:      "success-return-mlab-records",
+			instances: testInstances,
 			params: url.Values{
 				"org": {
 					"mlab",
@@ -137,11 +137,10 @@ func TestMachines(t *testing.T) {
 				"msak-chs9999-ab285f12.mlab.sandbox.measurement-lab.org",
 				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
 			},
-			instances: testInstances,
-			wantErr:   false,
 		},
 		{
-			name: "success-return-ndt-records",
+			name:      "success-return-ndt-records",
+			instances: testInstances,
 			params: url.Values{
 				"exp": {
 					"ndt",
@@ -151,11 +150,10 @@ func TestMachines(t *testing.T) {
 				"ndt-dfw8888-73a354f1.testorg.sandbox.measurement-lab.org",
 				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
 			},
-			instances: testInstances,
-			wantErr:   false,
 		},
 		{
-			name: "success-return-mlab-ndt-records",
+			name:      "success-return-mlab-ndt-records",
+			instances: testInstances,
 			params: url.Values{
 				"exp": {
 					"ndt",
@@ -167,18 +165,16 @@ func TestMachines(t *testing.T) {
 			expectedKeys: []string{
 				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
 			},
-			instances: testInstances,
-			wantErr:   false,
 		},
 		{
 			name: "error-invalid-hostname",
+			instances: map[string]v2.HeartbeatMessage{
+				"invalid.hostname": {},
+			},
 			params: url.Values{
 				"org": {
 					"mlab",
 				},
-			},
-			instances: map[string]v2.HeartbeatMessage{
-				"invalid.hostname": {},
 			},
 			wantErr: true,
 		},
