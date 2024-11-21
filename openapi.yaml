@@ -169,6 +169,21 @@ paths:
       tags:
         - platform
 
+  "/v2/siteinfo/registrations":
+    get:
+      description: |-
+        Returns heartbeat registration information in various formats.
+      operationId: "v2-siteinfo-registrations"
+      produces:
+      - "application/json"
+      responses:
+        '200':
+          description: OK.
+        '500':
+          description: Error.
+      tags:
+        - siteinfo
+
 definitions:
   # Define the query reply without being specific about the structure.
   ErrorResult:
