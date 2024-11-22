@@ -118,6 +118,7 @@ paths:
             $ref: "#/definitions/ErrorResult"
       security:
       - api_key: []
+      - google_jwt: []
       tags:
         - public
 
@@ -264,6 +265,12 @@ securityDefinitions:
       or allocated by M-Lab for your client integration.
     name: "key"
     in: "query"
+
+  google_jwt:
+    type: "oauth2"
+    authorizationUrl: ""
+    flow: "implicit"
+    x-google-audiences: "https://locate-dot-${PROJECT}.appspot.com"
 
 tags:
   - name: public
