@@ -271,7 +271,7 @@ securityDefinitions:
     authorizationUrl: ""
     flow: "implicit"
     x-google-audiences: "https://locate-dot-${PROJECT}.appspot.com"
-
+    x-google-issuer: "https://accounts.google.com"
 tags:
   - name: public
     description: Public API.
