@@ -3,6 +3,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +20,7 @@ import (
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
 	"github.com/m-lab/locate/limits"
 	"github.com/m-lab/locate/proxy"
+	"github.com/m-lab/locate/ratelimit"
 	"github.com/m-lab/locate/static"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
 	log "github.com/sirupsen/logrus"
@@ -212,7 +214,7 @@ func TestClient_Nearest(t *testing.T) {
 			if tt.cl == nil {
 				tt.cl = clientgeo.NewAppEngineLocator()
 			}
-			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits)
+			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.Nearest)
@@ -291,7 +293,7 @@ func TestClient_Ready(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil, nil)
+			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/ready/", c.Ready)
@@ -349,7 +351,7 @@ func TestClient_Registrations(t *testing.T) {
 		}
 
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: fakeStatusTracker}, nil, nil, nil)
+			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: fakeStatusTracker}, nil, nil, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/siteinfo/registrations/", c.Registrations)
@@ -508,13 +510,27 @@ func TestExtraParams(t *testing.T) {
 	}
 }
 
+// mockRateLimiter implements the ratelimit.RateLimiter interface for testing
+type mockRateLimiter struct {
+	allowed bool
+	err     error
+}
+
+func (m *mockRateLimiter) Allow(ctx context.Context, ip string) (bool, error) {
+	if m.err != nil {
+		return true, m.err // fail open on error
+	}
+	return m.allowed, nil
+}
+
 func TestClient_limitRequest(t *testing.T) {
 	tests := []struct {
-		name   string
-		limits limits.Agents
-		t      time.Time
-		req    *http.Request
-		want   bool
+		name        string
+		limits      limits.Agents
+		t           time.Time
+		rateLimiter ratelimit.RateLimiter
+		req         *http.Request
+		want        bool
 	}{
 		{
 			name:   "allowed-user-agent-allowed-time",
@@ -566,11 +582,44 @@ func TestClient_limitRequest(t *testing.T) {
 			},
 			want: true,
 		},
+		{
+			name:   "ip-rate-limited",
+			limits: limits.Agents{},
+			t:      time.Now().UTC(),
+			rateLimiter: &mockRateLimiter{
+				allowed: false,
+				err:     nil,
+			},
+			req: &http.Request{
+				Header: http.Header{
+					"User-Agent":      []string{"foo"},
+					"X-Forwarded-For": []string{"127.0.0.1"},
+				},
+			},
+			want: true, // limited by IP
+		},
+		{
+			name:   "rate-limiter-error-fails-open",
+			limits: limits.Agents{},
+			t:      time.Now().UTC(),
+			rateLimiter: &mockRateLimiter{
+				allowed: true,
+				err:     errors.New("redis error"),
+			},
+			req: &http.Request{
+				Header: http.Header{
+					"User-Agent":      []string{"foo"},
+					"X-Forwarded-For": []string{"127.0.0.1"},
+				},
+			},
+			want: false, // not limited (fail open)
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Client{
 				agentLimits: tt.limits,
+				rateLimiter: tt.rateLimiter,
 			}
 			if got := c.limitRequest(tt.t, tt.req); got != tt.want {
 				t.Errorf("Client.limitRequest() = %v, want %v", got, tt.want)

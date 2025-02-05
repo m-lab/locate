@@ -27,6 +27,7 @@ import (
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/limits"
 	"github.com/m-lab/locate/metrics"
+	"github.com/m-lab/locate/ratelimit"
 	"github.com/m-lab/locate/siteinfo"
 	"github.com/m-lab/locate/static"
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -52,6 +53,7 @@ type Client struct {
 	PrometheusClient
 	targetTmpl  *template.Template
 	agentLimits limits.Agents
+	rateLimiter ratelimit.RateLimiter
 }
 
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
@@ -84,7 +86,8 @@ func init() {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient, lmts limits.Agents) *Client {
+func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient,
+	lmts limits.Agents, rl ratelimit.RateLimiter) *Client {
 	return &Client{
 		Signer:           private,
 		project:          project,
@@ -93,6 +96,7 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 		PrometheusClient: prom,
 		targetTmpl:       template.Must(template.New("name").Parse("{{.Hostname}}{{.Ports}}")),
 		agentLimits:      lmts,
+		rateLimiter:      rl,
 	}
 }
 
@@ -334,13 +338,35 @@ func (c *Client) getURLs(ports static.Ports, hostname, token string, extra url.V
 
 // limitRequest determines whether a client request should be rate-limited.
 func (c *Client) limitRequest(now time.Time, req *http.Request) bool {
+	// Verify that user agent is not rate limited.
 	agent := req.Header.Get("User-Agent")
 	l, ok := c.agentLimits[agent]
-	if !ok {
-		// No limit defined for user agent.
-		return false
+	if ok && l.IsLimited(now) {
+		return true
 	}
-	return l.IsLimited(now)
+
+	// Verify that the client IP is not rate limited.
+	if c.rateLimiter != nil {
+		ip := req.Header.Get("X-Forwarded-For")
+		if ip == "" {
+			// No IP address available, fail open. This should never happen on GAE.
+			log.Error("No IP address available for rate limiting")
+			return false
+		}
+
+		// X-Forwarded-For can contain multiple IPs, use the first one
+		ip = strings.Split(ip, ",")[0]
+		ip = strings.TrimSpace(ip)
+
+		allowed, err := c.rateLimiter.Allow(req.Context(), ip)
+		if err != nil {
+			// Log the error but continue (fail open)
+			log.WithError(err).Error("Rate limiter error")
+		}
+		return !allowed
+	}
+
+	return false
 }
 
 // setHeaders sets the response headers for "nearest" requests.
