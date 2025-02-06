@@ -6,22 +6,22 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/gomodule/redigo/redis"
 )
 
 // CMSketch implements the Sketch interface using Redis as a backend
 type CMSketch struct {
 	config Config
-	client *redis.Client
-	// used for testing
+	pool   *redis.Pool
+	// nowFunc allows overriding time.Now for testing
 	nowFunc func() time.Time
 }
 
 // New creates a new CMSketch with the given configuration and Redis client
-func New(config Config, client *redis.Client) *CMSketch {
+func New(config Config, pool *redis.Pool) *CMSketch {
 	return &CMSketch{
 		config: config,
-		client: client,
+		pool:   pool,
 	}
 }
 
@@ -47,53 +47,55 @@ func (s *CMSketch) Increment(ctx context.Context, item string) error {
 	// Get hash values for item
 	hashes := s.hash(item)
 
-	// Use pipeline for batch operation
-	pipe := s.client.Pipeline()
+	// Get connection from pool
+	conn := s.pool.Get()
+	defer conn.Close()
 
-	// Increment each counter and set expiration
+	// Send all commands to pipeline
 	for i, hash := range hashes {
 		key := s.getCounterKey(windowKey, i)
-		pipe.HIncrBy(ctx, key, strconv.FormatUint(hash, 10), 1)
-		pipe.Expire(ctx, key, s.config.Window*2) // Keep one extra window for sliding
+		hashStr := strconv.FormatUint(hash, 10)
+
+		conn.Send("HINCRBY", key, hashStr, 1)
+		conn.Send("EXPIRE", key, int(s.config.Window.Seconds()*2))
 	}
 
-	_, err := pipe.Exec(ctx)
-	return err
+	// Execute pipeline
+	return conn.Flush()
 }
 
 func (s *CMSketch) Count(ctx context.Context, item string) (int64, error) {
 	windowKey := s.getCurrentWindowKey()
 	hashes := s.hash(item)
 
+	conn := s.pool.Get()
+	defer conn.Close()
+
 	var minCount int64 = -1
 
-	// Use pipeline for batch operation
-	pipe := s.client.Pipeline()
-
-	// Queue up all counter reads
-	cmds := make([]*redis.StringCmd, len(hashes))
+	// Send all HGET commands to pipeline
 	for i, hash := range hashes {
 		key := s.getCounterKey(windowKey, i)
-		cmds[i] = pipe.HGet(ctx, key, strconv.FormatUint(hash, 10))
+		hashStr := strconv.FormatUint(hash, 10)
+		conn.Send("HGET", key, hashStr)
 	}
 
 	// Execute pipeline
-	_, err := pipe.Exec(ctx)
-	if err != nil && err != redis.Nil {
+	if err := conn.Flush(); err != nil {
 		return 0, err
 	}
 
-	// Find minimum count
-	for _, cmd := range cmds {
-		count, err := cmd.Int64()
-		if err == redis.Nil {
-			count = 0
+	// Receive all responses
+	for range hashes {
+		value, err := redis.Int64(conn.Receive())
+		if err == redis.ErrNil {
+			value = 0
 		} else if err != nil {
 			return 0, err
 		}
 
-		if minCount == -1 || count < minCount {
-			minCount = count
+		if minCount == -1 || value < minCount {
+			minCount = value
 		}
 	}
 
@@ -104,19 +106,19 @@ func (s *CMSketch) Count(ctx context.Context, item string) (int64, error) {
 	return minCount, nil
 }
 
-func (s *CMSketch) Reset(ctx context.Context) error {
+func (s *CMSketch) Reset(ctx context.Context, item string) error {
 	windowKey := s.getCurrentWindowKey()
 
-	pipe := s.client.Pipeline()
+	conn := s.pool.Get()
+	defer conn.Close()
 
-	// Delete all counters for current window
+	// Send DEL commands for all counters
 	for i := 0; i < s.config.Depth; i++ {
 		key := s.getCounterKey(windowKey, i)
-		pipe.Del(ctx, key)
+		conn.Send("DEL", key)
 	}
 
-	_, err := pipe.Exec(ctx)
-	return err
+	return conn.Flush()
 }
 
 // Helper methods for key management

@@ -6,21 +6,25 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
+	"github.com/gomodule/redigo/redis"
 )
 
-func setupTestRedis(t *testing.T) (*redis.Client, func()) {
+func setupTestRedis(t *testing.T) (*redis.Pool, func()) {
 	mr, err := miniredis.Run()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	client := redis.NewClient(&redis.Options{
-		Addr: mr.Addr(),
-	})
+	pool := &redis.Pool{
+		MaxIdle:     1,
+		IdleTimeout: 10 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", mr.Addr())
+		},
+	}
 
-	return client, func() {
-		client.Close()
+	return pool, func() {
+		pool.Close()
 		mr.Close()
 	}
 }
@@ -137,7 +141,7 @@ func TestCMSketch_TimeWindow(t *testing.T) {
 
 func TestCMSketch_RedisErrors(t *testing.T) {
 	ctx := context.Background()
-	client, cleanup := setupTestRedis(t)
+	pool, cleanup := setupTestRedis(t)
 	defer cleanup()
 
 	config := Config{
@@ -147,9 +151,9 @@ func TestCMSketch_RedisErrors(t *testing.T) {
 		RedisKeyPrefix: "test",
 	}
 
-	sketch := New(config, client)
+	sketch := New(config, pool)
 
-	// Force Redis connection failure by closing client
+	// Force Redis connection failure by closing pool
 	cleanup()
 
 	// Test Increment with broken Redis
@@ -165,7 +169,7 @@ func TestCMSketch_RedisErrors(t *testing.T) {
 	}
 
 	// Test Reset with broken Redis
-	err = sketch.Reset(ctx)
+	err = sketch.Reset(ctx, "item1")
 	if err == nil {
 		t.Error("Expected error on Reset with broken Redis connection, got nil")
 	}

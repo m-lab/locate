@@ -42,15 +42,15 @@ func (l *Limiter) Allow(ctx context.Context, ip string) (bool, error) {
 	// First increment the counter for this IP
 	err := l.sketch.Increment(ctx, ip)
 	if err != nil {
-		// Allow the request but propagate the error so it can be monitored/logged
-		return true, err // Changed from false to true
+		// Allow the request but propagate the error
+		return true, err
 	}
 
 	// Get the current count for this IP
 	count, err := l.sketch.Count(ctx, ip)
 	if err != nil {
 		// Same here - fail open but propagate the error
-		return true, err // Changed from false to true
+		return true, err
 	}
 
 	// Allow if count is within limit
