@@ -30,7 +30,9 @@ import (
 	"github.com/m-lab/locate/memorystore"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/prometheus"
+	"github.com/m-lab/locate/ratelimit"
 	"github.com/m-lab/locate/secrets"
+	"github.com/m-lab/locate/sketch"
 	"github.com/m-lab/locate/static"
 )
 
@@ -53,6 +55,7 @@ var (
 		Options: []string{"secretmanager", "local"},
 		Value:   "secretmanager",
 	}
+	requestsPerHour int
 )
 
 func init() {
@@ -73,6 +76,7 @@ func init() {
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
 	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
 	flag.StringVar(&limitsPath, "limits-path", "/go/src/github.com/m-lab/locate/limits/config.yaml", "Path to the limits config file")
+	flag.IntVar(&requestsPerHour, "requests-per-hour", 40, "Maximum number of requests allowed per IP per hour")
 
 	// Enable logging with line numbers to trace error locations.
 	log.SetFlags(log.LUTC | log.Llongfile)
@@ -128,6 +132,17 @@ func main() {
 			return redis.Dial("tcp", redisAddr)
 		},
 	}
+
+	// Set up the CMSketch and the rate limiter.
+	sketchConfig := sketch.Config{
+		Width:          100000,
+		Depth:          7,
+		Window:         time.Hour,
+		RedisKeyPrefix: "locate:ratelimit",
+	}
+	cms := sketch.New(sketchConfig, &pool)
+	rateLimiter := ratelimit.New(requestsPerHour, cms)
+
 	memorystore := memorystore.NewClient[v2.HeartbeatMessage](&pool)
 	tracker := heartbeat.NewHeartbeatStatusTracker(memorystore)
 	defer tracker.StopImport()
@@ -140,7 +155,8 @@ func main() {
 
 	lmts, err := limits.ParseConfig(limitsPath)
 	rtx.Must(err, "failed to parse limits config")
-	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient, lmts)
+	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient,
+		lmts, rateLimiter)
 
 	go func() {
 		// Check and reload db at least once a day.

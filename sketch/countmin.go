@@ -17,7 +17,7 @@ type CMSketch struct {
 	nowFunc func() time.Time
 }
 
-// New creates a new CMSketch with the given configuration and Redis client
+// New creates a new CMSketch with the given configuration and Redis connection pool.
 func New(config Config, pool *redis.Pool) *CMSketch {
 	return &CMSketch{
 		config: config,
@@ -25,7 +25,9 @@ func New(config Config, pool *redis.Pool) *CMSketch {
 	}
 }
 
-// hash generates k different hash values for the given item
+// hash generates k different hash values for the given item.
+// To generate the different hash values (one per row), we apply the FNV-1a hash
+// function, which is reasonably fast and has a low collision rate.
 func (s *CMSketch) hash(item string) []uint64 {
 	hashes := make([]uint64, s.config.Depth)
 	h := fnv.New64a()
@@ -64,14 +66,15 @@ func (s *CMSketch) Increment(ctx context.Context, item string) error {
 	return conn.Flush()
 }
 
-func (s *CMSketch) Count(ctx context.Context, item string) (int64, error) {
+// Count returns the minimum estimated count for the given item.
+func (s *CMSketch) Count(ctx context.Context, item string) (int, error) {
 	windowKey := s.getCurrentWindowKey()
 	hashes := s.hash(item)
 
 	conn := s.pool.Get()
 	defer conn.Close()
 
-	var minCount int64 = -1
+	var minCount int = -1
 
 	// Send all HGET commands to pipeline
 	for i, hash := range hashes {
@@ -87,7 +90,7 @@ func (s *CMSketch) Count(ctx context.Context, item string) (int64, error) {
 
 	// Receive all responses
 	for range hashes {
-		value, err := redis.Int64(conn.Receive())
+		value, err := redis.Int(conn.Receive())
 		if err == redis.ErrNil {
 			value = 0
 		} else if err != nil {
@@ -106,22 +109,8 @@ func (s *CMSketch) Count(ctx context.Context, item string) (int64, error) {
 	return minCount, nil
 }
 
-func (s *CMSketch) Reset(ctx context.Context, item string) error {
-	windowKey := s.getCurrentWindowKey()
-
-	conn := s.pool.Get()
-	defer conn.Close()
-
-	// Send DEL commands for all counters
-	for i := 0; i < s.config.Depth; i++ {
-		key := s.getCounterKey(windowKey, i)
-		conn.Send("DEL", key)
-	}
-
-	return conn.Flush()
-}
-
 // Helper methods for key management
+// getCurrentWindowKey returns the key for the current time window.
 func (s *CMSketch) getCurrentWindowKey() string {
 	now := time.Now().UTC()
 	if s.nowFunc != nil {
@@ -130,6 +119,7 @@ func (s *CMSketch) getCurrentWindowKey() string {
 	return now.Format("2006-01-02T15:04")
 }
 
+// getCounterKey returns the key for the counter at the given depth for the given window.
 func (s *CMSketch) getCounterKey(windowKey string, depth int) string {
 	return s.config.RedisKeyPrefix + ":" + windowKey + ":" + strconv.Itoa(depth)
 }

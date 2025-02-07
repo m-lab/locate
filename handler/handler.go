@@ -354,16 +354,21 @@ func (c *Client) limitRequest(now time.Time, req *http.Request) bool {
 			return false
 		}
 
-		// X-Forwarded-For can contain multiple IPs, use the first one
+		// X-Forwarded-For can contain multiple IPs, use the first one.
 		ip = strings.Split(ip, ",")[0]
 		ip = strings.TrimSpace(ip)
 
 		allowed, err := c.rateLimiter.Allow(req.Context(), ip)
 		if err != nil {
-			// Log the error but continue (fail open)
+			// Log the error but continue (fail open).
 			log.WithError(err).Error("Rate limiter error")
 		}
-		return !allowed
+
+		if !allowed {
+			metrics.RateLimitedRequestsTotal.Inc()
+			log.WithField("ip", ip).Info("Request rate limited")
+			return true
+		}
 	}
 
 	return false

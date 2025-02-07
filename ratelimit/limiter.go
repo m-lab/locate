@@ -12,28 +12,16 @@ type RateLimiter interface {
 	Allow(ctx context.Context, ip string) (bool, error)
 }
 
-// Config holds configuration for the rate limiter
-type Config struct {
-	// RequestsPerMinute is the maximum number of requests allowed per minute
-	RequestsPerMinute int64
-
-	// SketchWidth is the width of the Count-Min Sketch
-	SketchWidth int
-
-	// SketchDepth is the depth of the Count-Min Sketch
-	SketchDepth int
-}
-
-// Limiter implements the RateLimiter interface using a Count-Min Sketch
+// Limiter implements the RateLimiter interface using a Count-Min Sketch.
 type Limiter struct {
-	config Config
+	limit  int
 	sketch sketch.Sketch
 }
 
-// New creates a new rate limiter with the given configuration
-func New(config Config, sketch sketch.Sketch) *Limiter {
+// New creates a new rate limiter with the given limit and sketch.
+func New(limit int, sketch sketch.Sketch) *Limiter {
 	return &Limiter{
-		config: config,
+		limit:  limit,
 		sketch: sketch,
 	}
 }
@@ -54,5 +42,5 @@ func (l *Limiter) Allow(ctx context.Context, ip string) (bool, error) {
 	}
 
 	// Allow if count is within limit
-	return count <= l.config.RequestsPerMinute, nil
+	return count <= l.limit, nil
 }

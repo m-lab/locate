@@ -74,8 +74,8 @@ func TestCMSketch_MultipleIncrements(t *testing.T) {
 	sketch := New(config, client)
 
 	// Increment same item multiple times
-	expectedCount := int64(5)
-	for i := int64(0); i < expectedCount; i++ {
+	expectedCount := 5
+	for i := 0; i < expectedCount; i++ {
 		err := sketch.Increment(ctx, "item1")
 		if err != nil {
 			t.Fatalf("Failed to increment on iteration %d: %v", i, err)
@@ -153,7 +153,7 @@ func TestCMSketch_RedisErrors(t *testing.T) {
 
 	sketch := New(config, pool)
 
-	// Force Redis connection failure by closing pool
+	// Force Redis connection failure by closing the pool.
 	cleanup()
 
 	// Test Increment with broken Redis
@@ -166,11 +166,5 @@ func TestCMSketch_RedisErrors(t *testing.T) {
 	_, err = sketch.Count(ctx, "item1")
 	if err == nil {
 		t.Error("Expected error on Count with broken Redis connection, got nil")
-	}
-
-	// Test Reset with broken Redis
-	err = sketch.Reset(ctx, "item1")
-	if err == nil {
-		t.Error("Expected error on Reset with broken Redis connection, got nil")
 	}
 }

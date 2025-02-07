@@ -19,6 +19,14 @@ var (
 		[]string{"type", "condition", "status"},
 	)
 
+	// RateLimitedRequestsTotal counts requests rejected due to IP-based rate limiting
+	RateLimitedRequestsTotal = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "locate_rate_limited_requests_total",
+			Help: "Number of requests rejected due to IP-based rate limiting.",
+		},
+	)
+
 	// AppEngineTotal counts the number of times App Engine headers are
 	// used to try to find the client location.
 	//
