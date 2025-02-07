@@ -27,7 +27,8 @@ func New(config Config, pool *redis.Pool) *CMSketch {
 
 // hash generates k different hash values for the given item.
 // To generate the different hash values (one per row), we apply the FNV-1a hash
-// function, which is reasonably fast and has a low collision rate.
+// function, chosen for its balance of speed and collision resistance in
+// non-cryptographic applications.
 func (s *CMSketch) hash(item string) []uint64 {
 	hashes := make([]uint64, s.config.Depth)
 	h := fnv.New64a()
