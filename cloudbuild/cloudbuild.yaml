@@ -2,55 +2,55 @@ timeout: 3600s
 
 options:
   env:
-    - PROJECT_ID=$PROJECT_ID
-    - WORKSPACE_LINK=/go/src/github.com/m-lab/locate
+  - PROJECT_ID=$PROJECT_ID
+  - WORKSPACE_LINK=/go/src/github.com/m-lab/locate
 
 steps:
-  # Run unit tests for environment.
-  - name: gcr.io/$PROJECT_ID/golang-cbif:1.20
-    env:
-      - GONOPROXY=github.com/m-lab/go/*
-    args:
-      - go version
-      - go get -v -t ./...
-      - go vet ./...
-      - go test ./... -race
-      - go test -v ./...
+# Run unit tests for environment.
+- name: gcr.io/$PROJECT_ID/golang-cbif:1.20
+  env:
+  - GONOPROXY=github.com/m-lab/go/*
+  args:
+  - go version
+  - go get -v -t ./...
+  - go vet ./...
+  - go test ./... -race
+  - go test -v ./...
 
-  # Deployment of APIs in sandbox & staging.
-  - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
-    env:
-      # Use cbif condition: only run these steps in one of these projects.
-      - PROJECT_IN=mlab-sandbox,mlab-staging
-    args:
-      - cp cloudbuild/app.yaml.template app.yaml
-      - >
-        sed -i
-        -e 's/{{PROJECT}}/$PROJECT_ID/g'
-        -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
-        -e 's/{{REDIS_ADDRESS}}/$_REDIS_ADDRESS/'
-        -e 's/{{RATE_LIMIT_REDIS_ADDRESS}}/$_RATE_LIMIT_REDIS_ADDRESS/'
-        app.yaml
-      - gcloud --project $PROJECT_ID app deploy --promote app.yaml
-      # After deploying the new service, deploy the openapi spec.
-      - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' -e 's/{{DEPLOYMENT}}/$PROJECT_ID/' openapi.yaml
-      - gcloud endpoints services deploy openapi.yaml
+# Deployment of APIs in sandbox & staging.
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  env:
+  # Use cbif condition: only run these steps in one of these projects.
+  - PROJECT_IN=mlab-sandbox,mlab-staging
+  args:
+  - cp cloudbuild/app.yaml.template app.yaml
+  - >
+    sed -i
+    -e 's/{{PROJECT}}/$PROJECT_ID/g'
+    -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
+    -e 's/{{REDIS_ADDRESS}}/$_REDIS_ADDRESS/'
+    -e 's/{{RATE_LIMIT_REDIS_ADDRESS}}/$_RATE_LIMIT_REDIS_ADDRESS/'
+    app.yaml
+  - gcloud --project $PROJECT_ID app deploy --promote app.yaml
+  # After deploying the new service, deploy the openapi spec.
+  - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' -e 's/{{DEPLOYMENT}}/$PROJECT_ID/' openapi.yaml
+  - gcloud endpoints services deploy openapi.yaml
 
-  # Deployment of APIs in mlab-ns.
-  - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
-    env:
-      # Use cbif condition: only run these steps in this project.
-      - PROJECT_IN=mlab-ns
-    args:
-      - cp cloudbuild/app.yaml.mlab-ns.template app.yaml
-      - >
-        sed -i
-        -e 's/{{PROJECT}}/$PROJECT_ID/g'
-        -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
-        -e 's/{{REDIS_ADDRESS}}/$_REDIS_ADDRESS/'
-        -e 's/{{RATE_LIMIT_REDIS_ADDRESS}}/$_RATE_LIMIT_REDIS_ADDRESS/'
-        app.yaml
-      - gcloud --project $PROJECT_ID app deploy --promote app.yaml
-      # After deploying the new service, deploy the openapi spec.
-      - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' -e 's/{{DEPLOYMENT}}/Production/' openapi.yaml
-      - gcloud endpoints services deploy openapi.yaml
+# Deployment of APIs in mlab-ns.
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  env:
+  # Use cbif condition: only run these steps in this project.
+  - PROJECT_IN=mlab-ns
+  args:
+  - cp cloudbuild/app.yaml.mlab-ns.template app.yaml
+  - >
+    sed -i
+    -e 's/{{PROJECT}}/$PROJECT_ID/g'
+    -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/'
+    -e 's/{{REDIS_ADDRESS}}/$_REDIS_ADDRESS/'
+    -e 's/{{RATE_LIMIT_REDIS_ADDRESS}}/$_RATE_LIMIT_REDIS_ADDRESS/'
+    app.yaml
+  - gcloud --project $PROJECT_ID app deploy --promote app.yaml
+  # After deploying the new service, deploy the openapi spec.
+  - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' -e 's/{{DEPLOYMENT}}/Production/' openapi.yaml
+  - gcloud endpoints services deploy openapi.yaml
