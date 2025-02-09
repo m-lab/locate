@@ -50,11 +50,11 @@ func BenchmarkRateLimiter_RealWorld(b *testing.B) {
 	conn.Do("FLUSHDB")
 	conn.Close()
 
-	// defer func() {
-	// 	conn := pool.Get()
-	// 	defer conn.Close()
-	// 	conn.Do("FLUSHDB")
-	// }()
+	defer func() {
+		conn := pool.Get()
+		defer conn.Close()
+		conn.Do("FLUSHDB")
+	}()
 
 	tests := []struct {
 		name     string
@@ -68,24 +68,24 @@ func BenchmarkRateLimiter_RealWorld(b *testing.B) {
 			ipRange:  1,
 			uaRange:  1,
 		},
-		// {
-		// 	name:     "ManyIPs_OneUA",
-		// 	duration: 5 * time.Second,
-		// 	ipRange:  100000,
-		// 	uaRange:  1,
-		// },
-		// {
-		// 	name:     "OneIP_ManyUAs",
-		// 	duration: 5 * time.Second,
-		// 	ipRange:  1,
-		// 	uaRange:  100000,
-		// },
-		// {
-		// 	name:     "ManyIPs_ManyUAs",
-		// 	duration: 5 * time.Second,
-		// 	ipRange:  100,
-		// 	uaRange:  10000,
-		// },
+		{
+			name:     "ManyIPs_OneUA",
+			duration: 5 * time.Second,
+			ipRange:  100000,
+			uaRange:  1,
+		},
+		{
+			name:     "OneIP_ManyUAs",
+			duration: 5 * time.Second,
+			ipRange:  1,
+			uaRange:  100000,
+		},
+		{
+			name:     "ManyIPs_ManyUAs",
+			duration: 5 * time.Second,
+			ipRange:  100,
+			uaRange:  10000,
+		},
 	}
 
 	for _, tt := range tests {

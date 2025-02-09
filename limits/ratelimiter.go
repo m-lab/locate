@@ -15,7 +15,14 @@ type RateLimitConfig struct {
 	KeyPrefix string
 }
 
-// RateLimiter implements a distributed rate limiter using Redis ZSET
+// RateLimiter implements a distributed rate limiter using Redis sorted sets (ZSET).
+// It maintains a sliding window of events for each IP+UA combination, where:
+//   - Each event is stored in a ZSET with the timestamp as score
+//   - Old events (outside the window) are automatically removed
+//   - Keys automatically expire after the configured interval
+//
+// The limiter considers a request to be rate-limited if the number of events
+// in the current window exceeds MaxEvents.
 type RateLimiter struct {
 	pool      *redis.Pool
 	interval  time.Duration
@@ -48,13 +55,13 @@ func (rl *RateLimiter) IsLimited(ip, ua string) (bool, error) {
 	redisKey := rl.generateKey(ip, ua)
 
 	// Send all commands in pipeline.
-	// ZREMRANGEBYSCORE removes all events before the window start.
+	// 1. Remove events outside the window
 	conn.Send("ZREMRANGEBYSCORE", redisKey, "-inf", windowStart)
-	// ZADD adds the current event to the ZSET.
+	// 2. Add current event
 	conn.Send("ZADD", redisKey, now, strconv.FormatInt(now, 10))
-	// EXPIRE sets the key to expire after the interval.
+	// 3. Set key expiration
 	conn.Send("EXPIRE", redisKey, int64(rl.interval.Seconds()))
-	// ZCARD returns the number of events in the ZSET for the given key.
+	// 4. Get total event count
 	conn.Send("ZCARD", redisKey)
 
 	// Flush pipeline
