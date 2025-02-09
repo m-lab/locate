@@ -78,7 +78,7 @@ func init() {
 	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
 	flag.StringVar(&limitsPath, "limits-path", "/go/src/github.com/m-lab/locate/limits/config.yaml", "Path to the limits config file")
 	flag.DurationVar(&rateLimitInterval, "rate-limit-interval", time.Hour, "Time window for IP+UA rate limiting")
-	flag.IntVar(&rateLimitMax, "rate-limit-max", 5, "Max number of events in the time window for IP+UA rate limiting")
+	flag.IntVar(&rateLimitMax, "rate-limit-max", 40, "Max number of events in the time window for IP+UA rate limiting")
 	flag.StringVar(&rateLimitPrefix, "rate-limit-prefix", "locate:ratelimit:", "Prefix for Redis keys for IP+UA rate limiting")
 	flag.StringVar(&rateLimitRedisAddr, "rate-limit-redis-address", "", "Primary endpoint for Redis instance for rate limiting")
 	// Enable logging with line numbers to trace error locations.
