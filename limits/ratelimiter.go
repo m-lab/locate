@@ -10,9 +10,9 @@ import (
 
 // RateLimitConfig holds the configuration for IP+UA rate limiting
 type RateLimitConfig struct {
-	Interval  time.Duration `yaml:"interval"`
-	MaxEvents int           `yaml:"maxevents"`
-	KeyPrefix string        `yaml:"keyprefix"`
+	Interval  time.Duration
+	MaxEvents int
+	KeyPrefix string
 }
 
 // RateLimiter implements a distributed rate limiter using Redis ZSET
