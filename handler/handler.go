@@ -172,7 +172,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 				// Log error but don't block request (fail open).
 				log.Printf("Rate limiter error: %v", err)
 			} else if limited {
-				result.Error = v2.NewError("client", "Rate limit exceeded", http.StatusTooManyRequests)
+				result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
 				writeResult(rw, result.Error.Status, &result)
 				metrics.RequestsTotal.WithLabelValues("nearest", "rate limit",
 					http.StatusText(result.Error.Status)).Inc()
