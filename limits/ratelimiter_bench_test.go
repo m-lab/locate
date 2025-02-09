@@ -96,46 +96,39 @@ func BenchmarkRateLimiter_RealWorld(b *testing.B) {
 				b.Fatalf("Failed to get initial memory: %v", err)
 			}
 
-			// Run benchmark with custom timer
+			// Reset timer for the actual benchmark
 			b.ResetTimer()
-			start := time.Now()
-			ops := 0
-			for time.Since(start) < tt.duration {
-				ip := fmt.Sprintf("%d", ops%tt.ipRange)
-				ua := fmt.Sprintf("%d", ops%tt.uaRange)
+
+			// Run b.N iterations
+			for i := 0; i < b.N; i++ {
+				ip := fmt.Sprintf("%d", i%tt.ipRange)
+				ua := fmt.Sprintf("%d", i%tt.uaRange)
 
 				_, err := limiter.IsLimited(ip, ua)
 				if err != nil {
 					b.Fatalf("IsLimited failed: %v", err)
 				}
-				ops++
 			}
+
 			b.StopTimer()
 
-			// Get final memory usage.
+			// Get final memory usage
 			memAfter, err := getRedisMemory(pool)
 			if err != nil {
 				b.Fatalf("Failed to get final memory: %v", err)
 			}
 
-			// Add custom metrics.
-			duration := time.Since(start)
-			opsPerSec := float64(ops) / duration.Seconds()
 			memoryUsed := memAfter - memBefore
+			b.ReportMetric(float64(memoryUsed)/float64(b.N), "bytes/op")
 
-			b.ReportMetric(float64(memoryUsed), "memory_bytes")
-			b.ReportMetric(opsPerSec, "ops/sec")
-			b.ReportMetric(float64(memoryUsed)/float64(ops), "bytes/key")
-
-			b.Logf("Total operations: %d", ops)
-			b.Logf("Memory used: %.2f MB", float64(memoryUsed)/(1024*1024))
-			b.Logf("Memory per key: %.2f bytes", float64(memoryUsed)/float64(ops))
-			b.Logf("Operations/sec: %.2f", opsPerSec)
+			b.Logf("Iterations: %d", b.N)
+			b.Logf("  Memory used: %.2f MB", float64(memoryUsed)/(1024*1024))
+			b.Logf("  Memory per operation: %.2f bytes", float64(memoryUsed)/float64(b.N))
 		})
 
 		// Clean up between tests
 		conn := pool.Get()
-		//conn.Do("FLUSHDB")
+		conn.Do("FLUSHDB")
 		conn.Close()
 	}
 }

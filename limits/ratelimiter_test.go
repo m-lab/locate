@@ -171,7 +171,7 @@ func TestRateLimiter_IsLimited(t *testing.T) {
 		}
 	})
 	t.Run("redis errors", func(t *testing.T) {
-		s.FlushDB()
+		cleanRedis()
 
 		// Create a pool that will fail
 		failPool := &redis.Pool{
