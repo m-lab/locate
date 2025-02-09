@@ -53,9 +53,10 @@ var (
 		Options: []string{"secretmanager", "local"},
 		Value:   "secretmanager",
 	}
-	rateLimitInterval time.Duration
-	rateLimitMax      int
-	rateLimitPrefix   string
+	rateLimitRedisAddr string
+	rateLimitInterval  time.Duration
+	rateLimitMax       int
+	rateLimitPrefix    string
 )
 
 func init() {
@@ -77,9 +78,9 @@ func init() {
 	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
 	flag.StringVar(&limitsPath, "limits-path", "/go/src/github.com/m-lab/locate/limits/config.yaml", "Path to the limits config file")
 	flag.DurationVar(&rateLimitInterval, "rate-limit-interval", time.Hour, "Time window for IP+UA rate limiting")
-	flag.IntVar(&rateLimitMax, "rate-limit-max", 60, "Max number of events in the time window for IP+UA rate limiting")
+	flag.IntVar(&rateLimitMax, "rate-limit-max", 5, "Max number of events in the time window for IP+UA rate limiting")
 	flag.StringVar(&rateLimitPrefix, "rate-limit-prefix", "locate:ratelimit:", "Prefix for Redis keys for IP+UA rate limiting")
-
+	flag.StringVar(&rateLimitRedisAddr, "rate-limit-redis-addr", "", "Primary endpoint for Redis instance for rate limiting")
 	// Enable logging with line numbers to trace error locations.
 	log.SetFlags(log.LUTC | log.Llongfile)
 }
@@ -134,16 +135,23 @@ func main() {
 			return redis.Dial("tcp", redisAddr)
 		},
 	}
+	memorystore := memorystore.NewClient[v2.HeartbeatMessage](&pool)
+	tracker := heartbeat.NewHeartbeatStatusTracker(memorystore)
+	defer tracker.StopImport()
+	srvLocatorV2 := heartbeat.NewServerLocator(tracker)
+
+	// Rate limiter Redis pool.
+	rateLimitPool := redis.Pool{
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", rateLimitRedisAddr)
+		},
+	}
 	rateLimitConfig := limits.RateLimitConfig{
 		Interval:  rateLimitInterval,
 		MaxEvents: rateLimitMax,
 		KeyPrefix: rateLimitPrefix,
 	}
-	ipLimiter := limits.NewRateLimiter(&pool, rateLimitConfig)
-	memorystore := memorystore.NewClient[v2.HeartbeatMessage](&pool)
-	tracker := heartbeat.NewHeartbeatStatusTracker(memorystore)
-	defer tracker.StopImport()
-	srvLocatorV2 := heartbeat.NewServerLocator(tracker)
+	ipLimiter := limits.NewRateLimiter(&rateLimitPool, rateLimitConfig)
 
 	creds, err := cfg.LoadPrometheus(mainCtx, promUserSecretName, promPassSecretName)
 	rtx.Must(err, "failed to load Prometheus credentials")
