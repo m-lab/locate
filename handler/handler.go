@@ -52,6 +52,7 @@ type Client struct {
 	PrometheusClient
 	targetTmpl  *template.Template
 	agentLimits limits.Agents
+	ipLimiter   *limits.RateLimiter
 }
 
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
@@ -84,7 +85,8 @@ func init() {
 }
 
 // NewClient creates a new client.
-func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient, lmts limits.Agents) *Client {
+func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator,
+	prom PrometheusClient, lmts limits.Agents, limiter *limits.RateLimiter) *Client {
 	return &Client{
 		Signer:           private,
 		project:          project,
@@ -93,6 +95,7 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 		PrometheusClient: prom,
 		targetTmpl:       template.Must(template.New("name").Parse("{{.Hostname}}{{.Ports}}")),
 		agentLimits:      lmts,
+		ipLimiter:        limiter,
 	}
 }
 
@@ -151,6 +154,35 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 		writeResult(rw, result.Error.Status, &result)
 		metrics.RequestsTotal.WithLabelValues("nearest", "request limit", http.StatusText(result.Error.Status)).Inc()
 		return
+	}
+
+	// Check rate limit for IP and UA.
+	if c.ipLimiter != nil {
+		// Get the IP address from the request. X-Forwarded-For is guaranteed to
+		// be set by AppEngine.
+		ip := req.Header.Get("X-Forwarded-For")
+		ips := strings.Split(ip, ",")
+		ip = strings.TrimSpace(ips[0])
+		if ip != "" {
+			// An empty UA is technically possible. In this case, the key will be
+			// "ip:" and the rate limiting will be based on the IP address only.
+			ua := req.Header.Get("User-Agent")
+			limited, err := c.ipLimiter.IsLimited(ip, ua)
+			if err != nil {
+				// Log error but don't block request (fail open).
+				log.Printf("Rate limiter error: %v", err)
+			} else if limited {
+				result.Error = v2.NewError("client", "Rate limit exceeded", http.StatusTooManyRequests)
+				writeResult(rw, result.Error.Status, &result)
+				metrics.RequestsTotal.WithLabelValues("nearest", "rate limit",
+					http.StatusText(result.Error.Status)).Inc()
+				// For now, we only log the rate limit exceeded message.
+				log.Printf("Rate limit exceeded for IP %s and UA %s", ip, ua)
+			}
+		} else {
+			// This should never happen if Locate is deployed on AppEngine.
+			log.Println("Cannot find IP address for rate limiting.")
+		}
 	}
 
 	experiment, service := getExperimentAndService(req.URL.Path)
