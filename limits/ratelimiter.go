@@ -45,7 +45,7 @@ func NewRateLimiter(pool *redis.Pool, config RateLimitConfig) *RateLimiter {
 
 // generateKey creates a Redis key from IP and User-Agent.
 func (rl *RateLimiter) generateKey(ip, ua string) string {
-	return fmt.Sprintf("%s%s:%s", rl.keyPrefix, ip, ua)
+	return fmt.Sprintf("%s:%s:%s", rl.keyPrefix, ip, ua)
 }
 
 // IsLimited checks if the given IP and User-Agent combination should be rate limited.

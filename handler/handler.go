@@ -172,6 +172,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 			limited, err := c.ipLimiter.IsLimited(ip, ua)
 			if err != nil {
 				// Log error but don't block request (fail open).
+				// TODO: Add tests for this path.
 				log.Printf("Rate limiter error: %v", err)
 			} else if limited {
 				metrics.RequestsTotal.WithLabelValues("nearest", "rate limit",
