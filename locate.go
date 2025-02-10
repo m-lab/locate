@@ -53,6 +53,10 @@ var (
 		Options: []string{"secretmanager", "local"},
 		Value:   "secretmanager",
 	}
+	rateLimitRedisAddr string
+	rateLimitInterval  time.Duration
+	rateLimitMax       int
+	rateLimitPrefix    string
 )
 
 func init() {
@@ -73,7 +77,10 @@ func init() {
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
 	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
 	flag.StringVar(&limitsPath, "limits-path", "/go/src/github.com/m-lab/locate/limits/config.yaml", "Path to the limits config file")
-
+	flag.DurationVar(&rateLimitInterval, "rate-limit-interval", time.Hour, "Time window for IP+UA rate limiting")
+	flag.IntVar(&rateLimitMax, "rate-limit-max", 40, "Max number of events in the time window for IP+UA rate limiting")
+	flag.StringVar(&rateLimitPrefix, "rate-limit-prefix", "locate:ratelimit", "Prefix for Redis keys for IP+UA rate limiting")
+	flag.StringVar(&rateLimitRedisAddr, "rate-limit-redis-address", "", "Primary endpoint for Redis instance for rate limiting")
 	// Enable logging with line numbers to trace error locations.
 	log.SetFlags(log.LUTC | log.Llongfile)
 }
@@ -133,6 +140,19 @@ func main() {
 	defer tracker.StopImport()
 	srvLocatorV2 := heartbeat.NewServerLocator(tracker)
 
+	// Rate limiter Redis pool.
+	rateLimitPool := redis.Pool{
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", rateLimitRedisAddr)
+		},
+	}
+	rateLimitConfig := limits.RateLimitConfig{
+		Interval:  rateLimitInterval,
+		MaxEvents: rateLimitMax,
+		KeyPrefix: rateLimitPrefix,
+	}
+	ipLimiter := limits.NewRateLimiter(&rateLimitPool, rateLimitConfig)
+
 	creds, err := cfg.LoadPrometheus(mainCtx, promUserSecretName, promPassSecretName)
 	rtx.Must(err, "failed to load Prometheus credentials")
 	promClient, err := prometheus.NewClient(creds, promURL)
@@ -140,7 +160,7 @@ func main() {
 
 	lmts, err := limits.ParseConfig(limitsPath)
 	rtx.Must(err, "failed to parse limits config")
-	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient, lmts)
+	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient, lmts, ipLimiter)
 
 	go func() {
 		// Check and reload db at least once a day.
