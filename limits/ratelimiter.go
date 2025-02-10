@@ -8,10 +8,13 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-// RateLimitConfig holds the configuration for IP+UA rate limiting
+// RateLimitConfig holds the configuration for IP+UA rate limiting.
 type RateLimitConfig struct {
-	Interval  time.Duration
+	// Interval defines the duration of the sliding window.
+	Interval time.Duration
+	// MaxEvents defines the maximum number of events allowed in the interval.
 	MaxEvents int
+	// KeyPrefix is the prefix for Redis keys.
 	KeyPrefix string
 }
 
@@ -30,7 +33,7 @@ type RateLimiter struct {
 	keyPrefix string
 }
 
-// NewRateLimiter creates a new rate limiter
+// NewRateLimiter creates a new rate limiter.
 func NewRateLimiter(pool *redis.Pool, config RateLimitConfig) *RateLimiter {
 	return &RateLimiter{
 		pool:      pool,
@@ -40,7 +43,7 @@ func NewRateLimiter(pool *redis.Pool, config RateLimitConfig) *RateLimiter {
 	}
 }
 
-// generateKey creates a Redis key from IP and User-Agent
+// generateKey creates a Redis key from IP and User-Agent.
 func (rl *RateLimiter) generateKey(ip, ua string) string {
 	return fmt.Sprintf("%s%s:%s", rl.keyPrefix, ip, ua)
 }

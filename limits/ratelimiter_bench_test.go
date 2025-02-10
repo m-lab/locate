@@ -63,28 +63,24 @@ func BenchmarkRateLimiter_RealWorld(b *testing.B) {
 		uaRange  int // Number of unique UAs
 	}{
 		{
-			name:     "SingleIPUA_Long",
-			duration: 5 * time.Second,
-			ipRange:  1,
-			uaRange:  1,
+			name:    "SingleIPUA_Long",
+			ipRange: 1,
+			uaRange: 1,
 		},
 		{
-			name:     "ManyIPs_OneUA",
-			duration: 5 * time.Second,
-			ipRange:  100000,
-			uaRange:  1,
+			name:    "ManyIPs_OneUA",
+			ipRange: 100000,
+			uaRange: 1,
 		},
 		{
-			name:     "OneIP_ManyUAs",
-			duration: 5 * time.Second,
-			ipRange:  1,
-			uaRange:  100000,
+			name:    "OneIP_ManyUAs",
+			ipRange: 1,
+			uaRange: 100000,
 		},
 		{
-			name:     "ManyIPs_ManyUAs",
-			duration: 5 * time.Second,
-			ipRange:  100,
-			uaRange:  10000,
+			name:    "ManyIPs_ManyUAs",
+			ipRange: 100,
+			uaRange: 10000,
 		},
 	}
 

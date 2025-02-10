@@ -162,7 +162,9 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 		// be set by AppEngine.
 		ip := req.Header.Get("X-Forwarded-For")
 		ips := strings.Split(ip, ",")
-		ip = strings.TrimSpace(ips[0])
+		if len(ips) > 0 {
+			ip = strings.TrimSpace(ips[0])
+		}
 		if ip != "" {
 			// An empty UA is technically possible. In this case, the key will be
 			// "ip:" and the rate limiting will be based on the IP address only.
