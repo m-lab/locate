@@ -177,6 +177,8 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 				metrics.RequestsTotal.WithLabelValues("nearest", "rate limit",
 					http.StatusText(result.Error.Status)).Inc()
 				// For now, we only log the rate limit exceeded message.
+				// TODO: Actually block the request and return an appropriate HTTP error
+				// code and message.
 				log.Printf("Rate limit exceeded for IP %s and UA %s", ip, ua)
 			}
 		} else {
