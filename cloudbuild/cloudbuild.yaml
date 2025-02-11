@@ -50,7 +50,7 @@ steps:
     -e 's/{{REDIS_ADDRESS}}/$_REDIS_ADDRESS/'
     -e 's/{{RATE_LIMIT_REDIS_ADDRESS}}/$_RATE_LIMIT_REDIS_ADDRESS/'
     app.yaml
-  - gcloud --project $PROJECT_ID app deploy --promote app.yaml
+  - gcloud --project $PROJECT_ID app deploy --no-promote app.yaml
   # After deploying the new service, deploy the openapi spec.
   - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' -e 's/{{DEPLOYMENT}}/Production/' openapi.yaml
   - gcloud endpoints services deploy openapi.yaml
