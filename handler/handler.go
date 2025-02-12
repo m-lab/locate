@@ -175,12 +175,13 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 				// TODO: Add tests for this path.
 				log.Printf("Rate limiter error: %v", err)
 			} else if limited {
+				// Log IP and UA and block the request.
+				result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
 				metrics.RequestsTotal.WithLabelValues("nearest", "rate limit",
-					http.StatusText(http.StatusTooManyRequests)).Inc()
-				// For now, we only log the rate limit exceeded message.
-				// TODO: Actually block the request and return an appropriate HTTP error
-				// code and message.
+					http.StatusText(result.Error.Status)).Inc()
 				log.Printf("Rate limit exceeded for IP %s and UA %s", ip, ua)
+				writeResult(rw, result.Error.Status, &result)
+				return
 			}
 		} else {
 			// This should never happen if Locate is deployed on AppEngine.
