@@ -71,6 +71,18 @@ func (l *fakeAppEngineLocator) Locate(req *http.Request) (*clientgeo.Location, e
 	return l.loc, l.err
 }
 
+type fakeRateLimiter struct {
+	limited bool
+	err     error
+}
+
+func (r *fakeRateLimiter) IsLimited(ip, ua string) (bool, error) {
+	if r.err != nil {
+		return false, r.err
+	}
+	return r.limited, nil
+}
+
 func TestClient_Nearest(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -81,6 +93,7 @@ func TestClient_Nearest(t *testing.T) {
 		project    string
 		latlon     string
 		limits     limits.Agents
+		ipLimiter  Limiter
 		header     http.Header
 		wantLatLon string
 		wantKey    string
@@ -206,13 +219,96 @@ func TestClient_Nearest(t *testing.T) {
 			wantKey:    "ws://:3001/ndt_protocol",
 			wantStatus: http.StatusOK,
 		},
+		{
+			name:   "error-rate-limit-exceeded",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+			},
+			header: http.Header{
+				"X-Forwarded-For": []string{"192.0.2.1"},
+				"User-Agent":      []string{"test-client"},
+			},
+			ipLimiter: &fakeRateLimiter{
+				limited: true,
+			},
+			wantStatus: http.StatusTooManyRequests,
+		},
+		{
+			name:   "success-rate-limit-not-exceeded",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+					{Scheme: "wss", Host: ":3010", Path: "ndt_protocol"},
+				},
+			},
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.168.1.1"},
+				"User-Agent":              []string{"test-client"},
+			},
+			ipLimiter: &fakeRateLimiter{
+				limited: false,
+			},
+			wantLatLon: "40.3,-70.4",
+			wantKey:    "ws://:3001/ndt_protocol",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "success-rate-limiter-error",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+					{Scheme: "wss", Host: ":3010", Path: "/ndt_protocol"},
+				},
+			},
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.168.1.1"},
+				"User-Agent":              []string{"test-client"},
+			},
+			ipLimiter: &fakeRateLimiter{
+				err: errors.New("redis error"),
+			},
+			wantLatLon: "40.3,-70.4",
+			wantKey:    "ws://:3001/ndt_protocol",
+			wantStatus: http.StatusOK, // Should fail open
+		},
+		{
+			name:   "success-missing-forwarded-for",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+					{Scheme: "wss", Host: ":3010", Path: "/ndt_protocol"},
+				},
+			},
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				// No X-Forwarded-For
+				"User-Agent": []string{"test-client"},
+			},
+			ipLimiter:  &fakeRateLimiter{limited: false},
+			wantLatLon: "40.3,-70.4",
+			wantKey:    "ws://:3001/ndt_protocol",
+			wantStatus: http.StatusOK,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.cl == nil {
 				tt.cl = clientgeo.NewAppEngineLocator()
 			}
-			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits, nil)
+			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits, tt.ipLimiter)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.Nearest)

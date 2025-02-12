@@ -43,6 +43,10 @@ type Signer interface {
 	Sign(cl jwt.Claims) (string, error)
 }
 
+type Limiter interface {
+	IsLimited(ip, ua string) (bool, error)
+}
+
 // Client contains state needed for xyz.
 type Client struct {
 	Signer
@@ -52,7 +56,7 @@ type Client struct {
 	PrometheusClient
 	targetTmpl  *template.Template
 	agentLimits limits.Agents
-	ipLimiter   *limits.RateLimiter
+	ipLimiter   Limiter
 }
 
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
@@ -86,7 +90,7 @@ func init() {
 
 // NewClient creates a new client.
 func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator,
-	prom PrometheusClient, lmts limits.Agents, limiter *limits.RateLimiter) *Client {
+	prom PrometheusClient, lmts limits.Agents, limiter Limiter) *Client {
 	return &Client{
 		Signer:           private,
 		project:          project,
