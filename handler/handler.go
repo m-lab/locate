@@ -43,6 +43,10 @@ type Signer interface {
 	Sign(cl jwt.Claims) (string, error)
 }
 
+type Limiter interface {
+	IsLimited(ip, ua string) (bool, error)
+}
+
 // Client contains state needed for xyz.
 type Client struct {
 	Signer
@@ -52,7 +56,7 @@ type Client struct {
 	PrometheusClient
 	targetTmpl  *template.Template
 	agentLimits limits.Agents
-	ipLimiter   *limits.RateLimiter
+	ipLimiter   Limiter
 }
 
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
@@ -86,7 +90,7 @@ func init() {
 
 // NewClient creates a new client.
 func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator,
-	prom PrometheusClient, lmts limits.Agents, limiter *limits.RateLimiter) *Client {
+	prom PrometheusClient, lmts limits.Agents, limiter Limiter) *Client {
 	return &Client{
 		Signer:           private,
 		project:          project,
@@ -175,12 +179,13 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 				// TODO: Add tests for this path.
 				log.Printf("Rate limiter error: %v", err)
 			} else if limited {
+				// Log IP and UA and block the request.
+				result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
 				metrics.RequestsTotal.WithLabelValues("nearest", "rate limit",
-					http.StatusText(http.StatusTooManyRequests)).Inc()
-				// For now, we only log the rate limit exceeded message.
-				// TODO: Actually block the request and return an appropriate HTTP error
-				// code and message.
+					http.StatusText(result.Error.Status)).Inc()
 				log.Printf("Rate limit exceeded for IP %s and UA %s", ip, ua)
+				writeResult(rw, result.Error.Status, &result)
+				return
 			}
 		} else {
 			// This should never happen if Locate is deployed on AppEngine.
