@@ -19,6 +19,15 @@ var (
 		[]string{"type", "condition", "status"},
 	)
 
+	// RateLimitedTotal tracks the number of rate-limited requests by client name.
+	RateLimitedTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "locate_rate_limited_total",
+			Help: "Total number of rate-limited requests by client name",
+		},
+		[]string{"clientname"},
+	)
+
 	// AppEngineTotal counts the number of times App Engine headers are
 	// used to try to find the client location.
 	//

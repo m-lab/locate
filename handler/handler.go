@@ -183,7 +183,13 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 				result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
 				metrics.RequestsTotal.WithLabelValues("nearest", "rate limit",
 					http.StatusText(result.Error.Status)).Inc()
-				log.Printf("Rate limit exceeded for IP %s and UA %s", ip, ua)
+				// If the client provided a client_name, we want to know how many times
+				// that client_name was rate limited. This may be empty, which is fine.
+				clientName := req.Form.Get("client_name")
+				metrics.RateLimitedTotal.WithLabelValues(clientName).Inc()
+
+				log.Printf("Rate limit exceeded for IP: %s, client: %s, UA: %s", ip,
+					clientName, ua)
 				writeResult(rw, result.Error.Status, &result)
 				return
 			}
