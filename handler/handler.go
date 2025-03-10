@@ -44,7 +44,7 @@ type Signer interface {
 }
 
 type Limiter interface {
-	IsLimited(ip, ua string) (bool, error)
+	IsLimited(ip, ua string) (limits.LimitStatus, error)
 }
 
 // Client contains state needed for xyz.
@@ -170,15 +170,14 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 			ip = strings.TrimSpace(ips[0])
 		}
 		if ip != "" {
-			// An empty UA is technically possible. In this case, the key will be
-			// "ip:" and the rate limiting will be based on the IP address only.
+			// An empty UA is technically possible.
 			ua := req.Header.Get("User-Agent")
-			limited, err := c.ipLimiter.IsLimited(ip, ua)
+			status, err := c.ipLimiter.IsLimited(ip, ua)
 			if err != nil {
 				// Log error but don't block request (fail open).
 				// TODO: Add tests for this path.
 				log.Printf("Rate limiter error: %v", err)
-			} else if limited {
+			} else if status.IsLimited {
 				// Log IP and UA and block the request.
 				result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
 				metrics.RequestsTotal.WithLabelValues("nearest", "rate limit",
@@ -186,10 +185,10 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 				// If the client provided a client_name, we want to know how many times
 				// that client_name was rate limited. This may be empty, which is fine.
 				clientName := req.Form.Get("client_name")
-				metrics.RateLimitedTotal.WithLabelValues(clientName).Inc()
+				metrics.RateLimitedTotal.WithLabelValues(clientName, status.LimitType).Inc()
 
-				log.Printf("Rate limit exceeded for IP: %s, client: %s, UA: %s", ip,
-					clientName, ua)
+				log.Printf("Rate limit (%s) exceeded for IP: %s, client: %s, UA: %s", ip,
+					status.LimitType, clientName, ua)
 				writeResult(rw, result.Error.Status, &result)
 				return
 			}

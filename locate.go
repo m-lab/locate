@@ -53,10 +53,13 @@ var (
 		Options: []string{"secretmanager", "local"},
 		Value:   "secretmanager",
 	}
-	rateLimitRedisAddr string
-	rateLimitInterval  time.Duration
-	rateLimitMax       int
-	rateLimitPrefix    string
+
+	rateLimitRedisAddr    string
+	rateLimitPrefix       string
+	rateLimitIPUAInterval time.Duration
+	rateLimitIPUAMax      int
+	rateLimitIPInterval   time.Duration
+	rateLimitIPMax        int
 )
 
 func init() {
@@ -77,8 +80,12 @@ func init() {
 	flag.Var(&maxmind, "maxmind-url", "When -locator-maxmind is true, the tar URL of MaxMind IP database. May be: gs://bucket/file or file:./relativepath/file")
 	flag.Var(&keySource, "key-source", "Where to load signer and verifier keys")
 	flag.StringVar(&limitsPath, "limits-path", "/go/src/github.com/m-lab/locate/limits/config.yaml", "Path to the limits config file")
-	flag.DurationVar(&rateLimitInterval, "rate-limit-interval", time.Hour, "Time window for IP+UA rate limiting")
-	flag.IntVar(&rateLimitMax, "rate-limit-max", 40, "Max number of events in the time window for IP+UA rate limiting")
+	flag.DurationVar(&rateLimitIPUAInterval, "rate-limit-interval", time.Hour, "Time window for IP+UA rate limiting")
+	flag.IntVar(&rateLimitIPUAMax, "rate-limit-max", 40, "Max number of events in the time window for IP+UA rate limiting")
+	flag.DurationVar(&rateLimitIPInterval, "rate-limit-ip-interval", time.Hour,
+		"Time window for IP-only rate limiting")
+	flag.IntVar(&rateLimitIPMax, "rate-limit-ip-max", 120,
+		"Max number of events in the time window for IP-only rate limiting")
 	flag.StringVar(&rateLimitPrefix, "rate-limit-prefix", "locate:ratelimit", "Prefix for Redis keys for IP+UA rate limiting")
 	flag.StringVar(&rateLimitRedisAddr, "rate-limit-redis-address", "", "Primary endpoint for Redis instance for rate limiting")
 	// Enable logging with line numbers to trace error locations.
@@ -147,8 +154,14 @@ func main() {
 		},
 	}
 	rateLimitConfig := limits.RateLimitConfig{
-		Interval:  rateLimitInterval,
-		MaxEvents: rateLimitMax,
+		IPConfig: limits.LimitConfig{
+			Interval:  rateLimitIPInterval,
+			MaxEvents: rateLimitIPMax,
+		},
+		IPUAConfig: limits.LimitConfig{
+			Interval:  rateLimitIPUAInterval,
+			MaxEvents: rateLimitIPUAMax,
+		},
 		KeyPrefix: rateLimitPrefix,
 	}
 	ipLimiter := limits.NewRateLimiter(&rateLimitPool, rateLimitConfig)
