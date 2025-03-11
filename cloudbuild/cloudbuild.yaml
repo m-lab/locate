@@ -7,7 +7,7 @@ options:
 
 steps:
   # Run unit tests for environment.
-  - name: us-central1-docker.pkg.dev/$PROJECT_ID/build-images/golang-cbif:1.20
+  - name: us-central1-docker.pkg.dev/$_ARTIFACT_PROJECT_ID/build-images/golang-cbif:1.20
     env:
       - GONOPROXY=github.com/m-lab/go/*
     args:
@@ -18,7 +18,7 @@ steps:
       - go test -v ./...
 
   # Deployment of APIs in sandbox & staging.
-  - name: us-central1-docker.pkg.dev/$PROJECT_ID/build-images/gcloud-jsonnet-cbif:1.1
+  - name: us-central1-docker.pkg.dev/$_ARTIFACT_PROJECT_ID/build-images/gcloud-jsonnet-cbif:1.1
     env:
       # Use cbif condition: only run these steps in one of these projects.
       - PROJECT_IN=mlab-sandbox,mlab-staging
@@ -32,6 +32,8 @@ steps:
         -e 's/{{RATE_LIMIT_REDIS_ADDRESS}}/$_RATE_LIMIT_REDIS_ADDRESS/'
         -e 's/{{RATE_LIMIT_INTERVAL}}/$_RATE_LIMIT_INTERVAL/'
         -e 's/{{RATE_LIMIT_MAX}}/$_RATE_LIMIT_MAX/'
+        -e 's/{{RATE_LIMIT_IP_INTERVAL}}/$_RATE_LIMIT_IP_INTERVAL/'
+        -e 's/{{RATE_LIMIT_IP_MAX}}/$_RATE_LIMIT_IP_MAX/'
         app.yaml
       - gcloud --project $PROJECT_ID app deploy --promote app.yaml
       # After deploying the new service, deploy the openapi spec.
@@ -39,7 +41,7 @@ steps:
       - gcloud endpoints services deploy openapi.yaml
 
   # Deployment of APIs in mlab-ns.
-  - name: us-central1-docker.pkg.dev/$PROJECT_ID/build-images/gcloud-jsonnet-cbif:1.1
+  - name: us-central1-docker.pkg.dev/$_ARTIFACT_PROJECT_ID/build-images/gcloud-jsonnet-cbif:1.1
     env:
       # Use cbif condition: only run these steps in this project.
       - PROJECT_IN=mlab-ns
@@ -53,6 +55,8 @@ steps:
         -e 's/{{RATE_LIMIT_REDIS_ADDRESS}}/$_RATE_LIMIT_REDIS_ADDRESS/'
         -e 's/{{RATE_LIMIT_INTERVAL}}/$_RATE_LIMIT_INTERVAL/'
         -e 's/{{RATE_LIMIT_MAX}}/$_RATE_LIMIT_MAX/'
+        -e 's/{{RATE_LIMIT_IP_INTERVAL}}/$_RATE_LIMIT_IP_INTERVAL/'
+        -e 's/{{RATE_LIMIT_IP_MAX}}/$_RATE_LIMIT_IP_MAX/'
         app.yaml
       - gcloud --project $PROJECT_ID app deploy --no-promote app.yaml
       # After deploying the new service, deploy the openapi spec.
