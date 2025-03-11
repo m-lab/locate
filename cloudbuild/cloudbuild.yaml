@@ -3,12 +3,11 @@ timeout: 3600s
 options:
   env:
     - PROJECT_ID=$PROJECT_ID
-    - ARTIFACT_PROJECT_ID=$_ARTIFACT_PROJECT_ID
     - WORKSPACE_LINK=/go/src/github.com/m-lab/locate
 
 steps:
   # Run unit tests for environment.
-  - name: us-central1-docker.pkg.dev/$ARTIFACT_PROJECT_ID/build-images/golang-cbif:1.20
+  - name: us-central1-docker.pkg.dev/$_ARTIFACT_PROJECT_ID/build-images/golang-cbif:1.20
     env:
       - GONOPROXY=github.com/m-lab/go/*
     args:
@@ -19,7 +18,7 @@ steps:
       - go test -v ./...
 
   # Deployment of APIs in sandbox & staging.
-  - name: us-central1-docker.pkg.dev/$ARTIFACT_PROJECT_ID/build-images/gcloud-jsonnet-cbif:1.1
+  - name: us-central1-docker.pkg.dev/$_ARTIFACT_PROJECT_ID/build-images/gcloud-jsonnet-cbif:1.1
     env:
       # Use cbif condition: only run these steps in one of these projects.
       - PROJECT_IN=mlab-sandbox,mlab-staging
@@ -42,7 +41,7 @@ steps:
       - gcloud endpoints services deploy openapi.yaml
 
   # Deployment of APIs in mlab-ns.
-  - name: us-central1-docker.pkg.dev/$ARTIFACT_PROJECT_ID/build-images/gcloud-jsonnet-cbif:1.1
+  - name: us-central1-docker.pkg.dev/$_ARTIFACT_PROJECT_ID/build-images/gcloud-jsonnet-cbif:1.1
     env:
       # Use cbif condition: only run these steps in this project.
       - PROJECT_IN=mlab-ns
