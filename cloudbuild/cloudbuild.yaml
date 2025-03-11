@@ -32,6 +32,8 @@ steps:
         -e 's/{{RATE_LIMIT_REDIS_ADDRESS}}/$_RATE_LIMIT_REDIS_ADDRESS/'
         -e 's/{{RATE_LIMIT_INTERVAL}}/$_RATE_LIMIT_INTERVAL/'
         -e 's/{{RATE_LIMIT_MAX}}/$_RATE_LIMIT_MAX/'
+        -e 's/{{RATE_LIMIT_IP_INTERVAL}}/$_RATE_LIMIT_IP_INTERVAL/'
+        -e 's/{{RATE_LIMIT_IP_MAX}}/$_RATE_LIMIT_IP_MAX/'
         app.yaml
       - gcloud --project $PROJECT_ID app deploy --promote app.yaml
       # After deploying the new service, deploy the openapi spec.
@@ -53,6 +55,8 @@ steps:
         -e 's/{{RATE_LIMIT_REDIS_ADDRESS}}/$_RATE_LIMIT_REDIS_ADDRESS/'
         -e 's/{{RATE_LIMIT_INTERVAL}}/$_RATE_LIMIT_INTERVAL/'
         -e 's/{{RATE_LIMIT_MAX}}/$_RATE_LIMIT_MAX/'
+        -e 's/{{RATE_LIMIT_IP_INTERVAL}}/$_RATE_LIMIT_IP_INTERVAL/'
+        -e 's/{{RATE_LIMIT_IP_MAX}}/$_RATE_LIMIT_IP_MAX/'
         app.yaml
       - gcloud --project $PROJECT_ID app deploy --no-promote app.yaml
       # After deploying the new service, deploy the openapi spec.
