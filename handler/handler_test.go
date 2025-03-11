@@ -72,15 +72,15 @@ func (l *fakeAppEngineLocator) Locate(req *http.Request) (*clientgeo.Location, e
 }
 
 type fakeRateLimiter struct {
-	limited bool
-	err     error
+	status limits.LimitStatus
+	err    error
 }
 
-func (r *fakeRateLimiter) IsLimited(ip, ua string) (bool, error) {
+func (r *fakeRateLimiter) IsLimited(ip, ua string) (limits.LimitStatus, error) {
 	if r.err != nil {
-		return false, r.err
+		return limits.LimitStatus{}, r.err
 	}
-	return r.limited, nil
+	return r.status, nil
 }
 
 func TestClient_Nearest(t *testing.T) {
@@ -220,7 +220,7 @@ func TestClient_Nearest(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:   "error-rate-limit-exceeded",
+			name:   "error-rate-limit-exceeded-ip",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
 			locator: &fakeLocatorV2{
@@ -231,7 +231,29 @@ func TestClient_Nearest(t *testing.T) {
 				"User-Agent":      []string{"test-client"},
 			},
 			ipLimiter: &fakeRateLimiter{
-				limited: true,
+				status: limits.LimitStatus{
+					IsLimited: true,
+					LimitType: "ip",
+				},
+			},
+			wantStatus: http.StatusTooManyRequests,
+		},
+		{
+			name:   "error-rate-limit-exceeded-ipua",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+			},
+			header: http.Header{
+				"X-Forwarded-For": []string{"192.0.2.1"},
+				"User-Agent":      []string{"test-client"},
+			},
+			ipLimiter: &fakeRateLimiter{
+				status: limits.LimitStatus{
+					IsLimited: true,
+					LimitType: "ipua",
+				},
 			},
 			wantStatus: http.StatusTooManyRequests,
 		},
@@ -252,7 +274,10 @@ func TestClient_Nearest(t *testing.T) {
 				"User-Agent":              []string{"test-client"},
 			},
 			ipLimiter: &fakeRateLimiter{
-				limited: false,
+				status: limits.LimitStatus{
+					IsLimited: false,
+					LimitType: "",
+				},
 			},
 			wantLatLon: "40.3,-70.4",
 			wantKey:    "ws://:3001/ndt_protocol",
@@ -297,7 +322,12 @@ func TestClient_Nearest(t *testing.T) {
 				// No X-Forwarded-For
 				"User-Agent": []string{"test-client"},
 			},
-			ipLimiter:  &fakeRateLimiter{limited: false},
+			ipLimiter: &fakeRateLimiter{
+				status: limits.LimitStatus{
+					IsLimited: false,
+					LimitType: "",
+				},
+			},
 			wantLatLon: "40.3,-70.4",
 			wantKey:    "ws://:3001/ndt_protocol",
 			wantStatus: http.StatusOK,

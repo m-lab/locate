@@ -38,10 +38,16 @@ func BenchmarkRateLimiter_RealWorld(b *testing.B) {
 		},
 	}
 
-	// Create rate limiter with 60 requests/hour limit
+	// Create rate limiter with different limits for IP and IP+UA
 	limiter := NewRateLimiter(pool, RateLimitConfig{
-		Interval:  time.Hour,
-		MaxEvents: 60,
+		IPConfig: LimitConfig{
+			Interval:  time.Hour,
+			MaxEvents: 120, // More permissive IP-only limit
+		},
+		IPUAConfig: LimitConfig{
+			Interval:  time.Hour,
+			MaxEvents: 60, // Stricter IP+UA limit
+		},
 		KeyPrefix: "benchmark:",
 	})
 
@@ -59,8 +65,10 @@ func BenchmarkRateLimiter_RealWorld(b *testing.B) {
 	tests := []struct {
 		name     string
 		duration time.Duration
-		ipRange  int // Number of unique IPs
-		uaRange  int // Number of unique UAs
+		ipRange  int  // Number of unique IPs
+		uaRange  int  // Number of unique UAs
+		ipOnly   bool // Whether to test IP-only limiting
+
 	}{
 		{
 			name:    "SingleIPUA_Long",
