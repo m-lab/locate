@@ -32,6 +32,11 @@ const (
 	EarlyExitParameter         = "early_exit"
 	MaxCwndGainParameter       = "max_cwnd_gain"
 	MaxElapsedTimeParameter    = "max_elapsed_time"
+	CountryParameter           = "country"
+	SiteParameter              = "site"
+	StrictParameter            = "strict"
+	OrgParameter               = "org"
+	MachineTypeParameter       = "machine-type"
 )
 
 // URL creates inline url.URLs.
@@ -49,6 +54,11 @@ var ServiceParams = map[string]float64{
 	EarlyExitParameter:      0.9,
 	MaxCwndGainParameter:    1,
 	MaxElapsedTimeParameter: 1,
+	CountryParameter:        1,
+	SiteParameter:           1,
+	StrictParameter:         1,
+	OrgParameter:            1,
+	MachineTypeParameter:    1,
 }
 
 // Configs is a temporary, static mapping of service names and their set of
