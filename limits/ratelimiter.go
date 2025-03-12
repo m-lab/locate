@@ -125,7 +125,7 @@ func (rl *RateLimiter) IsLimited(ip, ua string) (LimitStatus, error) {
 	if ipCount > int64(rl.ipConfig.MaxEvents) {
 		// Allow 1/(count) requests to get through the limiter anyway.
 		// This is effectively one request per IP every interval.
-		if rand.Float64() >= 1.0/float64(ipCount) {
+		if randFloat64() >= 1.0/float64(ipCount) {
 			return LimitStatus{
 				IsLimited: true,
 				LimitType: "ip",
@@ -150,7 +150,7 @@ func (rl *RateLimiter) IsLimited(ip, ua string) (LimitStatus, error) {
 	if ipuaCount > int64(rl.ipuaConfig.MaxEvents) {
 		// Allow 1/(count) requests to get through the limiter anyway.
 		// This is effectively one request per IP+UA every interval.
-		if rand.Float64() >= 1.0/float64(ipuaCount) {
+		if randFloat64() >= 1.0/float64(ipuaCount) {
 			return LimitStatus{
 				IsLimited: true,
 				LimitType: "ipua",
