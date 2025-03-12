@@ -36,6 +36,10 @@ func TestRateLimiter_IsLimited(t *testing.T) {
 	// Clean up after all tests
 	defer cleanRedis()
 
+	randFloat64 = func() float64 {
+		return 1.0
+	}
+
 	t.Run("under both limits", func(t *testing.T) {
 		cleanRedis()
 		rl := NewRateLimiter(pool, RateLimitConfig{

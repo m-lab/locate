@@ -9,6 +9,8 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
+var randFloat64 = rand.Float64
+
 // LimitStatus indicates the result of a rate limit check
 type LimitStatus struct {
 	// IsLimited indicates if the request should be rate limited
