@@ -2,7 +2,7 @@ package limits
 
 import (
 	"fmt"
-	"math/rand/v2"
+	"math/rand"
 	"strconv"
 	"time"
 
