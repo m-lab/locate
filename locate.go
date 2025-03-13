@@ -60,6 +60,8 @@ var (
 	rateLimitIPUAMax      int
 	rateLimitIPInterval   time.Duration
 	rateLimitIPMax        int
+
+	earlyExitClients flagx.StringArray
 )
 
 func init() {
@@ -88,6 +90,7 @@ func init() {
 		"Max number of events in the time window for IP-only rate limiting")
 	flag.StringVar(&rateLimitPrefix, "rate-limit-prefix", "locate:ratelimit", "Prefix for Redis keys for IP+UA rate limiting")
 	flag.StringVar(&rateLimitRedisAddr, "rate-limit-redis-address", "", "Primary endpoint for Redis instance for rate limiting")
+	flag.Var(&earlyExitClients, "early-exit-clients", "Client names that should receive early_exit parameter (can be specified multiple times)")
 	// Enable logging with line numbers to trace error locations.
 	log.SetFlags(log.LUTC | log.Llongfile)
 }
@@ -173,7 +176,8 @@ func main() {
 
 	lmts, err := limits.ParseConfig(limitsPath)
 	rtx.Must(err, "failed to parse limits config")
-	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient, lmts, ipLimiter)
+	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient,
+		lmts, ipLimiter, earlyExitClients)
 
 	go func() {
 		// Check and reload db at least once a day.

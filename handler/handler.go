@@ -54,9 +54,10 @@ type Client struct {
 	LocatorV2
 	ClientLocator
 	PrometheusClient
-	targetTmpl  *template.Template
-	agentLimits limits.Agents
-	ipLimiter   Limiter
+	targetTmpl       *template.Template
+	agentLimits      limits.Agents
+	ipLimiter        Limiter
+	earlyExitClients map[string]bool
 }
 
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
@@ -90,7 +91,12 @@ func init() {
 
 // NewClient creates a new client.
 func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator,
-	prom PrometheusClient, lmts limits.Agents, limiter Limiter) *Client {
+	prom PrometheusClient, lmts limits.Agents, limiter Limiter, earlyExitClients []string) *Client {
+	// Convert slice to map for O(1) lookups
+	earlyExitMap := make(map[string]bool)
+	for _, client := range earlyExitClients {
+		earlyExitMap[client] = true
+	}
 	return &Client{
 		Signer:           private,
 		project:          project,
@@ -100,6 +106,7 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 		targetTmpl:       template.Must(template.New("name").Parse("{{.Hostname}}{{.Ports}}")),
 		agentLimits:      lmts,
 		ipLimiter:        limiter,
+		earlyExitClients: earlyExitMap,
 	}
 }
 
@@ -116,8 +123,9 @@ func NewClientDirect(project string, private Signer, locatorV2 LocatorV2, client
 	}
 }
 
-func extraParams(hostname string, index int, p paramOpts) url.Values {
+func (c *Client) extraParams(hostname string, index int, p paramOpts) url.Values {
 	v := url.Values{}
+
 	// Add client parameters.
 	for key := range p.raw {
 		if strings.HasPrefix(key, "client_") {
@@ -129,6 +137,12 @@ func extraParams(hostname string, index int, p paramOpts) url.Values {
 		if ok && rand.Float64() < val {
 			v.Set(key, p.raw.Get(key))
 		}
+	}
+
+	// Add early_exit parameter for specified clients
+	clientName := p.raw.Get("client_name")
+	if clientName != "" && c.earlyExitClients[clientName] {
+		v.Set(static.EarlyExitParameter, static.EarlyExitDefaultValue)
 	}
 
 	// Add Locate Service version.
@@ -323,7 +337,7 @@ func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) 
 func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, pOpts paramOpts) {
 	for i, target := range targets {
 		token := c.getAccessToken(target.Machine, exp)
-		params := extraParams(target.Machine, i, pOpts)
+		params := c.extraParams(target.Machine, i, pOpts)
 		targets[i].URLs = c.getURLs(ports, target.Hostname, token, params)
 	}
 }

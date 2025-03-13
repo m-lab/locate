@@ -338,7 +338,7 @@ func TestClient_Nearest(t *testing.T) {
 			if tt.cl == nil {
 				tt.cl = clientgeo.NewAppEngineLocator()
 			}
-			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits, tt.ipLimiter)
+			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits, tt.ipLimiter, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.Nearest)
@@ -417,7 +417,7 @@ func TestClient_Ready(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil, nil, nil)
+			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil, nil, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/ready/", c.Ready)
@@ -475,7 +475,7 @@ func TestClient_Registrations(t *testing.T) {
 		}
 
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: fakeStatusTracker}, nil, nil, nil, nil)
+			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: fakeStatusTracker}, nil, nil, nil, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/siteinfo/registrations/", c.Registrations)
@@ -499,6 +499,7 @@ func TestExtraParams(t *testing.T) {
 		hostname             string
 		index                int
 		p                    paramOpts
+		client               *Client
 		earlyExitProbability float64
 		want                 url.Values
 	}{
@@ -512,8 +513,50 @@ func TestExtraParams(t *testing.T) {
 				ranks:     map[string]int{"host": 0},
 				svcParams: map[string]float64{},
 			},
+			client: &Client{},
 			want: url.Values{
 				"client_name":    []string{"client"},
+				"locate_version": []string{"v2"},
+				"metro_rank":     []string{"0"},
+				"index":          []string{"0"},
+			},
+		},
+		{
+			name:     "early-exit-client-match",
+			hostname: "host",
+			index:    0,
+			p: paramOpts{
+				raw:       map[string][]string{"client_name": {"foo"}},
+				version:   "v2",
+				ranks:     map[string]int{"host": 0},
+				svcParams: map[string]float64{},
+			},
+			client: &Client{
+				earlyExitClients: map[string]bool{"foo": true},
+			},
+			want: url.Values{
+				"client_name":    []string{"foo"},
+				"locate_version": []string{"v2"},
+				"metro_rank":     []string{"0"},
+				"index":          []string{"0"},
+				"early_exit":     []string{"250"},
+			},
+		},
+		{
+			name:     "early-exit-client-no-match",
+			hostname: "host",
+			index:    0,
+			p: paramOpts{
+				raw:       map[string][]string{"client_name": {"bar"}},
+				version:   "v2",
+				ranks:     map[string]int{"host": 0},
+				svcParams: map[string]float64{},
+			},
+			client: &Client{
+				earlyExitClients: map[string]bool{"foo": true},
+			},
+			want: url.Values{
+				"client_name":    []string{"bar"},
 				"locate_version": []string{"v2"},
 				"metro_rank":     []string{"0"},
 				"index":          []string{"0"},
@@ -626,7 +669,7 @@ func TestExtraParams(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extraParams(tt.hostname, tt.index, tt.p)
+			got := tt.client.extraParams(tt.hostname, tt.index, tt.p)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("extraParams() = %v, want %v", got, tt.want)
 			}
