@@ -90,7 +90,7 @@ func init() {
 		"Max number of events in the time window for IP-only rate limiting")
 	flag.StringVar(&rateLimitPrefix, "rate-limit-prefix", "locate:ratelimit", "Prefix for Redis keys for IP+UA rate limiting")
 	flag.StringVar(&rateLimitRedisAddr, "rate-limit-redis-address", "", "Primary endpoint for Redis instance for rate limiting")
-	flag.Var(&earlyExitClients, "early-exit-client", "Client names that should receive early_exit parameter (can be specified multiple times)")
+	flag.Var(&earlyExitClients, "early-exit-clients", "Client names that should receive early_exit parameter (can be specified multiple times)")
 	// Enable logging with line numbers to trace error locations.
 	log.SetFlags(log.LUTC | log.Llongfile)
 }

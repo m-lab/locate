@@ -44,3 +44,4 @@ env_variables:
   RATE_LIMIT_IP_MAX: {{RATE_LIMIT_IP_MAX}}
   PROMETHEUSX_LISTEN_ADDRESS: ':9090' # Must match one of the forwarded_ports above.
   PROMETHEUS_URL: 'https://prometheus-basicauth.{{PLATFORM_PROJECT}}.measurementlab.net/'
+  EARLY_EXIT_CLIENTS: {{EARLY_EXIT_CLIENTS}}
