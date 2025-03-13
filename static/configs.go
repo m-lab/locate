@@ -30,6 +30,7 @@ const (
 	RegistrationLoadMax        = 24 * time.Hour
 	EarthHalfCircumferenceKm   = 20038
 	EarlyExitParameter         = "early_exit"
+	EarlyExitDefaultValue      = "250"
 	MaxCwndGainParameter       = "max_cwnd_gain"
 	MaxElapsedTimeParameter    = "max_elapsed_time"
 	CountryParameter           = "country"

@@ -142,7 +142,7 @@ func (c *Client) extraParams(hostname string, index int, p paramOpts) url.Values
 	// Add early_exit parameter for specified clients
 	clientName := p.raw.Get("client_name")
 	if clientName != "" && c.earlyExitClients[clientName] {
-		v.Set("early_exit", "250")
+		v.Set(static.EarlyExitParameter, static.EarlyExitDefaultValue)
 	}
 
 	// Add Locate Service version.
