@@ -2,11 +2,14 @@ package limits
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
 )
+
+var randFloat64 = rand.Float64
 
 // LimitStatus indicates the result of a rate limit check
 type LimitStatus struct {
@@ -118,12 +121,16 @@ func (rl *RateLimiter) IsLimited(ip, ua string) (LimitStatus, error) {
 		return LimitStatus{}, fmt.Errorf("failed to receive IP limit count: %w", err)
 	}
 
-	// Check IP-only limit first
+	// Check IP-only limit first.
 	if ipCount > int64(rl.ipConfig.MaxEvents) {
-		return LimitStatus{
-			IsLimited: true,
-			LimitType: "ip",
-		}, nil
+		// Allow 1/(count) requests to get through the limiter anyway.
+		// This is effectively one request per IP every interval.
+		if randFloat64() >= 1.0/float64(ipCount) {
+			return LimitStatus{
+				IsLimited: true,
+				LimitType: "ip",
+			}, nil
+		}
 	}
 
 	// Receive next 3 replies for IP+UA limit (ZREMRANGEBYSCORE, ZADD, EXPIRE)
@@ -141,10 +148,14 @@ func (rl *RateLimiter) IsLimited(ip, ua string) (LimitStatus, error) {
 
 	// Check IP+UA limit
 	if ipuaCount > int64(rl.ipuaConfig.MaxEvents) {
-		return LimitStatus{
-			IsLimited: true,
-			LimitType: "ipua",
-		}, nil
+		// Allow 1/(count) requests to get through the limiter anyway.
+		// This is effectively one request per IP+UA every interval.
+		if randFloat64() >= 1.0/float64(ipuaCount) {
+			return LimitStatus{
+				IsLimited: true,
+				LimitType: "ipua",
+			}, nil
+		}
 	}
 
 	return LimitStatus{
