@@ -245,9 +245,6 @@ func main() {
 	// Return list of all heartbeat registrations
 	mux.HandleFunc("/v2/siteinfo/registrations", c.Registrations)
 
-	// Return a list of all heartbeat registrations in GeoJSON format
-	mux.HandleFunc("/v2/siteinfo/geo", c.Registrations)
-
 	srv := &http.Server{
 		Addr:    ":" + listenPort,
 		Handler: mux,

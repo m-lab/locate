@@ -78,6 +78,7 @@ func Geo(msgs map[string]v2.HeartbeatMessage) (*geojson.FeatureCollection, error
 			"uplink":   v.Registration.Uplink,
 		}
 
+		fc.Append(f)
 	}
 
 	return fc, nil
