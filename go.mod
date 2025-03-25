@@ -19,6 +19,7 @@ require (
 	github.com/m-lab/go v0.1.75
 	github.com/m-lab/uuid-annotator v0.4.5
 	github.com/oschwald/geoip2-golang v1.5.0
+	github.com/paulmach/orb v0.11.1
 	github.com/prometheus/client_golang v1.15.0
 	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/common v0.42.0
@@ -42,6 +43,7 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
+	go.mongodb.org/mongo-driver v1.11.4 // indirect
 	golang.org/x/sync v0.4.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect

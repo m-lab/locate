@@ -303,6 +303,8 @@ func (c *Client) Registrations(rw http.ResponseWriter, req *http.Request) {
 	format := q.Get("format")
 
 	switch format {
+	case "geo":
+		result, err = siteinfo.Geo(c.LocatorV2.Instances())
 	default:
 		result, err = siteinfo.Machines(c.LocatorV2.Instances(), q)
 	}
