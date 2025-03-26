@@ -3,7 +3,6 @@ package siteinfo
 import (
 	"fmt"
 	"net/url"
-	"regexp"
 
 	"github.com/m-lab/go/host"
 	v2 "github.com/m-lab/locate/api/v2"
@@ -57,8 +56,6 @@ func Geo(msgs map[string]v2.HeartbeatMessage) (*geojson.FeatureCollection, error
 
 	fc = geojson.NewFeatureCollection()
 
-	siteRegexp := regexp.MustCompile("([a-z]){3}([0-9]+)")
-
 	for k, v := range msgs {
 		parts, err := host.Parse(k)
 		if err != nil {
@@ -66,16 +63,14 @@ func Geo(msgs map[string]v2.HeartbeatMessage) (*geojson.FeatureCollection, error
 			return fc, returnError
 		}
 
-		siteMatches := siteRegexp.FindStringSubmatch(parts.Site)
-
 		f = geojson.NewFeature(orb.Point{v.Registration.Latitude, v.Registration.Longitude})
 		f.Properties = map[string]interface{}{
-			"asn":      siteMatches[2],
-			"city":     v.Registration.City,
-			"metro":    siteMatches[1],
-			"name":     parts.Site,
-			"provider": parts.Org,
-			"uplink":   v.Registration.Uplink,
+			"health":      v.Health.Score,
+			"name":        v.Registration.Site,
+			"org":         parts.Org,
+			"probability": v.Registration.Probability,
+			"uplink":      v.Registration.Uplink,
+			"type":        v.Registration.Type,
 		}
 
 		fc.Append(f)
