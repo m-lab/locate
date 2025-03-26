@@ -254,6 +254,8 @@ github.com/m-lab/annotation-service v0.0.0-20210504151333-138bdf572368/go.mod h1
 github.com/m-lab/go v0.1.44/go.mod h1:+C0ZBlRKsF7wIbqHRtiL8bqD6cOwlZXDTK/KQ7Iv434=
 github.com/m-lab/go v0.1.75 h1:t4kvig26aUBznA0b3e997Jn0BjELAOKpO1xILWp2VJs=
 github.com/m-lab/go v0.1.75/go.mod h1:BirARfHWjjXHaCGNyWCm/CKW1OarjuEj8Yn6Z2rc0M4=
+github.com/m-lab/go v0.1.76 h1:zdxI5k0AIZaf99Cyh7zjNyNBBZxTlhIJvWg7AX710bU=
+github.com/m-lab/go v0.1.76/go.mod h1:BirARfHWjjXHaCGNyWCm/CKW1OarjuEj8Yn6Z2rc0M4=
 github.com/m-lab/tcp-info v1.5.3/go.mod h1:bkvI4qbjB6QVC2tsLSHqf5OnIYcmuLEVjo7+8YA56Kg=
 github.com/m-lab/uuid-annotator v0.4.1/go.mod h1:f/zvgcc5A3HQ1Y63HWpbBVXNcsJwQ4uRIOqsF/nyto8=
 github.com/m-lab/uuid-annotator v0.4.5 h1:YSgAwaYqgJ85Al+40DEc3NGBaL1t4TiZatdzXgFNTTI=
