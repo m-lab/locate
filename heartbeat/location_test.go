@@ -665,6 +665,7 @@ func TestIsValidInstance(t *testing.T) {
 			score:        validScore,
 			expected:     true,
 			expectedHost: host.Name{
+				Org:     "mlab",
 				Service: "ndt",
 				Machine: "mlab1",
 				Site:    "lga00",
@@ -686,6 +687,7 @@ func TestIsValidInstance(t *testing.T) {
 			score:        validScore,
 			expected:     true,
 			expectedHost: host.Name{
+				Org:     "mlab",
 				Service: "ndt",
 				Machine: "mlab1",
 				Site:    "lga00",
