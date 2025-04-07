@@ -74,7 +74,7 @@ var testInstances = map[string]v2.HeartbeatMessage{
 			Health: true,
 		},
 	},
-	"msak-chs9999-ab285f12.mlab.sandbox.measurement-lab.org": {
+	"msak-chs9999-ab285f12.otherorg.sandbox.measurement-lab.org": {
 		Health: &v2.Health{
 			Score: 1,
 		},
@@ -83,7 +83,7 @@ var testInstances = map[string]v2.HeartbeatMessage{
 			CountryCode:   "US",
 			ContinentCode: "NA",
 			Experiment:    "msak",
-			Hostname:      "msak-chs9999-ab285f12.mlab.sandbox.measurement-lab.org",
+			Hostname:      "msak-chs9999-ab285f12.otherorg.sandbox.measurement-lab.org",
 			Latitude:      32.8986,
 			Longitude:     -80.0405,
 			Machine:       "ab285f12",
@@ -93,6 +93,38 @@ var testInstances = map[string]v2.HeartbeatMessage{
 			Site:          "chs9999",
 			Type:          "unknown",
 			Uplink:        "unknown",
+			Services: map[string][]string{
+				"ndt/ndt7": {
+					"ws:///ndt/v7/download",
+					"ws:///ndt/v7/upload",
+					"wss:///ndt/v7/download",
+					"wss:///ndt/v7/upload",
+				},
+			},
+		},
+		Prometheus: &v2.Prometheus{
+			Health: false,
+		},
+	},
+	"ndt-mlab1-abc0t.mlab-sandbox.measurement-lab.org": {
+		Health: &v2.Health{
+			Score: 1,
+		},
+		Registration: &v2.Registration{
+			City:          "Memphis",
+			CountryCode:   "US",
+			ContinentCode: "NA",
+			Experiment:    "ndt",
+			Hostname:      "ndt-mlab1-abc0t.mlab-sandbox.measurement-lab.org",
+			Latitude:      32.8986,
+			Longitude:     -80.0405,
+			Machine:       "mlab1",
+			Metro:         "abc",
+			Project:       "mlab-sandbox",
+			Probability:   1,
+			Site:          "abc0t",
+			Type:          "physical",
+			Uplink:        "10g",
 			Services: map[string][]string{
 				"ndt/ndt7": {
 					"ws:///ndt/v7/download",
@@ -120,8 +152,9 @@ func TestMachines(t *testing.T) {
 			name:      "success-return-all-records",
 			instances: testInstances,
 			expectedKeys: []string{
-				"msak-chs9999-ab285f12.mlab.sandbox.measurement-lab.org",
+				"msak-chs9999-ab285f12.otherorg.sandbox.measurement-lab.org",
 				"ndt-dfw8888-73a354f1.testorg.sandbox.measurement-lab.org",
+				"ndt-mlab1-abc0t.mlab-sandbox.measurement-lab.org",
 				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
 			},
 		},
@@ -134,7 +167,7 @@ func TestMachines(t *testing.T) {
 				},
 			},
 			expectedKeys: []string{
-				"msak-chs9999-ab285f12.mlab.sandbox.measurement-lab.org",
+				"ndt-mlab1-abc0t.mlab-sandbox.measurement-lab.org",
 				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
 			},
 		},
@@ -148,6 +181,7 @@ func TestMachines(t *testing.T) {
 			},
 			expectedKeys: []string{
 				"ndt-dfw8888-73a354f1.testorg.sandbox.measurement-lab.org",
+				"ndt-mlab1-abc0t.mlab-sandbox.measurement-lab.org",
 				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
 			},
 		},
@@ -163,6 +197,7 @@ func TestMachines(t *testing.T) {
 				},
 			},
 			expectedKeys: []string{
+				"ndt-mlab1-abc0t.mlab-sandbox.measurement-lab.org",
 				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
 			},
 		},
@@ -196,6 +231,52 @@ func TestMachines(t *testing.T) {
 
 		if !reflect.DeepEqual(test.expectedKeys, resultKeys) {
 			t.Errorf("Machines() wanted = %v, got %v", test.expectedKeys, resultKeys)
+		}
+	}
+}
+
+func TestGeo(t *testing.T) {
+	tests := []struct {
+		name          string
+		expectedSites []string
+		instances     map[string]v2.HeartbeatMessage
+		wantErr       bool
+	}{
+		{
+			name:      "success",
+			instances: testInstances,
+			expectedSites: []string{
+				"abc0t",
+				"chs9999",
+				"dfw8888",
+				"oma7777",
+			},
+		},
+		{
+			name: "error",
+			instances: map[string]v2.HeartbeatMessage{
+				"invalid.hostname": {},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		var resultSites []string
+
+		result, err := Geo(test.instances)
+		if (err != nil) != test.wantErr {
+			t.Errorf("Machines() error = %v, wantErr %v", err, test.wantErr)
+		}
+
+		for _, v := range result.Features {
+			resultSites = append(resultSites, v.Properties.MustString("name"))
+		}
+
+		sort.Strings(resultSites)
+
+		if !reflect.DeepEqual(test.expectedSites, resultSites) {
+			t.Errorf("Geo() wanted = %v, got %v", test.expectedSites, resultSites)
 		}
 	}
 }

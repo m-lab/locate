@@ -295,6 +295,9 @@ func (c *Client) Ready(rw http.ResponseWriter, req *http.Request) {
 // * format - defines the format of the returned JSON
 // * org - limits results to only records for the given organization
 // * exp - limits results to only records for the given experiment (e.g., ndt)
+//
+// The "org" and "exp" query parameters are currently only supported by the
+// default or "machines" format.
 func (c *Client) Registrations(rw http.ResponseWriter, req *http.Request) {
 	var err error
 	var result interface{}
@@ -303,6 +306,8 @@ func (c *Client) Registrations(rw http.ResponseWriter, req *http.Request) {
 	format := q.Get("format")
 
 	switch format {
+	case "geo":
+		result, err = siteinfo.Geo(c.LocatorV2.Instances())
 	default:
 		result, err = siteinfo.Machines(c.LocatorV2.Instances(), q)
 	}
