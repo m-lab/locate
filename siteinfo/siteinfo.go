@@ -63,7 +63,7 @@ func Geo(msgs map[string]v2.HeartbeatMessage) (*geojson.FeatureCollection, error
 			return fc, returnError
 		}
 
-		f = geojson.NewFeature(orb.Point{v.Registration.Latitude, v.Registration.Longitude})
+		f = geojson.NewFeature(orb.Point{v.Registration.Longitude, v.Registration.Latitude})
 		f.Properties = map[string]interface{}{
 			"health":      v.Health.Score,
 			"name":        v.Registration.Site,
