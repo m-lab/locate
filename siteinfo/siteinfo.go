@@ -57,6 +57,9 @@ func Geo(msgs map[string]v2.HeartbeatMessage) (*geojson.FeatureCollection, error
 	fc = geojson.NewFeatureCollection()
 
 	for k, v := range msgs {
+		if v.Registration.Experiment != "ndt" {
+			continue
+		}
 		parts, err := host.Parse(k)
 		if err != nil {
 			returnError := fmt.Errorf("failed to parse hostname: %s", k)
@@ -66,7 +69,7 @@ func Geo(msgs map[string]v2.HeartbeatMessage) (*geojson.FeatureCollection, error
 		f = geojson.NewFeature(orb.Point{v.Registration.Longitude, v.Registration.Latitude})
 		f.Properties = map[string]interface{}{
 			"health":      v.Health.Score,
-			"name":        v.Registration.Site,
+			"hostname":    v.Registration.Hostname,
 			"org":         parts.Org,
 			"probability": v.Registration.Probability,
 			"uplink":      v.Registration.Uplink,
