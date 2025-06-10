@@ -307,9 +307,9 @@ func (c *Client) Registrations(rw http.ResponseWriter, req *http.Request) {
 
 	switch format {
 	case "geo":
-		result, err = siteinfo.Geo(c.LocatorV2.Instances())
+		result, err = siteinfo.Geo(c.LocatorV2.Instances(), q)
 	default:
-		result, err = siteinfo.Machines(c.LocatorV2.Instances(), q)
+		result, err = siteinfo.Hosts(c.LocatorV2.Instances(), q)
 	}
 
 	if err != nil {
