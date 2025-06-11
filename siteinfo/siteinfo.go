@@ -63,31 +63,33 @@ func Geo(msgs map[string]v2.HeartbeatMessage, v url.Values) (*geojson.FeatureCol
 func filterHosts(msgs map[string]v2.HeartbeatMessage, v url.Values) (map[string]v2.HeartbeatMessage, error) {
 	org := v.Get("org")
 	exp := v.Get("exp")
+
+	// If not filters are specified then just return msgs unmodified.
+	if org == "" && exp == "" {
+		return msgs, nil
+	}
+
 	hosts := make(map[string]v2.HeartbeatMessage)
 
-	if org != "" || exp != "" {
-		for k, v := range msgs {
-			parts, err := host.Parse(k)
-			if err != nil {
-				returnError := fmt.Errorf("failed to parse hostname: %s", k)
-				return nil, returnError
-			}
-			if org != "" && exp == "" {
-				if org == parts.Org {
-					hosts[k] = v
-				}
-			} else if org == "" && exp != "" {
-				if exp == parts.Service {
-					hosts[k] = v
-				}
-			} else {
-				if org == parts.Org && exp == parts.Service {
-					hosts[k] = v
-				}
-			}
+	for k, msg := range msgs {
+		parts, err := host.Parse(k)
+		if err != nil {
+			returnError := fmt.Errorf("failed to parse hostname: %s", k)
+			return nil, returnError
 		}
-	} else {
-		hosts = msgs
+
+		// Skip if org filter is specified but doesn't match
+		if org != "" && org != parts.Org {
+			continue
+		}
+
+		// Skip if exp filter is specified but doesn't match
+		if exp != "" && exp != parts.Service {
+			continue
+		}
+
+		// If we get here, all specified filters match
+		hosts[k] = msg
 	}
 
 	return hosts, nil

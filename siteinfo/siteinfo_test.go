@@ -295,8 +295,6 @@ func TestGeo(t *testing.T) {
 			name:      "success",
 			instances: testInstances,
 			expectedHosts: []string{
-				"msak-chs9999-ab285f12.otherorg.sandbox.measurement-lab.org",
-				"ndt-dfw8888-73a354f1.testorg.sandbox.measurement-lab.org",
 				"ndt-mlab1-abc0t.mlab-sandbox.measurement-lab.org",
 				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
 			},
@@ -313,11 +311,17 @@ func TestGeo(t *testing.T) {
 	for _, test := range tests {
 		var resultFeatures []string
 
-		params := url.Values{}
+		params := url.Values{
+			"org": []string{"mlab"},
+		}
 
 		result, err := Geo(test.instances, params)
 		if (err != nil) != test.wantErr {
-			t.Errorf("Geo() error = %v, wantErr %v", err, test.wantErr)
+			t.Fatalf("Geo() error = %v, wantErr %v", err, test.wantErr)
+		}
+
+		if result == nil {
+			continue
 		}
 
 		for _, v := range result.Features {
