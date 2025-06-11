@@ -46,6 +46,7 @@ func Geo(msgs map[string]v2.HeartbeatMessage, v url.Values) (*geojson.FeatureCol
 		f.Properties = map[string]interface{}{
 			"health":      v.Health.Score,
 			"hostname":    v.Registration.Hostname,
+			"machine":     fmt.Sprintf("%s-%s", parts.Site, parts.Machine),
 			"org":         parts.Org,
 			"probability": v.Registration.Probability,
 			"uplink":      v.Registration.Uplink,
