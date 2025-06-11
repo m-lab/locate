@@ -302,6 +302,8 @@ func (c *Client) Registrations(rw http.ResponseWriter, req *http.Request) {
 	var err error
 	var result interface{}
 
+	setHeaders(rw)
+
 	q := req.URL.Query()
 	format := q.Get("format")
 
