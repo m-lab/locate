@@ -43,10 +43,10 @@ func Geo(msgs map[string]v2.HeartbeatMessage, v url.Values) (*geojson.FeatureCol
 		}
 
 		// We have witnessed a case in staging where a v2.HeartbeatMessage's
-		// Registration filed was nil for some reason. It's not clear under
+		// Registration field was nil for some reason. It's not clear under
 		// what circumstances this error condition can happen, but skip this
 		// host if Registration is nil to avoid panics when trying to
-		// dereferencing a nil pointer.
+		// dereference a nil pointer.
 		if h.Registration == nil {
 			continue
 		}
