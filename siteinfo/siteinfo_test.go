@@ -140,7 +140,7 @@ var testInstances = map[string]v2.HeartbeatMessage{
 	},
 }
 
-func TestMachines(t *testing.T) {
+func TestFilterHosts(t *testing.T) {
 	tests := []struct {
 		name         string
 		params       url.Values
@@ -218,9 +218,9 @@ func TestMachines(t *testing.T) {
 	for _, test := range tests {
 		var resultKeys []string
 
-		result, err := Machines(test.instances, test.params)
+		result, err := filterHosts(test.instances, test.params)
 		if (err != nil) != test.wantErr {
-			t.Errorf("Machines() error = %v, wantErr %v", err, test.wantErr)
+			t.Errorf("filterHosts() error = %v, wantErr %v", err, test.wantErr)
 		}
 
 		for k := range result {
@@ -230,26 +230,25 @@ func TestMachines(t *testing.T) {
 		sort.Strings(resultKeys)
 
 		if !reflect.DeepEqual(test.expectedKeys, resultKeys) {
-			t.Errorf("Machines() wanted = %v, got %v", test.expectedKeys, resultKeys)
+			t.Errorf("filterHosts() wanted = %v, got %v", test.expectedKeys, resultKeys)
 		}
 	}
 }
 
-func TestGeo(t *testing.T) {
+func TestHosts(t *testing.T) {
 	tests := []struct {
 		name          string
-		expectedSites []string
+		expectedHosts []string
 		instances     map[string]v2.HeartbeatMessage
 		wantErr       bool
 	}{
 		{
 			name:      "success",
 			instances: testInstances,
-			expectedSites: []string{
-				"abc0t",
-				"chs9999",
-				"dfw8888",
-				"oma7777",
+			expectedHosts: []string{
+				"ndt-dfw8888-73a354f1.testorg.sandbox.measurement-lab.org",
+				"ndt-mlab1-abc0t.mlab-sandbox.measurement-lab.org",
+				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
 			},
 		},
 		{
@@ -262,21 +261,77 @@ func TestGeo(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		var resultSites []string
+		var resultKeys []string
 
-		result, err := Geo(test.instances)
+		params := url.Values{
+			"exp": []string{"ndt"},
+		}
+
+		result, err := Hosts(test.instances, params)
 		if (err != nil) != test.wantErr {
-			t.Errorf("Machines() error = %v, wantErr %v", err, test.wantErr)
+			t.Errorf("Hosts() error = %v, wantErr %v", err, test.wantErr)
+		}
+
+		for k := range result {
+			resultKeys = append(resultKeys, k)
+		}
+
+		sort.Strings(resultKeys)
+
+		if !reflect.DeepEqual(test.expectedHosts, resultKeys) {
+			t.Errorf("Hosts() wanted = %v, got %v", test.expectedHosts, resultKeys)
+		}
+	}
+}
+
+func TestGeo(t *testing.T) {
+	tests := []struct {
+		name          string
+		expectedHosts []string
+		instances     map[string]v2.HeartbeatMessage
+		wantErr       bool
+	}{
+		{
+			name:      "success",
+			instances: testInstances,
+			expectedHosts: []string{
+				"ndt-mlab1-abc0t.mlab-sandbox.measurement-lab.org",
+				"ndt-oma7777-217f832a.mlab.sandbox.measurement-lab.org",
+			},
+		},
+		{
+			name: "error",
+			instances: map[string]v2.HeartbeatMessage{
+				"invalid.hostname": {},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		var resultFeatures []string
+
+		params := url.Values{
+			"org": []string{"mlab"},
+		}
+
+		result, err := Geo(test.instances, params)
+		if (err != nil) != test.wantErr {
+			t.Fatalf("Geo() error = %v, wantErr %v", err, test.wantErr)
+		}
+
+		if result == nil {
+			continue
 		}
 
 		for _, v := range result.Features {
-			resultSites = append(resultSites, v.Properties.MustString("name"))
+			resultFeatures = append(resultFeatures, v.Properties.MustString("hostname"))
 		}
 
-		sort.Strings(resultSites)
+		sort.Strings(resultFeatures)
 
-		if !reflect.DeepEqual(test.expectedSites, resultSites) {
-			t.Errorf("Geo() wanted = %v, got %v", test.expectedSites, resultSites)
+		if !reflect.DeepEqual(test.expectedHosts, resultFeatures) {
+			t.Errorf("Geo() wanted = %v, got %v", test.expectedHosts, resultFeatures)
 		}
 	}
 }
