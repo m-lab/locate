@@ -300,6 +300,19 @@ func TestGeo(t *testing.T) {
 			},
 		},
 		{
+			name: "success-missing-data",
+			instances: map[string]v2.HeartbeatMessage{
+				"ndt-mlab3-mia0t.mlab-sandbox.measurement-lab.org": {
+					Health:       nil,
+					Registration: nil,
+					Prometheus: &v2.Prometheus{
+						Health: false,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "error",
 			instances: map[string]v2.HeartbeatMessage{
 				"invalid.hostname": {},

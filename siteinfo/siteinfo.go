@@ -35,22 +35,31 @@ func Geo(msgs map[string]v2.HeartbeatMessage, v url.Values) (*geojson.FeatureCol
 		return nil, err
 	}
 
-	for k, v := range hosts {
+	for k, h := range hosts {
 		parts, err := host.Parse(k)
 		if err != nil {
 			returnError := fmt.Errorf("failed to parse hostname: %s", k)
 			return fc, returnError
 		}
 
-		f = geojson.NewFeature(orb.Point{v.Registration.Longitude, v.Registration.Latitude})
+		// We have witnessed a case in staging where a v2.HeartbeatMessage's
+		// Registration filed was nil for some reason. It's not clear under
+		// what circumstances this error condition can happen, but skip this
+		// host if Registration is nil to avoid panics when trying to
+		// dereferencing a nil pointer.
+		if h.Registration == nil {
+			continue
+		}
+
+		f = geojson.NewFeature(orb.Point{h.Registration.Longitude, h.Registration.Latitude})
 		f.Properties = map[string]interface{}{
-			"health":      v.Health.Score,
-			"hostname":    v.Registration.Hostname,
+			"health":      h.Health.Score,
+			"hostname":    h.Registration.Hostname,
 			"machine":     fmt.Sprintf("%s-%s", parts.Site, parts.Machine),
 			"org":         parts.Org,
-			"probability": v.Registration.Probability,
-			"uplink":      v.Registration.Uplink,
-			"type":        v.Registration.Type,
+			"probability": h.Registration.Probability,
+			"uplink":      h.Registration.Uplink,
+			"type":        h.Registration.Type,
 		}
 
 		fc.Append(f)
