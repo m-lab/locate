@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -152,19 +153,31 @@ func closeConnection(experiment string, err error) {
 }
 
 // extractJWTClaims extracts JWT claims from the request headers
-// Cloud Endpoints adds JWT claims as HTTP headers after verification
+// Cloud Endpoints (ESP v1) adds JWT claims as X-Endpoint-API-UserInfo header after verification
 func (c *Client) extractJWTClaims(req *http.Request) (map[string]interface{}, error) {
-	// Cloud Endpoints typically adds JWT claims as X-Endpoint-API-UserInfo header
-	// The exact header name may vary based on Cloud Endpoints configuration
+	// Cloud Endpoints passes JWT claims via X-Endpoint-API-UserInfo header
+	// For ESP (v1), this contains base64url-encoded JSON with the JWT payload under "claims" field
 	userInfo := req.Header.Get("X-Endpoint-API-UserInfo")
 	if userInfo == "" {
 		return nil, fmt.Errorf("JWT user info not found in request headers")
 	}
 	
-	// Parse the user info (typically base64-encoded JSON)
-	var claims map[string]interface{}
-	if err := json.Unmarshal([]byte(userInfo), &claims); err != nil {
-		return nil, fmt.Errorf("failed to parse JWT user info: %w", err)
+	// Decode the base64url-encoded JSON
+	decoded, err := base64.RawURLEncoding.DecodeString(userInfo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to base64url decode JWT user info: %w", err)
+	}
+	
+	// Parse the decoded JSON
+	var espResponse map[string]interface{}
+	if err := json.Unmarshal(decoded, &espResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse JWT user info JSON: %w", err)
+	}
+	
+	// For ESP (v1), the actual JWT payload is under the "claims" field
+	claims, ok := espResponse["claims"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("claims field not found or invalid in ESP response")
 	}
 	
 	return claims, nil
