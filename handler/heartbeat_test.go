@@ -59,7 +59,7 @@ func TestClient_handleHeartbeats(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := fakeClient(tt.tracker)
-			err := c.handleHeartbeats(tt.ws)
+			err := c.handleHeartbeats(tt.ws, nil)
 			if !errors.Is(err, wantErr) {
 				t.Errorf("Client.handleHeartbeats() error = %v, wantErr %v", err, wantErr)
 			}

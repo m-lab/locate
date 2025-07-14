@@ -215,10 +215,15 @@ func main() {
 
 	mux := http.NewServeMux()
 	// PLATFORM APIs
-	// Services report their health to the heartbeat service.
+	// Services report their health to the heartbeat service (API key protected).
 	mux.HandleFunc("/v2/platform/heartbeat", promhttp.InstrumentHandlerDuration(
 		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/v2/platform/heartbeat"}),
 		http.HandlerFunc(c.Heartbeat)))
+	// Services report their health to the heartbeat service (JWT protected with org validation).
+	// JWT verification is handled by Cloud Endpoints.
+	mux.HandleFunc("/v2/platform/heartbeat-jwt", promhttp.InstrumentHandlerDuration(
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/v2/platform/heartbeat-jwt"}),
+		http.HandlerFunc(c.HeartbeatJWT)))
 	// Collect Prometheus health signals.
 	mux.HandleFunc("/v2/platform/prometheus", promhttp.InstrumentHandlerDuration(
 		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/v2/platform/prometheus"}),

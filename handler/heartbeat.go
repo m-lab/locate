@@ -3,10 +3,13 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	
+	"github.com/m-lab/go/host"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
@@ -21,10 +24,39 @@ type conn interface {
 	Close() error
 }
 
-// Heartbeat implements /v2/heartbeat requests.
+// Heartbeat implements /v2/platform/heartbeat requests.
 // It starts a new persistent connection and a new goroutine
-// to read incoming messages.
+// to read incoming messages. This endpoint is protected by API key authentication.
 func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
+	c.heartbeatHandler(rw, req, nil)
+}
+
+// HeartbeatJWT implements /v2/platform/heartbeat-jwt requests.
+// It starts a new persistent connection and a new goroutine
+// to read incoming messages. This endpoint is protected by JWT authentication
+// with organization validation.
+func (c *Client) HeartbeatJWT(rw http.ResponseWriter, req *http.Request) {
+	// Extract the JWT token from the request context
+	claims, err := c.extractJWTClaims(req)
+	if err != nil {
+		log.Errorf("failed to extract JWT claims: %v", err)
+		http.Error(rw, "Unauthorized: invalid JWT token", http.StatusUnauthorized)
+		return
+	}
+
+	// Extract the organization claim
+	org, err := c.extractOrgClaim(claims)
+	if err != nil {
+		log.Errorf("failed to extract org claim from JWT: %v", err)
+		http.Error(rw, "Unauthorized: missing or invalid org claim", http.StatusUnauthorized)
+		return
+	}
+
+	c.heartbeatHandler(rw, req, &org)
+}
+
+// heartbeatHandler is the common implementation for both API key and JWT protected endpoints
+func (c *Client) heartbeatHandler(rw http.ResponseWriter, req *http.Request, org *string) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  static.WebsocketBufferSize,
 		WriteBufferSize: static.WebsocketBufferSize,
@@ -37,11 +69,12 @@ func (c *Client) Heartbeat(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	metrics.RequestsTotal.WithLabelValues("heartbeat", "establish connection", "OK").Inc()
-	go c.handleHeartbeats(ws)
+	go c.handleHeartbeats(ws, org)
 }
 
 // handleHeartbeats handles incoming messages from the connection.
-func (c *Client) handleHeartbeats(ws conn) error {
+// If org is provided, it validates that registration hostnames belong to the specified organization.
+func (c *Client) handleHeartbeats(ws conn, org *string) error {
 	defer ws.Close()
 	setReadDeadline(ws)
 
@@ -64,6 +97,15 @@ func (c *Client) handleHeartbeats(ws conn) error {
 
 			switch {
 			case hbm.Registration != nil:
+				// Validate organization if JWT authentication is used
+				if org != nil {
+					if err := c.validateOrganization(*org, hbm.Registration.Hostname); err != nil {
+						log.Errorf("organization validation failed: %v", err)
+						closeConnection(experiment, fmt.Errorf("organization validation failed: %w", err))
+						return fmt.Errorf("organization validation failed: %w", err)
+					}
+				}
+
 				if err := c.RegisterInstance(*hbm.Registration); err != nil {
 					closeConnection(experiment, err)
 					return err
@@ -78,6 +120,15 @@ func (c *Client) handleHeartbeats(ws conn) error {
 				// Update Prometheus signals every time a Registration message is received.
 				c.UpdatePrometheusForMachine(context.Background(), hbm.Registration.Hostname)
 			case hbm.Health != nil:
+				// Validate organization for health updates if JWT authentication is used
+				if org != nil && hostname != "" {
+					if err := c.validateOrganization(*org, hostname); err != nil {
+						log.Errorf("organization validation failed for health update: %v", err)
+						closeConnection(experiment, fmt.Errorf("organization validation failed: %w", err))
+						return fmt.Errorf("organization validation failed: %w", err)
+					}
+				}
+
 				if err := c.UpdateHealth(hostname, *hbm.Health); err != nil {
 					closeConnection(experiment, err)
 					return err
@@ -98,4 +149,63 @@ func closeConnection(experiment string, err error) {
 		metrics.CurrentHeartbeatConnections.WithLabelValues(experiment).Dec()
 	}
 	log.Errorf("closing connection, err: %v", err)
+}
+
+// extractJWTClaims extracts JWT claims from the request headers
+// Cloud Endpoints adds JWT claims as HTTP headers after verification
+func (c *Client) extractJWTClaims(req *http.Request) (map[string]interface{}, error) {
+	// Cloud Endpoints typically adds JWT claims as X-Endpoint-API-UserInfo header
+	// The exact header name may vary based on Cloud Endpoints configuration
+	userInfo := req.Header.Get("X-Endpoint-API-UserInfo")
+	if userInfo == "" {
+		return nil, fmt.Errorf("JWT user info not found in request headers")
+	}
+	
+	// Parse the user info (typically base64-encoded JSON)
+	var claims map[string]interface{}
+	if err := json.Unmarshal([]byte(userInfo), &claims); err != nil {
+		return nil, fmt.Errorf("failed to parse JWT user info: %w", err)
+	}
+	
+	return claims, nil
+}
+
+// extractOrgClaim extracts the "org" claim from JWT claims
+func (c *Client) extractOrgClaim(claims map[string]interface{}) (string, error) {
+	orgClaim, ok := claims["org"]
+	if !ok {
+		return "", fmt.Errorf("org claim not found in JWT")
+	}
+	
+	org, ok := orgClaim.(string)
+	if !ok {
+		return "", fmt.Errorf("org claim is not a string")
+	}
+	
+	if org == "" {
+		return "", fmt.Errorf("org claim is empty")
+	}
+	
+	return org, nil
+}
+
+// validateOrganization validates that the hostname belongs to the specified organization
+func (c *Client) validateOrganization(org, hostname string) error {
+	if hostname == "" {
+		return fmt.Errorf("hostname is empty")
+	}
+	
+	// Parse the hostname using M-Lab's host package
+	parsed, err := host.Parse(hostname)
+	if err != nil {
+		return fmt.Errorf("failed to parse hostname %s: %w", hostname, err)
+	}
+	
+	// Compare the organization from the hostname with the JWT org claim
+	if parsed.Org != org {
+		return fmt.Errorf("organization mismatch: JWT org=%s, hostname org=%s (hostname: %s)", 
+			org, parsed.Org, hostname)
+	}
+	
+	return nil
 }
