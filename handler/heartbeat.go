@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"gopkg.in/square/go-jose.v2/jwt"
-	
+
 	"github.com/m-lab/go/host"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/metrics"
@@ -162,26 +162,26 @@ func (c *Client) extractJWTClaims(req *http.Request) (map[string]interface{}, er
 	if authHeader == "" {
 		return nil, fmt.Errorf("Authorization header not found")
 	}
-	
+
 	// Extract the token (remove "Bearer " prefix)
 	const bearerPrefix = "Bearer "
 	if !strings.HasPrefix(authHeader, bearerPrefix) {
 		return nil, fmt.Errorf("Authorization header does not contain Bearer token")
 	}
 	token := strings.TrimPrefix(authHeader, bearerPrefix)
-	
+
 	// Parse the JWT token without validation (Cloud Endpoints already validated it)
 	parsed, err := jwt.ParseSigned(token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JWT token: %w", err)
 	}
-	
+
 	// Extract all claims (both standard and custom) without verification
 	var claims map[string]interface{}
 	if err := parsed.UnsafeClaimsWithoutVerification(&claims); err != nil {
 		return nil, fmt.Errorf("failed to extract JWT claims: %w", err)
 	}
-	
+
 	return claims, nil
 }
 
@@ -191,16 +191,16 @@ func (c *Client) extractOrgClaim(claims map[string]interface{}) (string, error) 
 	if !ok {
 		return "", fmt.Errorf("org claim not found in JWT")
 	}
-	
+
 	org, ok := orgClaim.(string)
 	if !ok {
 		return "", fmt.Errorf("org claim is not a string")
 	}
-	
+
 	if org == "" {
 		return "", fmt.Errorf("org claim is empty")
 	}
-	
+
 	return org, nil
 }
 
@@ -209,18 +209,18 @@ func (c *Client) validateOrganization(org, hostname string) error {
 	if hostname == "" {
 		return fmt.Errorf("hostname is empty")
 	}
-	
+
 	// Parse the hostname using M-Lab's host package
 	parsed, err := host.Parse(hostname)
 	if err != nil {
 		return fmt.Errorf("failed to parse hostname %s: %w", hostname, err)
 	}
-	
+
 	// Compare the organization from the hostname with the JWT org claim
 	if parsed.Org != org {
-		return fmt.Errorf("organization mismatch: JWT org=%s, hostname org=%s (hostname: %s)", 
+		return fmt.Errorf("organization mismatch: JWT org=%s, hostname org=%s (hostname: %s)",
 			org, parsed.Org, hostname)
 	}
-	
+
 	return nil
 }
