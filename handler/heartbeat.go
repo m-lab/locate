@@ -153,8 +153,7 @@ func closeConnection(experiment string, err error) {
 	log.Errorf("closing connection, err: %v", err)
 }
 
-// extractJWTClaims extracts JWT claims directly from the Authorization header
-// using the go-jose library. This is portable and works across all platforms.
+// extractJWTClaims extracts JWT claims directly from the Authorization header.
 // Cloud Endpoints has already validated the JWT, we just need to parse the claims.
 func (c *Client) extractJWTClaims(req *http.Request) (map[string]interface{}, error) {
 	// Get the JWT token from the Authorization header
