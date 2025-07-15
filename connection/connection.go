@@ -7,11 +7,13 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/gorilla/websocket"
+	"gopkg.in/square/go-jose.v2/jwt"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
 )
@@ -23,7 +25,13 @@ var (
 	// retryErrors contains the list of errors that may become successful
 	// if the request is retried.
 	retryErrors = map[int]bool{408: true, 425: true, 500: true, 502: true, 503: true, 504: true}
+	
+	// JWT refresh buffer: refresh token if it expires within this duration
+	jwtRefreshBuffer = 5 * time.Minute
 )
+
+// TokenRefresher is a function type that can refresh JWT tokens.
+type TokenRefresher func() (string, error)
 
 // Conn contains the state needed to connect, reconnect, and send
 // messages.
@@ -55,6 +63,9 @@ type Conn struct {
 	mu          sync.Mutex
 	isDialed    bool
 	isConnected bool
+	
+	// JWT token refresh functionality
+	tokenRefresher TokenRefresher
 }
 
 // NewConn creates a new Conn with default values.
@@ -67,6 +78,13 @@ func NewConn() *Conn {
 		MaxElapsedTime:      static.BackoffMaxElapsedTime,
 	}
 	return c
+}
+
+// SetTokenRefresher sets the function used to refresh JWT tokens when they expire.
+func (c *Conn) SetTokenRefresher(refresher TokenRefresher) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.tokenRefresher = refresher
 }
 
 // Dial creates a new persistent client connection and sets
@@ -167,6 +185,12 @@ func (c *Conn) close() error {
 // In case of failure, it uses an exponential backoff to
 // increase the duration of retry attempts.
 func (c *Conn) connect() error {
+	// Check if JWT token needs refreshing before attempting connection
+	if err := c.refreshJWTIfNeeded(); err != nil {
+		log.Printf("failed to refresh JWT token: %v", err)
+		// Continue with existing token - it might still work
+	}
+
 	b := c.getBackoff()
 	ticker := backoff.NewTicker(b)
 
@@ -233,4 +257,62 @@ func (c *Conn) getBackoff() *backoff.ExponentialBackOff {
 	b.MaxInterval = c.MaxInterval
 	b.MaxElapsedTime = c.MaxElapsedTime
 	return b
+}
+
+// refreshJWTIfNeeded checks if the current JWT token is close to expiring
+// and refreshes it if necessary.
+func (c *Conn) refreshJWTIfNeeded() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	
+	// Only refresh if we have a token refresher
+	if c.tokenRefresher == nil {
+		return nil
+	}
+	
+	// Get the current JWT token from Authorization header
+	authHeader := c.header.Get("Authorization")
+	if authHeader == "" {
+		return nil // No JWT token to refresh
+	}
+	
+	// Extract the token (remove "Bearer " prefix)
+	const bearerPrefix = "Bearer "
+	if !strings.HasPrefix(authHeader, bearerPrefix) {
+		return nil // Not a Bearer token
+	}
+	token := strings.TrimPrefix(authHeader, bearerPrefix)
+	
+	// Parse the JWT to check expiry (without verification)
+	parsed, err := jwt.ParseSigned(token)
+	if err != nil {
+		log.Printf("failed to parse JWT for expiry check: %v", err)
+		return nil // Continue with existing token
+	}
+	
+	var claims jwt.Claims
+	if err := parsed.UnsafeClaimsWithoutVerification(&claims); err != nil {
+		log.Printf("failed to extract JWT claims for expiry check: %v", err)
+		return nil // Continue with existing token
+	}
+	
+	// Check if token is close to expiring
+	now := time.Now()
+	if claims.Expiry != nil && claims.Expiry.Time().Sub(now) > jwtRefreshBuffer {
+		// Token is still valid for more than the buffer time
+		return nil
+	}
+	
+	// Token is expired or close to expiring, refresh it
+	log.Printf("JWT token expires soon, refreshing...")
+	newToken, err := c.tokenRefresher()
+	if err != nil {
+		return err
+	}
+	
+	// Update the Authorization header with the new token
+	c.header.Set("Authorization", "Bearer "+newToken)
+	log.Printf("JWT token refreshed successfully")
+	
+	return nil
 }

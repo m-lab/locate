@@ -200,6 +200,85 @@ func TestWriteMessage_ClosedServer(t *testing.T) {
 	}
 }
 
+func Test_TokenRefresh(t *testing.T) {
+	c := NewConn()
+	
+	// Track token refresh calls
+	refreshCount := 0
+	c.SetTokenRefresher(func() (string, error) {
+		refreshCount++
+		// Return a JWT token that expires in 2 hours (won't need refresh)
+		return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTl9.fake-signature", nil
+	})
+	
+	// Set up headers with an expired JWT token
+	headers := http.Header{}
+	headers.Set("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDA5MzUzMDB9.fake-signature") // Expired in 2020
+	c.header = headers
+	
+	fh := testdata.FakeHandler{}
+	s := testdata.FakeServer(fh.Upgrade)
+	defer close(c, s)
+	
+	// Call refreshJWTIfNeeded directly (since connect() is hard to test)
+	err := c.refreshJWTIfNeeded()
+	if err != nil {
+		t.Errorf("refreshJWTIfNeeded() failed: %v", err)
+	}
+	
+	// Token refresh should have been called due to expired token
+	if refreshCount != 1 {
+		t.Errorf("Expected 1 token refresh call, got %d", refreshCount)
+	}
+	
+	// Check that the Authorization header was updated
+	newAuth := c.header.Get("Authorization")
+	expectedAuth := "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTl9.fake-signature"
+	if newAuth != expectedAuth {
+		t.Errorf("Authorization header not updated. Got: %s, Expected: %s", newAuth, expectedAuth)
+	}
+}
+
+func Test_TokenRefresh_NoRefresher(t *testing.T) {
+	c := NewConn()
+	// Don't set a token refresher
+	
+	headers := http.Header{}
+	headers.Set("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDA5MzUzMDB9.fake-signature") // Expired token
+	c.header = headers
+	
+	// Should not fail even with expired token and no refresher
+	err := c.refreshJWTIfNeeded()
+	if err != nil {
+		t.Errorf("refreshJWTIfNeeded() should not fail without refresher: %v", err)
+	}
+}
+
+func Test_TokenRefresh_ValidToken(t *testing.T) {
+	c := NewConn()
+	
+	refreshCount := 0
+	c.SetTokenRefresher(func() (string, error) {
+		refreshCount++
+		return "new-token", nil
+	})
+	
+	headers := http.Header{}
+	// Token that expires far in the future (won't need refresh)
+	headers.Set("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTl9.fake-signature")
+	c.header = headers
+	
+	err := c.refreshJWTIfNeeded()
+	if err != nil {
+		t.Errorf("refreshJWTIfNeeded() failed: %v", err)
+	}
+	
+	// Should not refresh since token is still valid
+	if refreshCount != 0 {
+		t.Errorf("Expected 0 token refresh calls for valid token, got %d", refreshCount)
+	}
+}
+
 func close(c *Conn, s *httptest.Server) {
 	c.Close()
 	s.Close()

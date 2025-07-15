@@ -154,6 +154,13 @@ func main() {
 
 	// Establish a connection with JWT authentication.
 	conn := connection.NewConn()
+	
+	// Set up JWT token refresh for automatic token renewal
+	conn.SetTokenRefresher(func() (string, error) {
+		log.Printf("Refreshing JWT token...")
+		return getJWTTokenFunc(apiKey, tokenExchangeURL)
+	})
+	
 	err = conn.Dial(heartbeatURL, headers, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
