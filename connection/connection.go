@@ -8,14 +8,13 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/gorilla/websocket"
-	"gopkg.in/square/go-jose.v2/jwt"
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 var (
@@ -25,7 +24,7 @@ var (
 	// retryErrors contains the list of errors that may become successful
 	// if the request is retried.
 	retryErrors = map[int]bool{408: true, 425: true, 500: true, 502: true, 503: true, 504: true}
-	
+
 	// JWT refresh buffer: refresh token if it expires within this duration
 	jwtRefreshBuffer = 5 * time.Minute
 )
@@ -60,10 +59,9 @@ type Conn struct {
 	url         url.URL
 	header      http.Header
 	ticker      time.Ticker
-	mu          sync.Mutex
 	isDialed    bool
 	isConnected bool
-	
+
 	// JWT token refresh functionality
 	tokenRefresher TokenRefresher
 }
@@ -82,8 +80,6 @@ func NewConn() *Conn {
 
 // SetTokenRefresher sets the function used to refresh JWT tokens when they expire.
 func (c *Conn) SetTokenRefresher(refresher TokenRefresher) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.tokenRefresher = refresher
 }
 
@@ -259,60 +255,66 @@ func (c *Conn) getBackoff() *backoff.ExponentialBackOff {
 	return b
 }
 
-// refreshJWTIfNeeded checks if the current JWT token is close to expiring
-// and refreshes it if necessary.
+// parseJWTExpiry extracts the expiry time from a JWT token without verification
+func (c *Conn) parseJWTExpiry(token string) time.Time {
+	parsed, err := jwt.ParseSigned(token)
+	if err != nil {
+		log.Printf("failed to parse JWT for expiry check: %v", err)
+		return time.Time{} // Return zero time on error
+	}
+
+	var claims jwt.Claims
+	if err := parsed.UnsafeClaimsWithoutVerification(&claims); err != nil {
+		log.Printf("failed to extract JWT claims for expiry check: %v", err)
+		return time.Time{} // Return zero time on error
+	}
+
+	if claims.Expiry == nil {
+		return time.Time{} // Return zero time if no expiry
+	}
+
+	return claims.Expiry.Time()
+}
+
+// SetToken sets a JWT token
+func (c *Conn) SetToken(token string) {
+	c.header.Set("Authorization", "Bearer "+token)
+}
+
 func (c *Conn) refreshJWTIfNeeded() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	
 	// Only refresh if we have a token refresher
 	if c.tokenRefresher == nil {
 		return nil
 	}
-	
-	// Get the current JWT token from Authorization header
+
+	// Extract current token from headers
 	authHeader := c.header.Get("Authorization")
-	if authHeader == "" {
-		return nil // No JWT token to refresh
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		return nil // No token present
 	}
-	
-	// Extract the token (remove "Bearer " prefix)
-	const bearerPrefix = "Bearer "
-	if !strings.HasPrefix(authHeader, bearerPrefix) {
-		return nil // Not a Bearer token
+
+	currentToken := strings.TrimPrefix(authHeader, "Bearer ")
+
+	// Parse expiry on-demand
+	expiry := c.parseJWTExpiry(currentToken)
+	if expiry.IsZero() {
+		return nil // Token has no expiry or couldn't parse
 	}
-	token := strings.TrimPrefix(authHeader, bearerPrefix)
-	
-	// Parse the JWT to check expiry (without verification)
-	parsed, err := jwt.ParseSigned(token)
-	if err != nil {
-		log.Printf("failed to parse JWT for expiry check: %v", err)
-		return nil // Continue with existing token
+
+	// Check if refresh needed
+	if time.Until(expiry) > jwtRefreshBuffer {
+		return nil // Still fresh
 	}
-	
-	var claims jwt.Claims
-	if err := parsed.UnsafeClaimsWithoutVerification(&claims); err != nil {
-		log.Printf("failed to extract JWT claims for expiry check: %v", err)
-		return nil // Continue with existing token
-	}
-	
-	// Check if token is close to expiring
-	now := time.Now()
-	if claims.Expiry != nil && claims.Expiry.Time().Sub(now) > jwtRefreshBuffer {
-		// Token is still valid for more than the buffer time
-		return nil
-	}
-	
+
 	// Token is expired or close to expiring, refresh it
 	log.Printf("JWT token expires soon, refreshing...")
 	newToken, err := c.tokenRefresher()
 	if err != nil {
 		return err
 	}
-	
-	// Update the Authorization header with the new token
+
 	c.header.Set("Authorization", "Bearer "+newToken)
 	log.Printf("JWT token refreshed successfully")
-	
+
 	return nil
 }
