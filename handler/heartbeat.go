@@ -2,14 +2,13 @@ package handler
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/go/host"
 	v2 "github.com/m-lab/locate/api/v2"
@@ -153,32 +152,36 @@ func closeConnection(experiment string, err error) {
 	log.Errorf("closing connection, err: %v", err)
 }
 
-// extractJWTClaims extracts JWT claims directly from the Authorization header.
-// Cloud Endpoints has already validated the JWT, we just need to parse the claims.
+// extractJWTClaims extracts JWT claims from the X-Endpoint-API-UserInfo header.
+// This header is set by Cloud Endpoints (ESPv1) after successful JWT validation.
 func (c *Client) extractJWTClaims(req *http.Request) (map[string]interface{}, error) {
-	// Get the JWT token from the Authorization header
-	authHeader := req.Header.Get("Authorization")
-	if authHeader == "" {
-		return nil, fmt.Errorf("Authorization header not found")
+	// Get the X-Endpoint-API-UserInfo header set by Cloud Endpoints
+	userInfoHeader := req.Header.Get("X-Endpoint-API-UserInfo")
+	if userInfoHeader == "" {
+		return nil, fmt.Errorf("request must be processed through Cloud Endpoints: X-Endpoint-API-UserInfo header not found")
 	}
 
-	// Extract the token (remove "Bearer " prefix)
-	const bearerPrefix = "Bearer "
-	if !strings.HasPrefix(authHeader, bearerPrefix) {
-		return nil, fmt.Errorf("Authorization header does not contain Bearer token")
-	}
-	token := strings.TrimPrefix(authHeader, bearerPrefix)
-
-	// Parse the JWT token without validation (Cloud Endpoints already validated it)
-	parsed, err := jwt.ParseSigned(token)
+	// Decode the base64url-encoded header content
+	decoded, err := base64.RawURLEncoding.DecodeString(userInfoHeader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT token: %w", err)
+		return nil, fmt.Errorf("failed to decode X-Endpoint-API-UserInfo header: %w", err)
 	}
 
-	// Extract all claims (both standard and custom) without verification
-	var claims map[string]interface{}
-	if err := parsed.UnsafeClaimsWithoutVerification(&claims); err != nil {
-		return nil, fmt.Errorf("failed to extract JWT claims: %w", err)
+	// Parse the JSON content
+	var espData map[string]interface{}
+	if err := json.Unmarshal(decoded, &espData); err != nil {
+		return nil, fmt.Errorf("failed to parse X-Endpoint-API-UserInfo JSON: %w", err)
+	}
+
+	// Extract the claims field from ESPv1 format
+	claimsInterface, ok := espData["claims"]
+	if !ok {
+		return nil, fmt.Errorf("claims field not found in X-Endpoint-API-UserInfo")
+	}
+
+	claims, ok := claimsInterface.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("claims field is not a valid JSON object")
 	}
 
 	return claims, nil
