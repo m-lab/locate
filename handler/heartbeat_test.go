@@ -113,25 +113,25 @@ func TestClient_extractJWTClaims(t *testing.T) {
 		},
 		{
 			name:          "invalid_json",
-			headerValue:   base64.RawURLEncoding.EncodeToString([]byte("not-json")),
+			headerValue:   base64.StdEncoding.EncodeToString([]byte("not-json")),
 			wantErr:       true,
 			errorContains: "failed to parse X-Endpoint-API-UserInfo JSON",
 		},
 		{
 			name: "missing_claims_field",
-			headerValue: base64.RawURLEncoding.EncodeToString([]byte(`{"id":"user123","issuer":"test"}`)),
+			headerValue: base64.StdEncoding.EncodeToString([]byte(`{"id":"user123","issuer":"test"}`)),
 			wantErr:       true,
 			errorContains: "claims field not found in X-Endpoint-API-UserInfo",
 		},
 		{
 			name: "invalid_claims_type",
-			headerValue: base64.RawURLEncoding.EncodeToString([]byte(`{"claims":123}`)),
+			headerValue: base64.StdEncoding.EncodeToString([]byte(`{"claims":123}`)),
 			wantErr:       true,
 			errorContains: "claims field is not a string",
 		},
 		{
 			name: "invalid_claims_json",
-			headerValue: base64.RawURLEncoding.EncodeToString([]byte(`{"claims":"invalid-json"}`)),
+			headerValue: base64.StdEncoding.EncodeToString([]byte(`{"claims":"invalid-json"}`)),
 			wantErr:       true,
 			errorContains: "failed to parse claims JSON string",
 		},
@@ -203,7 +203,7 @@ func createValidESPv1Header(org string) string {
 	}
 
 	jsonBytes, _ := json.Marshal(espData)
-	return base64.RawURLEncoding.EncodeToString(jsonBytes)
+	return base64.StdEncoding.EncodeToString(jsonBytes)
 }
 
 // contains checks if a string contains a substring

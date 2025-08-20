@@ -161,8 +161,8 @@ func (c *Client) extractJWTClaims(req *http.Request) (map[string]interface{}, er
 		return nil, fmt.Errorf("request must be processed through Cloud Endpoints: X-Endpoint-API-UserInfo header not found")
 	}
 
-	// Decode the base64url-encoded header content
-	decoded, err := base64.RawURLEncoding.DecodeString(userInfoHeader)
+	// Decode the base64-encoded header content (Cloud Endpoints uses standard base64)
+	decoded, err := base64.StdEncoding.DecodeString(userInfoHeader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode X-Endpoint-API-UserInfo header: %w", err)
 	}
