@@ -125,9 +125,15 @@ func TestClient_extractJWTClaims(t *testing.T) {
 		},
 		{
 			name: "invalid_claims_type",
-			headerValue: base64.RawURLEncoding.EncodeToString([]byte(`{"claims":"not-an-object"}`)),
+			headerValue: base64.RawURLEncoding.EncodeToString([]byte(`{"claims":123}`)),
 			wantErr:       true,
-			errorContains: "claims field is not a valid JSON object",
+			errorContains: "claims field is not a string",
+		},
+		{
+			name: "invalid_claims_json",
+			headerValue: base64.RawURLEncoding.EncodeToString([]byte(`{"claims":"invalid-json"}`)),
+			wantErr:       true,
+			errorContains: "failed to parse claims JSON string",
 		},
 		{
 			name: "valid_espv1_format",
@@ -179,19 +185,21 @@ func TestClient_extractJWTClaims(t *testing.T) {
 
 // createValidESPv1Header creates a valid X-Endpoint-API-UserInfo header value for testing
 func createValidESPv1Header(org string) string {
+	// ESPv1 format: claims field is a JSON string, not an object
+	claims := map[string]interface{}{
+		"iss": "token-exchange",
+		"sub": "user123",
+		"aud": "autojoin",
+		"exp": 9999999999, // Far future
+		"iat": 1600000000,
+		"org": org,
+	}
+	claimsString, _ := json.Marshal(claims)
+
 	espData := map[string]interface{}{
-		"id":       "user123",
-		"issuer":   "token-exchange",
-		"email":    "test@example.com",
+		"issuer":    "token-exchange",
 		"audiences": []string{"autojoin"},
-		"claims": map[string]interface{}{
-			"iss": "token-exchange",
-			"sub": "user123",
-			"aud": "autojoin",
-			"exp": 9999999999, // Far future
-			"iat": 1600000000,
-			"org": org,
-		},
+		"claims":    string(claimsString), // JSON string, not object
 	}
 
 	jsonBytes, _ := json.Marshal(espData)

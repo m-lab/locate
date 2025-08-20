@@ -161,9 +161,6 @@ func (c *Client) extractJWTClaims(req *http.Request) (map[string]interface{}, er
 		return nil, fmt.Errorf("request must be processed through Cloud Endpoints: X-Endpoint-API-UserInfo header not found")
 	}
 
-	// Debug: log the raw header content
-	log.Printf("DEBUG: X-Endpoint-API-UserInfo header: %s", userInfoHeader)
-
 	// Decode the base64url-encoded header content
 	decoded, err := base64.RawURLEncoding.DecodeString(userInfoHeader)
 	if err != nil {
@@ -182,9 +179,16 @@ func (c *Client) extractJWTClaims(req *http.Request) (map[string]interface{}, er
 		return nil, fmt.Errorf("claims field not found in X-Endpoint-API-UserInfo")
 	}
 
-	claims, ok := claimsInterface.(map[string]interface{})
+	// In ESPv1, the claims field is a JSON string, not an object
+	claimsString, ok := claimsInterface.(string)
 	if !ok {
-		return nil, fmt.Errorf("claims field is not a valid JSON object")
+		return nil, fmt.Errorf("claims field is not a string")
+	}
+
+	// Parse the claims JSON string
+	var claims map[string]interface{}
+	if err := json.Unmarshal([]byte(claimsString), &claims); err != nil {
+		return nil, fmt.Errorf("failed to parse claims JSON string: %w", err)
 	}
 
 	return claims, nil
