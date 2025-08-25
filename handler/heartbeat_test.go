@@ -16,39 +16,57 @@ import (
 	prom "github.com/prometheus/client_golang/api/prometheus/v1"
 )
 
-func TestClient_Heartbeat_Error(t *testing.T) {
-	rw := httptest.NewRecorder()
-	// The header from this request will not contain the
-	// necessary "upgrade" tokens.
-	req := httptest.NewRequest(http.MethodGet, "/v2/heartbeat", nil)
-	c := fakeClient(nil)
-	c.Heartbeat(rw, req)
-
-	if rw.Code != http.StatusBadRequest {
-		t.Errorf("Heartbeat() wrong status code; got %d, want %d", rw.Code, http.StatusBadRequest)
+func TestClient_HeartbeatHandlers(t *testing.T) {
+	tests := []struct {
+		name           string
+		handler        func(*Client, http.ResponseWriter, *http.Request)
+		method         string
+		url            string
+		headers        map[string]string
+		wantStatusCode int
+	}{
+		{
+			name:           "heartbeat_missing_upgrade_header",
+			handler:        (*Client).Heartbeat,
+			method:         http.MethodGet,
+			url:            "/v2/heartbeat",
+			wantStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:           "heartbeat_jwt_missing_header",
+			handler:        (*Client).HeartbeatJWT,
+			method:         http.MethodGet,
+			url:            "/v2/platform/heartbeat-jwt",
+			wantStatusCode: http.StatusUnauthorized,
+		},
+		{
+			name:    "heartbeat_jwt_invalid_header",
+			handler: (*Client).HeartbeatJWT,
+			method:  http.MethodGet,
+			url:     "/v2/platform/heartbeat-jwt",
+			headers: map[string]string{
+				"X-Endpoint-API-UserInfo": "invalid-base64!",
+			},
+			wantStatusCode: http.StatusUnauthorized,
+		},
 	}
-}
 
-func TestClient_HeartbeatJWT_MissingHeader(t *testing.T) {
-	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/v2/platform/heartbeat-jwt", nil)
-	c := fakeClient(nil)
-	c.HeartbeatJWT(rw, req)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rw := httptest.NewRecorder()
+			req := httptest.NewRequest(tt.method, tt.url, nil)
 
-	if rw.Code != http.StatusUnauthorized {
-		t.Errorf("HeartbeatJWT() without X-Endpoint-API-UserInfo should return 401, got %d", rw.Code)
-	}
-}
+			for key, value := range tt.headers {
+				req.Header.Set(key, value)
+			}
 
-func TestClient_HeartbeatJWT_InvalidHeader(t *testing.T) {
-	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/v2/platform/heartbeat-jwt", nil)
-	req.Header.Set("X-Endpoint-API-UserInfo", "invalid-base64!")
-	c := fakeClient(nil)
-	c.HeartbeatJWT(rw, req)
+			c := fakeClient(nil)
+			tt.handler(c, rw, req)
 
-	if rw.Code != http.StatusUnauthorized {
-		t.Errorf("HeartbeatJWT() with invalid header should return 401, got %d", rw.Code)
+			if rw.Code != tt.wantStatusCode {
+				t.Errorf("%s wrong status code; got %d, want %d", tt.name, rw.Code, tt.wantStatusCode)
+			}
+		})
 	}
 }
 
@@ -93,11 +111,11 @@ func TestClient_handleHeartbeats(t *testing.T) {
 
 func TestClient_extractJWTClaims(t *testing.T) {
 	tests := []struct {
-		name           string
-		headerValue    string
-		wantErr        bool
-		wantOrgClaim   string
-		errorContains  string
+		name          string
+		headerValue   string
+		wantErr       bool
+		wantOrgClaim  string
+		errorContains string
 	}{
 		{
 			name:          "missing_header",
@@ -118,26 +136,26 @@ func TestClient_extractJWTClaims(t *testing.T) {
 			errorContains: "failed to parse X-Endpoint-API-UserInfo JSON",
 		},
 		{
-			name: "missing_claims_field",
-			headerValue: base64.StdEncoding.EncodeToString([]byte(`{"id":"user123","issuer":"test"}`)),
+			name:          "missing_claims_field",
+			headerValue:   base64.StdEncoding.EncodeToString([]byte(`{"id":"user123","issuer":"test"}`)),
 			wantErr:       true,
 			errorContains: "claims field not found in X-Endpoint-API-UserInfo",
 		},
 		{
-			name: "invalid_claims_type",
-			headerValue: base64.StdEncoding.EncodeToString([]byte(`{"claims":123}`)),
+			name:          "invalid_claims_type",
+			headerValue:   base64.StdEncoding.EncodeToString([]byte(`{"claims":123}`)),
 			wantErr:       true,
 			errorContains: "claims field is not a string",
 		},
 		{
-			name: "invalid_claims_json",
-			headerValue: base64.StdEncoding.EncodeToString([]byte(`{"claims":"invalid-json"}`)),
+			name:          "invalid_claims_json",
+			headerValue:   base64.StdEncoding.EncodeToString([]byte(`{"claims":"invalid-json"}`)),
 			wantErr:       true,
 			errorContains: "failed to parse claims JSON string",
 		},
 		{
-			name: "valid_espv1_format",
-			headerValue: createValidESPv1Header("mlab-sandbox"),
+			name:         "valid_espv1_format",
+			headerValue:  createValidESPv1Header("mlab-sandbox"),
 			wantErr:      false,
 			wantOrgClaim: "mlab-sandbox",
 		},
