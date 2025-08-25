@@ -200,6 +200,79 @@ func TestWriteMessage_ClosedServer(t *testing.T) {
 	}
 }
 
+func TestConn_RefreshJWTIfNeeded(t *testing.T) {
+	tests := []struct {
+		name             string
+		token            string
+		hasRefresher     bool
+		refreshedToken   string
+		wantRefreshCount int
+		wantHeaderToken  string
+		wantErr          bool
+	}{
+		{
+			name:             "expired_token_with_refresher",
+			token:            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDA5MzUzMDB9.fake-signature", // Expired in 2020
+			hasRefresher:     true,
+			refreshedToken:   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTl9.fake-signature",
+			wantRefreshCount: 1,
+			wantHeaderToken:  "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTl9.fake-signature",
+		},
+		{
+			name:             "expired_token_no_refresher",
+			token:            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDA5MzUzMDB9.fake-signature", // Expired in 2020
+			hasRefresher:     false,
+			wantRefreshCount: 0,
+			wantHeaderToken:  "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDA5MzUzMDB9.fake-signature",
+		},
+		{
+			name:             "valid_token_with_refresher",
+			token:            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTl9.fake-signature", // Expires far in future
+			hasRefresher:     true,
+			refreshedToken:   "new-token",
+			wantRefreshCount: 0,
+			wantHeaderToken:  "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTl9.fake-signature",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewConn()
+
+			refreshCount := 0
+			if tt.hasRefresher {
+				c.SetTokenRefresher(func() (string, error) {
+					refreshCount++
+					return tt.refreshedToken, nil
+				})
+			}
+
+			headers := http.Header{}
+			headers.Set("Authorization", "Bearer "+tt.token)
+			c.header = headers
+
+			fh := testdata.FakeHandler{}
+			s := testdata.FakeServer(fh.Upgrade)
+			defer close(c, s)
+
+			err := c.refreshJWTIfNeeded()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("refreshJWTIfNeeded() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if refreshCount != tt.wantRefreshCount {
+				t.Errorf("Expected %d token refresh calls, got %d", tt.wantRefreshCount, refreshCount)
+			}
+
+			newAuth := c.header.Get("Authorization")
+			if newAuth != tt.wantHeaderToken {
+				t.Errorf("Authorization header = %s, want %s", newAuth, tt.wantHeaderToken)
+			}
+		})
+	}
+}
+
 func close(c *Conn, s *httptest.Server) {
 	c.Close()
 	s.Close()

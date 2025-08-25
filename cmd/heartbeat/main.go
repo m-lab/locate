@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -29,7 +31,7 @@ import (
 
 var (
 	heartbeatURL        string
-	hostname			flagx.StringFile
+	hostname            flagx.StringFile
 	experiment          string
 	pod                 string
 	node                string
@@ -41,11 +43,58 @@ var (
 	heartbeatPeriod     = static.HeartbeatPeriod
 	mainCtx, mainCancel = context.WithCancel(context.Background())
 	lbPath              = "/metadata/loadbalanced"
+
+	// JWT authentication parameters
+	apiKey           string
+	tokenExchangeURL string
 )
 
 // Checker generates a health score for the heartbeat instance (0, 1).
 type Checker interface {
 	GetHealth(ctx context.Context) float64 // Health score.
+}
+
+// TokenResponse represents the response from the token exchange service
+type TokenResponse struct {
+	Token string `json:"token"`
+}
+
+// getJWTTokenFunc is a variable that holds the JWT token function, allowing for test overrides
+var getJWTTokenFunc = getJWTToken
+
+// getJWTToken exchanges an API key for a JWT token
+func getJWTToken(apiKey, tokenExchangeURL string) (string, error) {
+	// Prepare the request payload
+	payload := map[string]string{
+		"api_key": apiKey,
+	}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal token request: %w", err)
+	}
+
+	// Make the HTTP request to the token exchange service
+	resp, err := http.Post(tokenExchangeURL, "application/json", bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return "", fmt.Errorf("failed to request JWT token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("token exchange failed with status %d", resp.StatusCode)
+	}
+
+	// Parse the response
+	var tokenResp TokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return "", fmt.Errorf("failed to parse token response: %w", err)
+	}
+
+	if tokenResp.Token == "" {
+		return "", fmt.Errorf("empty token received from exchange service")
+	}
+
+	return tokenResp.Token, nil
 }
 
 func init() {
@@ -59,11 +108,22 @@ func init() {
 	flag.Var(&kubernetesURL, "kubernetes-url", "URL for Kubernetes API")
 	flag.Var(&registrationURL, "registration-url", "URL for site registration")
 	flag.Var(&services, "services", "Maps experiment target names to their set of services")
+	flag.StringVar(&apiKey, "api-key", "", "API key for JWT token exchange (required)")
+	flag.StringVar(&tokenExchangeURL, "token-exchange-url", "https://auth.mlab-sandbox.measurementlab.net/v0/token/autojoin",
+		"URL for token exchange service")
 }
 
 func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "failed to read args from env")
+
+	// Validate JWT authentication parameters
+	if apiKey == "" {
+		log.Fatal("API key is required for JWT authentication (-api-key flag)")
+	}
+	if tokenExchangeURL == "" {
+		log.Fatal("Token exchange URL is required (-token-exchange-url flag)")
+	}
 
 	// Start metrics server.
 	prom := prometheusx.MustServeMetrics()
@@ -82,9 +142,26 @@ func main() {
 	rtx.Must(err, "could not load registration data")
 	hbm := v2.HeartbeatMessage{Registration: r}
 
-	// Establish a connection.
+	// Get JWT token for authentication
+	log.Printf("Exchanging API key for JWT token...")
+	jwtToken, err := getJWTTokenFunc(apiKey, tokenExchangeURL)
+	rtx.Must(err, "failed to get JWT token")
+	log.Printf("Successfully obtained JWT token")
+
+	// Prepare headers with JWT authentication
+	headers := http.Header{}
+	headers.Set("Authorization", "Bearer "+jwtToken)
+
+	// Establish a connection with JWT authentication.
 	conn := connection.NewConn()
-	err = conn.Dial(heartbeatURL, http.Header{}, hbm)
+
+	// Set up JWT token refresh for automatic token renewal
+	conn.SetTokenRefresher(func() (string, error) {
+		log.Printf("Refreshing JWT token...")
+		return getJWTTokenFunc(apiKey, tokenExchangeURL)
+	})
+
+	err = conn.Dial(heartbeatURL, headers, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
 
 	probe := health.NewPortProbe(svcs)

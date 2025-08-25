@@ -17,6 +17,14 @@ import (
 )
 
 func Test_main(t *testing.T) {
+	// Override the JWT token function for testing
+	getJWTTokenFunc = func(apiKey, tokenExchangeURL string) (string, error) {
+		return "fake-jwt-token", nil
+	}
+	defer func() {
+		getJWTTokenFunc = getJWTToken // restore original function
+	}()
+
 	mainCtx, mainCancel = context.WithCancel(context.Background())
 	fh := testdata.FakeHandler{}
 	s := testdata.FakeServer(fh.Upgrade)
@@ -36,6 +44,8 @@ func Test_main(t *testing.T) {
 	flag.Set("namespace", "default")
 	flag.Set("registration-url", "file:./registration/testdata/registration.json")
 	flag.Set("services", "ndt/ndt7=ws://:"+u.Port()+"/ndt/v7/download")
+	flag.Set("api-key", "test-api-key")
+	flag.Set("token-exchange-url", "http://fake-token-exchange.example.com/token")
 
 	heartbeatPeriod = 2 * time.Second
 	timer := time.NewTimer(2 * heartbeatPeriod)
