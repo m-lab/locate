@@ -292,7 +292,7 @@ securityDefinitions:
     type: "oauth2"
     # x-google-jwks_uri and x-google-issuer identify the service that issues JWTs.
     x-google-issuer: "token-exchange"
-    x-google-jwks_uri: "https://auth.{{PROJECT}}.measurementlab.net/.well-known/jwks.json"
+    x-google-jwks_uri: "https://auth.{{PLATFORM_PROJECT}}.measurementlab.net/.well-known/jwks.json"
     # x-google-audiences are the audiences JWTs are allowed to target.
     # The audience must match the JWT token audience from token-exchange service.
     x-google-audiences: "autojoin"
