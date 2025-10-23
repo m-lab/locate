@@ -211,3 +211,31 @@ these queries may return an error.
 
 [autojoin]: https://github.com/m-lab/autojoin
 [autonode]: https://github.com/m-lab/autonode
+
+## Rate limits
+
+The M-Lab platform is a public, open resource. It is also finite. In order to
+prevent the most egregious abuse of the platform, rate limits are applied to
+requests to the Locate Service. The rate limits operate in a sliding time
+window. When a rate limit is hit, it is usually sufficient to back off for a
+short while to resume querying at a more reasonable rate. When a rate limit is
+hit, the Locate Service responds with an HTTP **429** error. It is important
+that at that point you or your integration stop making requests, as even
+rejected request are tallied by the rate limiter counters.
+
+The current rate limits are:
+
+* 20 requests in a 30 minute sliding window base on IP *and* User-Agent.
+* 40 requests in a 12 hour sliding window based only on IP address.
+
+As a reference point for the current limits, keep in mind that [M-Lab
+recommends](https://www.measurementlab.net/develop/#best-practices-on-test-scheduling-and-frequency)
+running no more than 40 *interactive* tests in a day, and not more than 4 or 5
+automated tests in a day.
+
+M-Lab recognizes that basing a rate limiter on IP address may be problematic
+for users behind large NAT implementations, or carrier-grade NAT. However,
+lacking a better filtering mechanism, protecthing the platform for the vast
+majority of the client population at the expense of some clients is a hard
+choice M-Lab has had to make.
+
