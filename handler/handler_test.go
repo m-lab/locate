@@ -338,7 +338,7 @@ func TestClient_Nearest(t *testing.T) {
 			if tt.cl == nil {
 				tt.cl = clientgeo.NewAppEngineLocator()
 			}
-			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits, tt.ipLimiter, nil, nil)
+			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits, nil, tt.ipLimiter, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.Nearest)
@@ -417,7 +417,7 @@ func TestClient_Ready(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil, nil, nil, nil, nil)
+			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil, nil, nil, nil, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/ready/", c.Ready)
@@ -475,7 +475,7 @@ func TestClient_Registrations(t *testing.T) {
 		}
 
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: fakeStatusTracker}, nil, nil, nil, nil, nil, nil)
+			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: fakeStatusTracker}, nil, nil, nil, nil, nil, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/siteinfo/registrations/", c.Registrations)

@@ -1,4 +1,23 @@
 ---
+# Per-agent rate limiting (cron-based)
+agents:
 - agent: "node-fetch/1.0 (+https://github.com/bitinn/node-fetch)"
   schedule: "7,8 0,15,30,45 * * * * *"
   duration: 1m
+
+# Tier-based rate limiting for /v2/priority/nearest endpoint
+# Each tier defines the maximum number of requests per IP per organization
+# within the specified interval.
+tiers:
+  0:
+    interval: 1h
+    max_events: 100
+  1:
+    interval: 1h
+    max_events: 500
+  2:
+    interval: 1h
+    max_events: 1000
+  3:
+    interval: 1h
+    max_events: 5000
