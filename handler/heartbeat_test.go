@@ -237,7 +237,7 @@ func contains(s, substr string) bool {
 func fakeClient(t heartbeat.StatusTracker) *Client {
 	locatorv2 := fakeLocatorV2{StatusTracker: t}
 	return NewClient("mlab-sandbox", &fakeSigner{}, &locatorv2,
-		clientgeo.NewAppEngineLocator(), prom.NewAPI(nil), nil, nil, nil)
+		clientgeo.NewAppEngineLocator(), prom.NewAPI(nil), nil, nil, nil, nil)
 }
 
 type fakeConn struct {

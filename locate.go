@@ -174,10 +174,10 @@ func main() {
 	promClient, err := prometheus.NewClient(creds, promURL)
 	rtx.Must(err, "failed to create Prometheus client")
 
-	lmts, err := limits.ParseConfig(limitsPath)
+	lmts, tierLmts, err := limits.ParseFullConfig(limitsPath)
 	rtx.Must(err, "failed to parse limits config")
 	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient,
-		lmts, ipLimiter, earlyExitClients)
+		lmts, tierLmts, ipLimiter, earlyExitClients)
 
 	go func() {
 		// Check and reload db at least once a day.
@@ -241,7 +241,7 @@ func main() {
 	// REQUIRED: API keys parameters required for priority requests.
 	mux.HandleFunc("/v2/priority/nearest/", promhttp.InstrumentHandlerDuration(
 		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/v2/priority/nearest/"}),
-		http.HandlerFunc(c.Nearest)))
+		http.HandlerFunc(c.PriorityNearest)))
 
 	// Liveness and Readiness checks to support deployments.
 	mux.HandleFunc("/v2/live", c.Live)
