@@ -19,7 +19,7 @@ conflicts.
 ```sh
 ./heartbeat -experiment=ndt \
   -heartbeat-url ws://localhost:8080/v2/platform/heartbeat \
-  -hostname=mlab2-lga1t.mlab-sandbox.measurement-lab.org \
+  -hostname=mlab1-lga0t.mlab-sandbox.measurement-lab.org \
   -registration-url=https://siteinfo.mlab-oti.measurementlab.net/v2/sites/registration.json \
   -services 'ndt/ndt7=ws:///ndt/v7/download,ws:///ndt/v7/upload,wss:///ndt/v7/download,wss:///ndt/v7/upload' \
   -prometheusx.listen-address=:9991
