@@ -171,8 +171,6 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	result := v2.NearestResult{}
 	setHeaders(rw)
 
-	log.Printf("RemoteAddr: %s", req.RemoteAddr)
-
 	if c.limitRequest(time.Now().UTC(), req) {
 		result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
 		writeResult(rw, result.Error.Status, &result)

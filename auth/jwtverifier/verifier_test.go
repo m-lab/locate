@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 
@@ -99,7 +100,12 @@ func TestDirectVerifier_ExtractClaims(t *testing.T) {
 	}))
 	defer server.Close()
 
-	verifier, err := NewDirectVerifier(server.URL)
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("Failed to parse server URL: %v", err)
+	}
+
+	verifier, err := NewDirectVerifier(serverURL)
 	if err != nil {
 		t.Fatalf("Failed to create verifier: %v", err)
 	}
@@ -164,9 +170,10 @@ func TestDirectVerifier_ExtractClaims(t *testing.T) {
 
 func TestNewDirectVerifier(t *testing.T) {
 	tests := []struct {
-		name    string
-		jwksURL string
-		wantErr bool
+		name      string
+		jwksURL   string
+		wantErr   bool
+		parseErr  bool // If true, URL parsing itself should fail
 	}{
 		{
 			name:    "valid HTTPS URL",
@@ -179,20 +186,41 @@ func TestNewDirectVerifier(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "invalid URL",
-			jwksURL: "://invalid",
-			wantErr: true,
+			name:     "invalid URL",
+			jwksURL:  "://invalid",
+			parseErr: true,
 		},
 		{
 			name:    "invalid scheme",
 			jwksURL: "ftp://example.com/jwks",
 			wantErr: true,
 		},
+		{
+			name:    "nil URL",
+			jwksURL: "",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			verifier, err := NewDirectVerifier(tt.jwksURL)
+			var parsedURL *url.URL
+			var parseErr error
+
+			if tt.jwksURL != "" {
+				parsedURL, parseErr = url.Parse(tt.jwksURL)
+				if tt.parseErr {
+					if parseErr == nil {
+						t.Error("Expected URL parse error, got nil")
+					}
+					return
+				}
+				if parseErr != nil {
+					t.Fatalf("Unexpected URL parse error: %v", parseErr)
+				}
+			}
+
+			verifier, err := NewDirectVerifier(parsedURL)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewDirectVerifier() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -204,7 +232,8 @@ func TestNewDirectVerifier(t *testing.T) {
 }
 
 func TestDirectVerifier_Mode(t *testing.T) {
-	verifier, _ := NewDirectVerifier("https://example.com/jwks")
+	testURL, _ := url.Parse("https://example.com/jwks")
+	verifier, _ := NewDirectVerifier(testURL)
 	if mode := verifier.Mode(); mode != "direct" {
 		t.Errorf("Mode() = %v, want direct", mode)
 	}

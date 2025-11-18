@@ -19,12 +19,12 @@ import (
 	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/flagx"
-	"github.com/m-lab/locate/auth/jwtverifier"
 	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/memoryless"
 	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/auth/jwtverifier"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
 	"github.com/m-lab/locate/heartbeat"
@@ -69,7 +69,7 @@ var (
 		Options: []string{"espv1", "direct", "insecure"},
 		Value:   "espv1",
 	}
-	jwtJWKSUrl string
+	jwtJWKS = flagx.URL{}
 )
 
 func init() {
@@ -100,7 +100,7 @@ func init() {
 	flag.StringVar(&rateLimitRedisAddr, "rate-limit-redis-address", "", "Primary endpoint for Redis instance for rate limiting")
 	flag.Var(&earlyExitClients, "early-exit-clients", "Client names that should receive early_exit parameter (can be specified multiple times)")
 	flag.Var(&jwtAuthMode, "jwt-auth-mode", "JWT authentication mode: espv1 (Cloud Endpoints, production default), direct (JWKS validation for integration testing), insecure (dev/test only, requires ALLOW_INSECURE_JWT=true)")
-	flag.StringVar(&jwtJWKSUrl, "jwt-jwks-url", "", "JWKS URL for direct mode JWT verification (e.g., https://auth.example.com/.well-known/jwks.json)")
+	flag.Var(&jwtJWKS, "jwt-jwks-url", "JWKS URL for direct mode JWT verification (e.g., https://auth.example.com/.well-known/jwks.json)")
 	// Enable logging with line numbers to trace error locations.
 	log.SetFlags(log.LUTC | log.Llongfile)
 }
@@ -194,12 +194,12 @@ func main() {
 		jwtVerifier = jwtverifier.NewESPv1Verifier()
 		log.Printf("Using JWT verification mode: espv1 (Cloud Endpoints)")
 	case "direct":
-		if jwtJWKSUrl == "" {
+		if jwtJWKS.URL == nil {
 			rtx.Must(fmt.Errorf("--jwt-jwks-url is required for direct mode"), "JWT configuration error")
 		}
-		jwtVerifier, err = jwtverifier.NewDirectVerifier(jwtJWKSUrl)
+		jwtVerifier, err = jwtverifier.NewDirectVerifier(jwtJWKS.URL)
 		rtx.Must(err, "failed to create direct JWT verifier")
-		log.Printf("Using JWT verification mode: direct (JWKS URL: %s)", jwtJWKSUrl)
+		log.Printf("Using JWT verification mode: direct (JWKS URL: %s)", jwtJWKS.URL)
 	case "insecure":
 		jwtVerifier, err = jwtverifier.NewInsecureVerifier()
 		rtx.Must(err, "failed to create insecure JWT verifier")

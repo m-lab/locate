@@ -5,19 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
-	"strings"
-
-	"gopkg.in/square/go-jose.v2/jwt"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // ESPv1Verifier extracts JWT claims from the X-Endpoint-API-UserInfo header
 // set by Cloud Endpoints ESPv1 after JWT validation.
-//
-// Defense-in-depth: This verifier also checks the Authorization header (if present)
-// and logs a security warning if the claims don't match the ESP header.
 type ESPv1Verifier struct{}
 
 // NewESPv1Verifier creates a new ESPv1 JWT verifier.
@@ -26,16 +17,12 @@ func NewESPv1Verifier() *ESPv1Verifier {
 }
 
 // ExtractClaims extracts JWT claims from the X-Endpoint-API-UserInfo header.
-// It also performs defense-in-depth checking against the Authorization header.
 func (v *ESPv1Verifier) ExtractClaims(req *http.Request) (map[string]interface{}, error) {
 	// Extract claims from the ESP header (trusted source after ESP validation)
 	espClaims, err := v.extractFromESPHeader(req)
 	if err != nil {
 		return nil, err
 	}
-
-	// Defense-in-depth: Verify Authorization header matches (if present)
-	v.verifyAuthorizationHeader(req, espClaims)
 
 	return espClaims, nil
 }
@@ -85,84 +72,4 @@ func (v *ESPv1Verifier) extractFromESPHeader(req *http.Request) (map[string]inte
 	}
 
 	return claims, nil
-}
-
-// verifyAuthorizationHeader performs defense-in-depth checking by comparing
-// the Authorization header JWT claims with the ESP header claims.
-func (v *ESPv1Verifier) verifyAuthorizationHeader(req *http.Request, espClaims map[string]interface{}) {
-	authHeader := req.Header.Get("Authorization")
-	if authHeader == "" {
-		// No Authorization header present - this is acceptable
-		return
-	}
-
-	// Extract Bearer token
-	if !strings.HasPrefix(authHeader, "Bearer ") {
-		log.WithFields(log.Fields{
-			"mode": "espv1",
-		}).Warn("SECURITY: Authorization header present but not in Bearer format")
-		return
-	}
-
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-	// Parse JWT without verification to extract claims
-	authClaims, err := v.parseJWTWithoutVerification(tokenString)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"mode":  "espv1",
-			"error": err.Error(),
-		}).Warn("SECURITY: Failed to parse Authorization header JWT for defense-in-depth check")
-		return
-	}
-
-	// Compare critical claims
-	if !v.claimsMatch(espClaims, authClaims) {
-		log.WithFields(log.Fields{
-			"mode":       "espv1",
-			"esp_claims": espClaims,
-			"auth_claims": authClaims,
-		}).Warn("SECURITY: Authorization header claims don't match X-Endpoint-API-UserInfo claims")
-	}
-}
-
-// parseJWTWithoutVerification parses a JWT and extracts claims without signature verification.
-// This is used only for defense-in-depth comparison, not for trusting the JWT.
-func (v *ESPv1Verifier) parseJWTWithoutVerification(tokenString string) (map[string]interface{}, error) {
-	token, err := jwt.ParseSigned(tokenString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT: %w", err)
-	}
-
-	var claims map[string]interface{}
-	if err := token.UnsafeClaimsWithoutVerification(&claims); err != nil {
-		return nil, fmt.Errorf("failed to extract claims: %w", err)
-	}
-
-	return claims, nil
-}
-
-// claimsMatch compares critical fields between ESP claims and Authorization header claims.
-// Returns true if key fields match, false otherwise.
-func (v *ESPv1Verifier) claimsMatch(espClaims, authClaims map[string]interface{}) bool {
-	// Compare critical claim fields
-	criticalFields := []string{"sub", "iss", "exp", "org", "tier"}
-
-	for _, field := range criticalFields {
-		espValue, espHas := espClaims[field]
-		authValue, authHas := authClaims[field]
-
-		// If field exists in both, values must match
-		if espHas && authHas {
-			if !reflect.DeepEqual(espValue, authValue) {
-				return false
-			}
-		}
-		// If field exists in only one, that's also a mismatch
-		if espHas != authHas {
-			return false
-		}
-	}
-
-	return true
 }
