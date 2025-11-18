@@ -22,7 +22,7 @@
 set -euo pipefail
 
 # Parse arguments
-ORG="${1:-mlab-sandbox}"
+ORG="${1:-mlab}"
 
 # Calculate expiration (24 hours from now)
 EXP=$(($(date +%s) + 86400))

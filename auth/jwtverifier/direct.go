@@ -32,11 +32,6 @@ func NewDirectVerifier(jwksURL *url.URL) (*DirectVerifier, error) {
 		return nil, fmt.Errorf("JWKS URL must use http or https scheme, got: %s", jwksURL.Scheme)
 	}
 
-	// Prefer HTTPS in production, but allow HTTP for local testing
-	if jwksURL.Scheme == "http" {
-		log.Warn("JWKS URL uses HTTP (not HTTPS) - this should only be used for local testing")
-	}
-
 	return &DirectVerifier{
 		jwksURL:    jwksURL,
 		httpClient: &http.Client{Timeout: 10 * time.Second},
@@ -51,11 +46,11 @@ func (v *DirectVerifier) ExtractClaims(req *http.Request) (map[string]interface{
 	// Extract Authorization header
 	authHeader := req.Header.Get("Authorization")
 	if authHeader == "" {
-		return nil, fmt.Errorf("Authorization header not found")
+		return nil, fmt.Errorf("authorization header not found")
 	}
 
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return nil, fmt.Errorf("Authorization header must be in format: Bearer <token>")
+		return nil, fmt.Errorf("authorization header must be in format: Bearer <token>")
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
@@ -85,11 +80,6 @@ func (v *DirectVerifier) ExtractClaims(req *http.Request) (map[string]interface{
 	return claims, nil
 }
 
-// Mode returns the verification mode name.
-func (v *DirectVerifier) Mode() string {
-	return "direct"
-}
-
 // fetchJWKS fetches the JSON Web Key Set from the configured URL.
 func (v *DirectVerifier) fetchJWKS() (*jose.JSONWebKeySet, error) {
 	resp, err := v.httpClient.Get(v.jwksURL.String())
@@ -117,7 +107,7 @@ func (v *DirectVerifier) fetchJWKS() (*jose.JSONWebKeySet, error) {
 // verifyAndExtractClaims verifies the JWT signature using keys from JWKS
 // and extracts the claims.
 func (v *DirectVerifier) verifyAndExtractClaims(token *jwt.JSONWebToken, jwks *jose.JSONWebKeySet) (map[string]interface{}, error) {
-	var claims map[string]interface{}
+	var claims map[string]any
 	var jwtClaims jwt.Claims
 	var lastErr error
 
@@ -146,4 +136,9 @@ func (v *DirectVerifier) verifyAndExtractClaims(token *jwt.JSONWebToken, jwks *j
 
 	// None of the keys worked
 	return nil, fmt.Errorf("failed to verify JWT with any key in JWKS (tried %d keys): %w", len(jwks.Keys), lastErr)
+}
+
+// Mode returns the verification mode name.
+func (v *DirectVerifier) Mode() string {
+	return "direct"
 }

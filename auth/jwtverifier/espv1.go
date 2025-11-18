@@ -27,11 +27,6 @@ func (v *ESPv1Verifier) ExtractClaims(req *http.Request) (map[string]interface{}
 	return espClaims, nil
 }
 
-// Mode returns the verification mode name.
-func (v *ESPv1Verifier) Mode() string {
-	return "espv1"
-}
-
 // extractFromESPHeader extracts claims from X-Endpoint-API-UserInfo header.
 // This implements the ESPv1 format parsing logic.
 func (v *ESPv1Verifier) extractFromESPHeader(req *http.Request) (map[string]interface{}, error) {
@@ -72,4 +67,9 @@ func (v *ESPv1Verifier) extractFromESPHeader(req *http.Request) (map[string]inte
 	}
 
 	return claims, nil
+}
+
+// Mode returns the verification mode name.
+func (v *ESPv1Verifier) Mode() string {
+	return "espv1"
 }
