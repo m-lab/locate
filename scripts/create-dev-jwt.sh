@@ -60,6 +60,6 @@ if [[ "${VERBOSE:-}" == "1" ]]; then
     >&2 echo "Generated JWT for local development:"
     >&2 echo "  Organization: $ORG"
     >&2 echo "  Subject: local-dev"
-    >&2 echo "  Expires: $(date -d @$EXP 2>/dev/null || date -r $EXP 2>/dev/null || echo $EXP)"
+    >&2 echo "  Expires: $(date -d @$EXP 2>/dev/null || echo $EXP)"
     >&2 echo "  Token: $JWT"
 fi
