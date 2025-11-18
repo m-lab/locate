@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/m-lab/locate/auth/jwtverifier"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/connection/testdata"
 	"github.com/m-lab/locate/heartbeat"
@@ -236,8 +237,10 @@ func contains(s, substr string) bool {
 
 func fakeClient(t heartbeat.StatusTracker) *Client {
 	locatorv2 := fakeLocatorV2{StatusTracker: t}
+	// Use ESPv1 verifier for tests (it will work with the X-Endpoint-API-UserInfo header format used in tests)
+	verifier := jwtverifier.NewESPv1Verifier()
 	return NewClient("mlab-sandbox", &fakeSigner{}, &locatorv2,
-		clientgeo.NewAppEngineLocator(), prom.NewAPI(nil), nil, nil, nil)
+		clientgeo.NewAppEngineLocator(), prom.NewAPI(nil), nil, nil, nil, verifier)
 }
 
 type fakeConn struct {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/locate/auth/jwtverifier"
 	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/memoryless"
 	"github.com/m-lab/go/prometheusx"
@@ -62,6 +64,12 @@ var (
 	rateLimitIPMax        int
 
 	earlyExitClients flagx.StringArray
+
+	jwtAuthMode = flagx.Enum{
+		Options: []string{"espv1", "direct", "insecure"},
+		Value:   "espv1",
+	}
+	jwtJWKSUrl string
 )
 
 func init() {
@@ -91,6 +99,8 @@ func init() {
 	flag.StringVar(&rateLimitPrefix, "rate-limit-prefix", "locate:ratelimit", "Prefix for Redis keys for IP+UA rate limiting")
 	flag.StringVar(&rateLimitRedisAddr, "rate-limit-redis-address", "", "Primary endpoint for Redis instance for rate limiting")
 	flag.Var(&earlyExitClients, "early-exit-clients", "Client names that should receive early_exit parameter (can be specified multiple times)")
+	flag.Var(&jwtAuthMode, "jwt-auth-mode", "JWT authentication mode: espv1 (Cloud Endpoints, production default), direct (JWKS validation for integration testing), insecure (dev/test only, requires ALLOW_INSECURE_JWT=true)")
+	flag.StringVar(&jwtJWKSUrl, "jwt-jwks-url", "", "JWKS URL for direct mode JWT verification (e.g., https://auth.example.com/.well-known/jwks.json)")
 	// Enable logging with line numbers to trace error locations.
 	log.SetFlags(log.LUTC | log.Llongfile)
 }
@@ -176,8 +186,30 @@ func main() {
 
 	lmts, err := limits.ParseConfig(limitsPath)
 	rtx.Must(err, "failed to parse limits config")
+
+	// Create JWT verifier based on configured mode
+	var jwtVerifier jwtverifier.JWTVerifier
+	switch jwtAuthMode.Value {
+	case "espv1":
+		jwtVerifier = jwtverifier.NewESPv1Verifier()
+		log.Printf("Using JWT verification mode: espv1 (Cloud Endpoints)")
+	case "direct":
+		if jwtJWKSUrl == "" {
+			rtx.Must(fmt.Errorf("--jwt-jwks-url is required for direct mode"), "JWT configuration error")
+		}
+		jwtVerifier, err = jwtverifier.NewDirectVerifier(jwtJWKSUrl)
+		rtx.Must(err, "failed to create direct JWT verifier")
+		log.Printf("Using JWT verification mode: direct (JWKS URL: %s)", jwtJWKSUrl)
+	case "insecure":
+		jwtVerifier, err = jwtverifier.NewInsecureVerifier()
+		rtx.Must(err, "failed to create insecure JWT verifier")
+		log.Printf("Using JWT verification mode: insecure (WARNING: No signature validation)")
+	default:
+		rtx.Must(fmt.Errorf("unknown JWT auth mode: %s", jwtAuthMode.Value), "JWT configuration error")
+	}
+
 	c := handler.NewClient(project, signer, srvLocatorV2, locators, promClient,
-		lmts, ipLimiter, earlyExitClients)
+		lmts, ipLimiter, earlyExitClients, jwtVerifier)
 
 	go func() {
 		// Check and reload db at least once a day.

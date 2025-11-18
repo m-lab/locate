@@ -23,6 +23,7 @@ import (
 
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/auth/jwtverifier"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/limits"
@@ -58,6 +59,7 @@ type Client struct {
 	agentLimits      limits.Agents
 	ipLimiter        Limiter
 	earlyExitClients map[string]bool
+	jwtVerifier      jwtverifier.JWTVerifier
 }
 
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
@@ -91,7 +93,7 @@ func init() {
 
 // NewClient creates a new client.
 func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator,
-	prom PrometheusClient, lmts limits.Agents, limiter Limiter, earlyExitClients []string) *Client {
+	prom PrometheusClient, lmts limits.Agents, limiter Limiter, earlyExitClients []string, jwtVerifier jwtverifier.JWTVerifier) *Client {
 	// Convert slice to map for O(1) lookups
 	earlyExitMap := make(map[string]bool)
 	for _, client := range earlyExitClients {
@@ -107,6 +109,7 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 		agentLimits:      lmts,
 		ipLimiter:        limiter,
 		earlyExitClients: earlyExitMap,
+		jwtVerifier:      jwtVerifier,
 	}
 }
 
