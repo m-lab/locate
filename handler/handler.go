@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html/template"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -69,7 +70,7 @@ type LocatorV2 interface {
 	heartbeat.StatusTracker
 }
 
-// ClientLocator defines the interfeace for looking up the client geo location.
+// ClientLocator defines the interface for looking up the client geolocation.
 type ClientLocator interface {
 	Locate(req *http.Request) (*clientgeo.Location, error)
 }
@@ -170,6 +171,8 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	result := v2.NearestResult{}
 	setHeaders(rw)
 
+	log.Printf("RemoteAddr: %s", req.RemoteAddr)
+
 	if c.limitRequest(time.Now().UTC(), req) {
 		result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
 		writeResult(rw, result.Error.Status, &result)
@@ -179,13 +182,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 
 	// Check rate limit for IP and UA.
 	if c.ipLimiter != nil {
-		// Get the IP address from the request. X-Forwarded-For is guaranteed to
-		// be set by AppEngine.
-		ip := req.Header.Get("X-Forwarded-For")
-		ips := strings.Split(ip, ",")
-		if len(ips) > 0 {
-			ip = strings.TrimSpace(ips[0])
-		}
+		ip := getRemoteAddr(req)
 		if ip != "" {
 			// An empty UA is technically possible.
 			ua := req.Header.Get("User-Agent")
@@ -438,4 +435,25 @@ func getExperimentAndService(p string) (string, string) {
 	datatype := path.Base(p)
 	experiment := path.Base(path.Dir(p))
 	return experiment, experiment + "/" + datatype
+}
+
+// getRemoteAddr extracts the remote address from the request. When running on
+// Google App Engine, the X-Forwarded-For is guaranteed to be set. When running
+// elsewhere (including on the local machine), the RemoteAddr from the request
+// is used instead.
+func getRemoteAddr(req *http.Request) string {
+	ip := req.Header.Get("X-Forwarded-For")
+	if ip != "" {
+		ip = strings.TrimSpace(strings.Split(ip, ",")[0])
+	} else {
+		// Fall back to RemoteAddr for local testing or deployments outside of GAE.
+		host, _, err := net.SplitHostPort(req.RemoteAddr)
+		if err != nil {
+			// As a last resort, use the whole RemoteAddr.
+			ip = strings.TrimSpace(req.RemoteAddr)
+		} else {
+			ip = host
+		}
+	}
+	return ip
 }

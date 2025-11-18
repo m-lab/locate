@@ -14,11 +14,14 @@ services:
             dockerfile: Dockerfile
         ports:
             - '8080:8080'
+        environment:
+            - ALLOW_INSECURE_JWT=true
         command:
             - -google-cloud-project=mlab-sandbox
             - -platform-project=mlab-sandbox
             - -port=8080
             - -redis-address=redis:6379
+            - -rate-limit-redis-address=redis:6379
             - -prometheus-username-secret-name=./secrets/testdata/prom-auth-user
             - -prometheus-password-secret-name=./secrets/testdata/prom-auth-pass
             - -prometheus-url=https://prometheus-basicauth.mlab-sandbox.measurementlab.net/
@@ -26,3 +29,4 @@ services:
             - -signer-secret-name=./secrets/testdata/jwk_sig_EdDSA_test_20220415
             - -verify-secret-name=./secrets/testdata/jwk_sig_EdDSA_test_20220415.pub
             - -prometheusx.listen-address=:9090
+            - -jwt-auth-mode=insecure
