@@ -440,9 +440,21 @@ func getExperimentAndService(p string) (string, string) {
 // elsewhere (including on the local machine), the RemoteAddr from the request
 // is used instead.
 func getRemoteAddr(req *http.Request) string {
-	ip := req.Header.Get("X-Forwarded-For")
-	if ip != "" {
-		ip = strings.TrimSpace(strings.Split(ip, ",")[0])
+	xff := req.Header.Get("X-Forwarded-For")
+	var ip string
+
+	if xff != "" {
+		// TODO: SECURITY VULNERABILITY - taking first IP allows spoofing!
+		ip = strings.TrimSpace(strings.Split(xff, ",")[0])
+		log.Printf("[XFF-DEBUG] X-Forwarded-For header: %q", xff)
+		log.Printf("[XFF-DEBUG] Extracted IP (FIRST): %q", ip)
+
+		// Show what we SHOULD be using in production
+		ips := strings.Split(xff, ",")
+		if len(ips) >= 2 {
+			secureIP := strings.TrimSpace(ips[len(ips)-2])
+			log.Printf("[XFF-DEBUG] Should use (SECOND-TO-LAST): %q", secureIP)
+		}
 	} else {
 		// Fall back to RemoteAddr for local testing or deployments outside of GAE.
 		host, _, err := net.SplitHostPort(req.RemoteAddr)
@@ -452,6 +464,9 @@ func getRemoteAddr(req *http.Request) string {
 		} else {
 			ip = host
 		}
+		log.Printf("[XFF-DEBUG] No X-Forwarded-For, using RemoteAddr: %q", ip)
 	}
+
+	log.Printf("[XFF-DEBUG] Final IP used for rate limiting: %q", ip)
 	return ip
 }
