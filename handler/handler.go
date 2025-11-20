@@ -441,19 +441,33 @@ func getExperimentAndService(p string) (string, string) {
 // is used instead.
 func getRemoteAddr(req *http.Request) string {
 	xff := req.Header.Get("X-Forwarded-For")
+	appEngineUserIP := req.Header.Get("X-AppEngine-User-IP")
+	remoteAddr := req.RemoteAddr
+
+	// Log all available IP sources
+	log.Printf("[XFF-DEBUG] ========== IP Address Analysis ==========")
+	log.Printf("[XFF-DEBUG] X-Forwarded-For:      %q", xff)
+	log.Printf("[XFF-DEBUG] X-AppEngine-User-IP:  %q", appEngineUserIP)
+	log.Printf("[XFF-DEBUG] RemoteAddr:           %q", remoteAddr)
+
 	var ip string
 
 	if xff != "" {
 		// TODO: SECURITY VULNERABILITY - taking first IP allows spoofing!
 		ip = strings.TrimSpace(strings.Split(xff, ",")[0])
-		log.Printf("[XFF-DEBUG] X-Forwarded-For header: %q", xff)
-		log.Printf("[XFF-DEBUG] Extracted IP (FIRST): %q", ip)
+		log.Printf("[XFF-DEBUG] Extracted IP (FIRST): %q ⚠️ VULNERABLE TO SPOOFING", ip)
 
 		// Show what we SHOULD be using in production
 		ips := strings.Split(xff, ",")
 		if len(ips) >= 2 {
 			secureIP := strings.TrimSpace(ips[len(ips)-2])
-			log.Printf("[XFF-DEBUG] Should use (SECOND-TO-LAST): %q", secureIP)
+			log.Printf("[XFF-DEBUG] Should use (SECOND-TO-LAST): %q ✓ SECURE", secureIP)
+		}
+
+		// Show all IPs in the chain
+		log.Printf("[XFF-DEBUG] Full IP chain (%d addresses):", len(ips))
+		for i, addr := range ips {
+			log.Printf("[XFF-DEBUG]   [%d] %q", i, strings.TrimSpace(addr))
 		}
 	} else {
 		// Fall back to RemoteAddr for local testing or deployments outside of GAE.
@@ -468,5 +482,6 @@ func getRemoteAddr(req *http.Request) string {
 	}
 
 	log.Printf("[XFF-DEBUG] Final IP used for rate limiting: %q", ip)
+	log.Printf("[XFF-DEBUG] ==========================================")
 	return ip
 }
