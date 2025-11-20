@@ -440,34 +440,29 @@ func getExperimentAndService(p string) (string, string) {
 // elsewhere (including on the local machine), the RemoteAddr from the request
 // is used instead.
 func getRemoteAddr(req *http.Request) string {
+	// Log all HTTP headers for debugging
+	log.Printf("[XFF-DEBUG] ========== Request Headers ==========")
+	log.Printf("[XFF-DEBUG] RemoteAddr: %q", req.RemoteAddr)
+	for name, values := range req.Header {
+		for _, value := range values {
+			log.Printf("[XFF-DEBUG] %s: %q", name, value)
+		}
+	}
+	log.Printf("[XFF-DEBUG] =====================================")
+
 	xff := req.Header.Get("X-Forwarded-For")
-	appEngineUserIP := req.Header.Get("X-AppEngine-User-IP")
-	remoteAddr := req.RemoteAddr
-
-	// Log all available IP sources
-	log.Printf("[XFF-DEBUG] ========== IP Address Analysis ==========")
-	log.Printf("[XFF-DEBUG] X-Forwarded-For:      %q", xff)
-	log.Printf("[XFF-DEBUG] X-AppEngine-User-IP:  %q", appEngineUserIP)
-	log.Printf("[XFF-DEBUG] RemoteAddr:           %q", remoteAddr)
-
 	var ip string
 
 	if xff != "" {
 		// TODO: SECURITY VULNERABILITY - taking first IP allows spoofing!
 		ip = strings.TrimSpace(strings.Split(xff, ",")[0])
-		log.Printf("[XFF-DEBUG] Extracted IP (FIRST): %q ⚠️ VULNERABLE TO SPOOFING", ip)
+		log.Printf("[XFF-DEBUG] Using FIRST IP from X-Forwarded-For: %q (VULNERABLE!)", ip)
 
-		// Show what we SHOULD be using in production
+		// Show what we SHOULD be using
 		ips := strings.Split(xff, ",")
 		if len(ips) >= 2 {
 			secureIP := strings.TrimSpace(ips[len(ips)-2])
-			log.Printf("[XFF-DEBUG] Should use (SECOND-TO-LAST): %q ✓ SECURE", secureIP)
-		}
-
-		// Show all IPs in the chain
-		log.Printf("[XFF-DEBUG] Full IP chain (%d addresses):", len(ips))
-		for i, addr := range ips {
-			log.Printf("[XFF-DEBUG]   [%d] %q", i, strings.TrimSpace(addr))
+			log.Printf("[XFF-DEBUG] Should use SECOND-TO-LAST: %q (SECURE)", secureIP)
 		}
 	} else {
 		// Fall back to RemoteAddr for local testing or deployments outside of GAE.
@@ -481,7 +476,5 @@ func getRemoteAddr(req *http.Request) string {
 		log.Printf("[XFF-DEBUG] No X-Forwarded-For, using RemoteAddr: %q", ip)
 	}
 
-	log.Printf("[XFF-DEBUG] Final IP used for rate limiting: %q", ip)
-	log.Printf("[XFF-DEBUG] ==========================================")
 	return ip
 }
