@@ -46,6 +46,24 @@ func TestNewMaxmindLocator(t *testing.T) {
 			filename: "file:./testdata/fake.tar.gz",
 		},
 		{
+			name: "success-using-X-Forwarded-For-with-spoofed-IPs",
+			useHeaders: map[string]string{
+				// GCP scenario: client sends spoofed IPs, GCP appends real client IP and LB IP
+				// Format: <spoofed>, <real-client-ip>, <lb-ip>
+				"X-Forwarded-For": "8.8.8.8, 1.1.1.1, 2.125.160.216, 192.168.0.2",
+			},
+			remoteIP: remoteIP + ":1234",
+			want: &Location{
+				Latitude:  "51.750000",
+				Longitude: "-1.250000",
+				Headers: http.Header{
+					hLocateClientlatlon:       []string{"51.750000,-1.250000"},
+					hLocateClientlatlonMethod: []string{"maxmind-remoteip"},
+				},
+			},
+			filename: "file:./testdata/fake.tar.gz",
+		},
+		{
 			name:     "success-using-remote-ip",
 			remoteIP: remoteIP + ":1234",
 			want: &Location{

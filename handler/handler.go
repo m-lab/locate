@@ -435,22 +435,34 @@ func getExperimentAndService(p string) (string, string) {
 }
 
 // getRemoteAddr extracts the remote address from the request. When running on
-// Google App Engine, the X-Forwarded-For is guaranteed to be set. When running
-// elsewhere (including on the local machine), the RemoteAddr from the request
-// is used instead.
+// Google App Engine, the X-Forwarded-For is guaranteed to be set. The GCP load
+// balancer appends the actual client IP and the load balancer IP to any existing
+// X-Forwarded-For header, so the second-to-last IP is the real client address.
+// When running elsewhere (including on the local machine), the RemoteAddr from
+// the request is used instead.
 func getRemoteAddr(req *http.Request) string {
-	ip := req.Header.Get("X-Forwarded-For")
-	if ip != "" {
-		ip = strings.TrimSpace(strings.Split(ip, ",")[0])
-	} else {
-		// Fall back to RemoteAddr for local testing or deployments outside of GAE.
-		host, _, err := net.SplitHostPort(req.RemoteAddr)
-		if err != nil {
-			// As a last resort, use the whole RemoteAddr.
-			ip = strings.TrimSpace(req.RemoteAddr)
-		} else {
-			ip = host
+	xff := req.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		// Split by comma and trim spaces from each IP
+		ips := strings.Split(xff, ",")
+		for i := range ips {
+			ips[i] = strings.TrimSpace(ips[i])
+		}
+
+		// GCP load balancer appends: <original-header>, <client-ip>, <lb-ip>
+		// The second-to-last IP is the actual client address
+		if len(ips) >= 2 {
+			return ips[len(ips)-2]
+		} else if len(ips) == 1 && ips[0] != "" {
+			return ips[0]
 		}
 	}
-	return ip
+
+	// Fall back to RemoteAddr for local testing or deployments outside of GAE.
+	host, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		// As a last resort, use the whole RemoteAddr.
+		return strings.TrimSpace(req.RemoteAddr)
+	}
+	return host
 }

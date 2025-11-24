@@ -84,18 +84,37 @@ func (mml *MaxmindLocator) Locate(req *http.Request) (*Location, error) {
 }
 
 func ipFromRequest(req *http.Request) (net.IP, error) {
-	fwdIPs := strings.Split(req.Header.Get("X-Forwarded-For"), ", ")
-	var ip net.IP
-	if fwdIPs[0] != "" {
-		ip = net.ParseIP(fwdIPs[0])
-	} else {
-		h, _, err := net.SplitHostPort(req.RemoteAddr)
-		if err != nil {
-			return nil, errors.New("failed to parse remote addr")
+	xff := req.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		// Split by comma and trim spaces from each IP
+		ips := strings.Split(xff, ",")
+		for i := range ips {
+			ips[i] = strings.TrimSpace(ips[i])
 		}
-		ip = net.ParseIP(h)
+
+		// GCP load balancer appends: <original-header>, <client-ip>, <lb-ip>
+		// The second-to-last IP is the actual client address
+		var ipStr string
+		if len(ips) >= 2 {
+			ipStr = ips[len(ips)-2]
+		} else if len(ips) == 1 && ips[0] != "" {
+			ipStr = ips[0]
+		}
+
+		if ipStr != "" {
+			ip := net.ParseIP(ipStr)
+			if ip != nil {
+				return ip, nil
+			}
+		}
 	}
-	return ip, nil
+
+	// Fall back to RemoteAddr for local testing or deployments outside of GAE.
+	h, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		return nil, errors.New("failed to parse remote addr")
+	}
+	return net.ParseIP(h), nil
 }
 
 // Reload is intended to be regularly called in a loop. It should check whether
