@@ -16,8 +16,9 @@ You may need to run multiple heartbeat instances to simulate multiple machines.
 Each heartbeat service will need a unique prometheusx.listen-address to prevent
 conflicts.
 
-You will need to generate a JWT for local testing. When running locally, Locate
-is configured to not verify JWTs, so a valid signature is not required.
+You will need to generate a JWT for local testing. When running with the
+provided docker-compose.yaml, Locate is already set up to not verify JWTs, so
+a valid signature is not required.
 
 ```sh
 export DEV_JWT=$(./scripts/create-dev-jwt.sh)
