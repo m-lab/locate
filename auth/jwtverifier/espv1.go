@@ -7,17 +7,17 @@ import (
 	"net/http"
 )
 
-// ESPv1Verifier extracts JWT claims from the X-Endpoint-API-UserInfo header
+// ESPv1 extracts JWT claims from the X-Endpoint-API-UserInfo header
 // set by Cloud Endpoints ESPv1 after JWT validation.
-type ESPv1Verifier struct{}
+type ESPv1 struct{}
 
-// NewESPv1Verifier creates a new ESPv1 JWT verifier.
-func NewESPv1Verifier() *ESPv1Verifier {
-	return &ESPv1Verifier{}
+// NewESPv1 creates a new ESPv1 JWT verifier.
+func NewESPv1() *ESPv1 {
+	return &ESPv1{}
 }
 
 // ExtractClaims extracts JWT claims from the X-Endpoint-API-UserInfo header.
-func (v *ESPv1Verifier) ExtractClaims(req *http.Request) (map[string]interface{}, error) {
+func (v *ESPv1) ExtractClaims(req *http.Request) (map[string]interface{}, error) {
 	// Extract claims from the ESP header (trusted source after ESP validation)
 	espClaims, err := v.extractFromESPHeader(req)
 	if err != nil {
@@ -29,7 +29,7 @@ func (v *ESPv1Verifier) ExtractClaims(req *http.Request) (map[string]interface{}
 
 // extractFromESPHeader extracts claims from X-Endpoint-API-UserInfo header.
 // This implements the ESPv1 format parsing logic.
-func (v *ESPv1Verifier) extractFromESPHeader(req *http.Request) (map[string]interface{}, error) {
+func (v *ESPv1) extractFromESPHeader(req *http.Request) (map[string]interface{}, error) {
 	// Get the X-Endpoint-API-UserInfo header set by Cloud Endpoints
 	userInfoHeader := req.Header.Get("X-Endpoint-API-UserInfo")
 	if userInfoHeader == "" {
@@ -70,6 +70,6 @@ func (v *ESPv1Verifier) extractFromESPHeader(req *http.Request) (map[string]inte
 }
 
 // Mode returns the verification mode name.
-func (v *ESPv1Verifier) Mode() string {
+func (v *ESPv1) Mode() string {
 	return "espv1"
 }

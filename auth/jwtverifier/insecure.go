@@ -12,18 +12,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// InsecureVerifier parses JWTs from the Authorization header WITHOUT signature verification.
+// Insecure parses JWTs from the Authorization header WITHOUT signature verification.
 // This mode is ONLY for development and testing. It requires the ALLOW_INSECURE_JWT=true
 // environment variable to be set as a safety check.
 //
 // WARNING: Never use this in production - it accepts any JWT regardless of signature.
-type InsecureVerifier struct {
+type Insecure struct {
 	warnedOnce sync.Once
 }
 
-// NewInsecureVerifier creates a new insecure JWT verifier.
+// NewInsecure creates a new insecure JWT verifier.
 // Returns an error if the ALLOW_INSECURE_JWT environment variable is not set to "true".
-func NewInsecureVerifier() (*InsecureVerifier, error) {
+func NewInsecure() (*Insecure, error) {
 	// Require explicit environment variable as safety check
 	if os.Getenv("ALLOW_INSECURE_JWT") != "true" {
 		return nil, fmt.Errorf("insecure JWT mode requires ALLOW_INSECURE_JWT=true environment variable")
@@ -35,11 +35,11 @@ func NewInsecureVerifier() (*InsecureVerifier, error) {
 	log.Warn("DO NOT USE IN PRODUCTION")
 	log.Warn("======================================================================")
 
-	return &InsecureVerifier{}, nil
+	return &Insecure{}, nil
 }
 
 // ExtractClaims extracts JWT claims from the Authorization header without signature verification.
-func (v *InsecureVerifier) ExtractClaims(req *http.Request) (map[string]interface{}, error) {
+func (v *Insecure) ExtractClaims(req *http.Request) (map[string]interface{}, error) {
 	// Log warning on first use (per-verifier instance)
 	v.warnedOnce.Do(func() {
 		log.Warn("INSECURE MODE: Parsing JWT without signature verification")
@@ -78,6 +78,6 @@ func (v *InsecureVerifier) ExtractClaims(req *http.Request) (map[string]interfac
 }
 
 // Mode returns the verification mode name.
-func (v *InsecureVerifier) Mode() string {
+func (v *Insecure) Mode() string {
 	return "insecure"
 }

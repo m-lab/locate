@@ -50,7 +50,7 @@ func TestESPv1Verifier_ExtractClaims(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			verifier := NewESPv1Verifier()
+			verifier := NewESPv1()
 
 			req := httptest.NewRequest("GET", "/test", nil)
 			if tt.headerValue != "" {
@@ -84,7 +84,7 @@ func TestESPv1Verifier_ExtractClaims(t *testing.T) {
 }
 
 func TestESPv1Verifier_Mode(t *testing.T) {
-	verifier := NewESPv1Verifier()
+	verifier := NewESPv1()
 	if mode := verifier.Mode(); mode != "espv1" {
 		t.Errorf("Mode() = %v, want espv1", mode)
 	}
@@ -105,7 +105,7 @@ func TestDirectVerifier_ExtractClaims(t *testing.T) {
 		t.Fatalf("Failed to parse server URL: %v", err)
 	}
 
-	verifier, err := NewDirectVerifier(serverURL)
+	verifier, err := NewDirect(serverURL)
 	if err != nil {
 		t.Fatalf("Failed to create verifier: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestDirectVerifier_ExtractClaims(t *testing.T) {
 	}
 }
 
-func TestNewDirectVerifier(t *testing.T) {
+func TestNewDirect(t *testing.T) {
 	tests := []struct {
 		name      string
 		jwksURL   string
@@ -220,9 +220,9 @@ func TestNewDirectVerifier(t *testing.T) {
 				}
 			}
 
-			verifier, err := NewDirectVerifier(parsedURL)
+			verifier, err := NewDirect(parsedURL)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NewDirectVerifier() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NewDirect() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr && verifier == nil {
 				t.Error("Expected non-nil verifier")
@@ -233,7 +233,7 @@ func TestNewDirectVerifier(t *testing.T) {
 
 func TestDirectVerifier_Mode(t *testing.T) {
 	testURL, _ := url.Parse("https://example.com/jwks")
-	verifier, _ := NewDirectVerifier(testURL)
+	verifier, _ := NewDirect(testURL)
 	if mode := verifier.Mode(); mode != "direct" {
 		t.Errorf("Mode() = %v, want direct", mode)
 	}
@@ -245,7 +245,7 @@ func TestInsecureVerifier_ExtractClaims(t *testing.T) {
 	os.Setenv("ALLOW_INSECURE_JWT", "true")
 	defer os.Unsetenv("ALLOW_INSECURE_JWT")
 
-	verifier, err := NewInsecureVerifier()
+	verifier, err := NewInsecure()
 	if err != nil {
 		t.Fatalf("Failed to create insecure verifier: %v", err)
 	}
@@ -300,11 +300,11 @@ func TestInsecureVerifier_ExtractClaims(t *testing.T) {
 	}
 }
 
-func TestNewInsecureVerifier_RequiresEnvVar(t *testing.T) {
+func TestNewInsecure_RequiresEnvVar(t *testing.T) {
 	// Ensure env var is not set
 	os.Unsetenv("ALLOW_INSECURE_JWT")
 
-	verifier, err := NewInsecureVerifier()
+	verifier, err := NewInsecure()
 	if err == nil {
 		t.Error("Expected error when ALLOW_INSECURE_JWT is not set")
 	}
@@ -317,7 +317,7 @@ func TestInsecureVerifier_Mode(t *testing.T) {
 	os.Setenv("ALLOW_INSECURE_JWT", "true")
 	defer os.Unsetenv("ALLOW_INSECURE_JWT")
 
-	verifier, _ := NewInsecureVerifier()
+	verifier, _ := NewInsecure()
 	if mode := verifier.Mode(); mode != "insecure" {
 		t.Errorf("Mode() = %v, want insecure", mode)
 	}

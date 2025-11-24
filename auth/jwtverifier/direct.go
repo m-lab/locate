@@ -14,16 +14,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// DirectVerifier validates JWTs from the Authorization header using JWKS.
+// Direct validates JWTs from the Authorization header using JWKS.
 // This mode fetches the JWKS on every request (no caching) and validates
 // the JWT signature. Intended for integration testing, not production use.
-type DirectVerifier struct {
+type Direct struct {
 	jwksURL    *url.URL
 	httpClient *http.Client
 }
 
-// NewDirectVerifier creates a new direct JWT verifier with JWKS validation.
-func NewDirectVerifier(jwksURL *url.URL) (*DirectVerifier, error) {
+// NewDirect creates a new direct JWT verifier with JWKS validation.
+func NewDirect(jwksURL *url.URL) (*Direct, error) {
 	if jwksURL == nil {
 		return nil, fmt.Errorf("JWKS URL cannot be nil")
 	}
@@ -32,7 +32,7 @@ func NewDirectVerifier(jwksURL *url.URL) (*DirectVerifier, error) {
 		return nil, fmt.Errorf("JWKS URL must use http or https scheme, got: %s", jwksURL.Scheme)
 	}
 
-	return &DirectVerifier{
+	return &Direct{
 		jwksURL:    jwksURL,
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 	}, nil
@@ -42,7 +42,7 @@ func NewDirectVerifier(jwksURL *url.URL) (*DirectVerifier, error) {
 // It fetches the JWKS on every request and validates the JWT signature. This
 // is only meant to be used for local e2e testing.
 // TODO: implement proper caching and JWKS reuse to allow non-GAE deployments.
-func (v *DirectVerifier) ExtractClaims(req *http.Request) (map[string]interface{}, error) {
+func (v *Direct) ExtractClaims(req *http.Request) (map[string]interface{}, error) {
 	// Extract Authorization header
 	authHeader := req.Header.Get("Authorization")
 	if authHeader == "" {
@@ -81,7 +81,7 @@ func (v *DirectVerifier) ExtractClaims(req *http.Request) (map[string]interface{
 }
 
 // fetchJWKS fetches the JSON Web Key Set from the configured URL.
-func (v *DirectVerifier) fetchJWKS() (*jose.JSONWebKeySet, error) {
+func (v *Direct) fetchJWKS() (*jose.JSONWebKeySet, error) {
 	resp, err := v.httpClient.Get(v.jwksURL.String())
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request to JWKS URL failed: %w", err)
@@ -106,7 +106,7 @@ func (v *DirectVerifier) fetchJWKS() (*jose.JSONWebKeySet, error) {
 
 // verifyAndExtractClaims verifies the JWT signature using keys from JWKS
 // and extracts the claims.
-func (v *DirectVerifier) verifyAndExtractClaims(token *jwt.JSONWebToken, jwks *jose.JSONWebKeySet) (map[string]interface{}, error) {
+func (v *Direct) verifyAndExtractClaims(token *jwt.JSONWebToken, jwks *jose.JSONWebKeySet) (map[string]interface{}, error) {
 	var claims map[string]any
 	var jwtClaims jwt.Claims
 	var lastErr error
@@ -139,6 +139,6 @@ func (v *DirectVerifier) verifyAndExtractClaims(token *jwt.JSONWebToken, jwks *j
 }
 
 // Mode returns the verification mode name.
-func (v *DirectVerifier) Mode() string {
+func (v *Direct) Mode() string {
 	return "direct"
 }

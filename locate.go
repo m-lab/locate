@@ -188,20 +188,20 @@ func main() {
 	rtx.Must(err, "failed to parse limits config")
 
 	// Create JWT verifier based on configured mode
-	var jwtVerifier jwtverifier.JWTVerifier
+	var jwtVerifier handler.Verifier
 	switch jwtAuthMode.Value {
 	case "espv1":
-		jwtVerifier = jwtverifier.NewESPv1Verifier()
+		jwtVerifier = jwtverifier.NewESPv1()
 		log.Printf("Using JWT verification mode: espv1 (Cloud Endpoints)")
 	case "direct":
 		if jwtJWKS.URL == nil {
 			rtx.Must(fmt.Errorf("--jwt-jwks-url is required for direct mode"), "JWT configuration error")
 		}
-		jwtVerifier, err = jwtverifier.NewDirectVerifier(jwtJWKS.URL)
+		jwtVerifier, err = jwtverifier.NewDirect(jwtJWKS.URL)
 		rtx.Must(err, "failed to create direct JWT verifier")
 		log.Printf("Using JWT verification mode: direct (JWKS URL: %s)", jwtJWKS.URL)
 	case "insecure":
-		jwtVerifier, err = jwtverifier.NewInsecureVerifier()
+		jwtVerifier, err = jwtverifier.NewInsecure()
 		rtx.Must(err, "failed to create insecure JWT verifier")
 		log.Printf("Using JWT verification mode: insecure (WARNING: No signature validation)")
 	default:
