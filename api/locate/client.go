@@ -6,7 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"io/ioutil"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -35,6 +36,12 @@ type Client struct {
 	// BaseURL is the base url used to contact the Locate API.
 	// NewClient sets the BaseURL to the -locate.url flag.
 	BaseURL *url.URL
+
+	// Authorization is the optional VALUE to include in the HTTP
+	// request as `Authorization: Bearer VALUE`. This value is
+	// typically used by ndt7-client-go and possibly other tools for
+	// the client-integration registration.
+	Authorization string
 }
 
 // baseURL is the default base URL.
@@ -47,20 +54,18 @@ func init() {
 // NewClient creates a new Client instance. The userAgent must not be empty.
 func NewClient(userAgent string) *Client {
 	return &Client{
-		HTTPClient: http.DefaultClient,
-		UserAgent:  userAgent,
-		BaseURL:    baseURL.URL,
+		HTTPClient:    http.DefaultClient,
+		UserAgent:     userAgent,
+		BaseURL:       baseURL.URL, // careful: it's a global: cave mutator! 😅
+		Authorization: "",
 	}
 }
 
 // Nearest returns a slice of nearby mlab servers. Returns an error on failure.
 func (c *Client) Nearest(ctx context.Context, service string) ([]v2.Target, error) {
-	var data []byte
-	var err error
-	var status int
-	reqURL := *c.BaseURL
+	reqURL := *c.BaseURL // hey, commenter, I am careful!!! 👻
 	reqURL.Path = path.Join(reqURL.Path, service)
-	data, status, err = c.get(ctx, reqURL.String())
+	data, status, err := c.get(ctx, reqURL.String())
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +88,11 @@ func (c *Client) Nearest(ctx context.Context, service string) ([]v2.Target, erro
 	return reply.Results, nil
 }
 
+// maxReasonableBody is the maximum reasonable size of a response body
+//
+// A response larger than this feels really off.
+const maxReasonableBody = 1 << 23
+
 // get is an internal function used to perform the request.
 func (c *Client) get(ctx context.Context, URL string) ([]byte, int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, URL, nil)
@@ -95,11 +105,14 @@ func (c *Client) get(ctx context.Context, URL string) ([]byte, int, error) {
 		return nil, 0, ErrNoUserAgent
 	}
 	req.Header.Set("User-Agent", c.UserAgent)
+	if c.Authorization != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.Authorization))
+	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer resp.Body.Close()
-	b, err := ioutil.ReadAll(resp.Body)
-	return b, resp.StatusCode, err
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxReasonableBody))
+	return body, resp.StatusCode, err
 }
