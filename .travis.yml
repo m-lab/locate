@@ -1,7 +1,7 @@
 dist: jammy
 
 language: go
-go: go1.25
+go: go1.25.5
 
 addons:
   apt:
