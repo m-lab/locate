@@ -114,6 +114,7 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
+// TODO: Remove this and use NewClient in test code.
 func NewClientDirect(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient) *Client {
 	return &Client{
 		Signer:           private,
