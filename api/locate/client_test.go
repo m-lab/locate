@@ -4,10 +4,12 @@ package locate
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"sync"
 	"testing"
 
 	v2 "github.com/m-lab/locate/api/v2"
@@ -15,21 +17,38 @@ import (
 
 func TestClient_Nearest(t *testing.T) {
 	tests := []struct {
-		name        string
-		UserAgent   string
-		service     string
-		BaseURL     *url.URL
-		reply       *v2.NearestResult
-		status      int
-		wantErr     bool
-		closeServer bool
-		badJSON     bool
+		name          string
+		UserAgent     string
+		service       string
+		BaseURL       *url.URL
+		authorization string // optional authorization
+		reply         *v2.NearestResult
+		status        int
+		wantErr       bool
+		closeServer   bool
+		badJSON       bool
 	}{
 		{
-			name:      "success",
+			name:      "success w/o authorization",
 			service:   "ndt/ndt7",
 			UserAgent: "unit-test",
 			status:    http.StatusOK,
+			reply: &v2.NearestResult{
+				Results: []v2.Target{
+					{
+						Machine: "mlab1-foo01.mlab-sandbox.measurement-lab.org",
+						URLs: map[string]string{
+							"ws:///ndt/v7/download": "fake-url"},
+					},
+				},
+			},
+		},
+		{
+			name:          "success w/ authorization",
+			service:       "ndt/ndt7",
+			UserAgent:     "unit-test",
+			authorization: "thisIsMyToken",
+			status:        http.StatusOK,
 			reply: &v2.NearestResult{
 				Results: []v2.Target{
 					{
@@ -87,10 +106,25 @@ func TestClient_Nearest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// There is a theoretical data race between the background goroutine
+			// and the test goroutine accessing seenAuth. Running `go test -race ./...`
+			// does not complain even w/o mutex but I am still adding a mutex
+			// for correctness here.
+			var (
+				seenAuth string
+				mu       = &sync.Mutex{}
+			)
 			c := NewClient(tt.UserAgent)
+			c.Authorization = tt.authorization // optional
 			mux := http.NewServeMux()
 			path := "/v2/nearest/" + tt.service
 			mux.HandleFunc(path, func(rw http.ResponseWriter, req *http.Request) {
+				// save the authorization header for later checking
+				mu.Lock()
+				seenAuth = req.Header.Get("Authorization")
+				mu.Unlock()
+
+				// write configured response
 				var b []byte
 				if tt.badJSON {
 					b = []byte("this-is-not-JSON{")
@@ -117,11 +151,22 @@ func TestClient_Nearest(t *testing.T) {
 			ctx := context.Background()
 			got, err := c.Nearest(ctx, tt.service)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Client.Nearest() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Fatalf("Client.Nearest() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.reply != nil && !reflect.DeepEqual(got, tt.reply.Results) {
-				t.Errorf("Client.Nearest() = %v, want %v", got, tt.reply.Results)
+				t.Fatalf("Client.Nearest() = %v, want %v", got, tt.reply.Results)
+			}
+
+			// check for authorization
+			var expectAuth string
+			if tt.authorization != "" {
+				expectAuth = fmt.Sprintf("Bearer %s", tt.authorization)
+			}
+			mu.Lock()
+			gotAuth := seenAuth
+			mu.Unlock()
+			if expectAuth != gotAuth {
+				t.Fatalf("auth expect = %v, got = %v", expectAuth, gotAuth)
 			}
 		})
 	}
