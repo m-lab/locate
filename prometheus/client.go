@@ -20,7 +20,8 @@ func NewClient(c *Credentials, addr string) (v1.API, error) {
 	promClient, err := api.NewClient(api.Config{
 		Address: addr,
 		Client: &http.Client{
-			Transport: config.NewBasicAuthRoundTripper(c.Username, c.Password, "", &http.Transport{}),
+			Transport: config.NewBasicAuthRoundTripper(config.NewInlineSecret(c.Username),
+				config.NewInlineSecret(string(c.Password)), &http.Transport{}),
 		},
 	})
 	if err != nil {

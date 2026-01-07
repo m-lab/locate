@@ -1,5 +1,5 @@
 # Built the command using a golang base image.
-FROM golang:1.20-alpine3.18 AS build
+FROM golang:1.25-alpine AS build
 RUN apk add git
 ADD . /go/src/github.com/m-lab/locate
 WORKDIR /go/src/github.com/m-lab/locate

@@ -427,6 +427,20 @@ func TestNearest(t *testing.T) {
 				t.Fatalf("Nearest() error got: %t, want %t, err: %v", err != nil, tt.wantErr, err)
 			}
 
+			// Sort targets by Machine name for deterministic comparison
+			// (target selection order depends on random number generation
+			// which varies across Go versions).
+			if got != nil {
+				sort.Slice(got.Targets, func(i, j int) bool {
+					return got.Targets[i].Machine < got.Targets[j].Machine
+				})
+			}
+			if tt.expected != nil {
+				sort.Slice(tt.expected.Targets, func(i, j int) bool {
+					return tt.expected.Targets[i].Machine < tt.expected.Targets[j].Machine
+				})
+			}
+
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("Nearest() targets got: %+v, want %+v", got, tt.expected)
 			}
@@ -884,95 +898,88 @@ func TestPickTargets(t *testing.T) {
 		},
 	}
 
+	// Build a lookup table of valid machines per site for validation.
+	allSites := []site{site1, site2, site3, site4}
+	machineToSite := make(map[string]*site)
+	for i := range allSites {
+		for _, m := range allSites[i].machines {
+			machineToSite[m.name] = &allSites[i]
+		}
+	}
+
 	tests := []struct {
-		name     string
-		sites    []site
-		expected *TargetInfo
+		name          string
+		sites         []site
+		expectedCount int
+		expectedURLs  []url.URL
 	}{
 		{
-			name: "4-sites",
-			sites: []site{
-				site1, site2, site3, site4,
-			},
-			expected: &TargetInfo{
-				Targets: []v2.Target{
-					{
-						Machine:  "mlab2-site2-metro0",
-						Hostname: "ndt-mlab2-site2-metro0",
-						Location: &v2.Location{
-							City:    site2.registration.City,
-							Country: site2.registration.CountryCode,
-						},
-						URLs: make(map[string]string),
-					},
-					{
-						Machine:  "mlab3-site1-metro0",
-						Hostname: "ndt-mlab3-site1-metro0",
-						Location: &v2.Location{
-							City:    site1.registration.City,
-							Country: site1.registration.CountryCode,
-						},
-						URLs: make(map[string]string),
-					},
-					{
-						Machine:  "mlab1-site3-metro1",
-						Hostname: "ndt-mlab1-site3-metro1",
-						Location: &v2.Location{
-							City:    site3.registration.City,
-							Country: site3.registration.CountryCode,
-						},
-						URLs: make(map[string]string),
-					},
-					{
-						Machine:  "mlab1-site4-metro2",
-						Hostname: "ndt-mlab1-site4-metro2",
-						Location: &v2.Location{
-							City:    site4.registration.City,
-							Country: site4.registration.CountryCode,
-						},
-						URLs: make(map[string]string),
-					},
-				},
-				URLs: NDT7Urls,
-				Ranks: map[string]int{
-					"mlab1-site3-metro1": 1,
-					"mlab1-site4-metro2": 2,
-					"mlab2-site2-metro0": 0,
-					"mlab3-site1-metro0": 0,
-				},
-			},
+			name:          "4-sites",
+			sites:         []site{site1, site2, site3, site4},
+			expectedCount: 4,
+			expectedURLs:  NDT7Urls,
 		},
 		{
-			name: "1-site",
-			sites: []site{
-				site1,
-			},
-			expected: &TargetInfo{
-				Targets: []v2.Target{
-					{
-						Machine:  "mlab2-site1-metro0",
-						Hostname: "ndt-mlab2-site1-metro0",
-						Location: &v2.Location{
-							City:    site1.registration.City,
-							Country: site1.registration.CountryCode,
-						},
-						URLs: make(map[string]string),
-					},
-				},
-				URLs:  NDT7Urls,
-				Ranks: map[string]int{"mlab2-site1-metro0": 0},
-			},
+			name:          "1-site",
+			sites:         []site{site1},
+			expectedCount: 1,
+			expectedURLs:  NDT7Urls,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Use a fixed seed so the pattern is only pseudorandom and can
-			// be verififed against expectations.
-			rand.Seed(1658340109320624212)
 			got := pickTargets("ndt/ndt7", tt.sites)
 
-			if !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("pickTargets() got: %+v, want: %+v", got, tt.expected)
+			// Verify the correct number of targets.
+			if len(got.Targets) != tt.expectedCount {
+				t.Errorf("pickTargets() returned %d targets, want %d", len(got.Targets), tt.expectedCount)
+			}
+
+			// Verify URLs are correct.
+			if !reflect.DeepEqual(got.URLs, tt.expectedURLs) {
+				t.Errorf("pickTargets() URLs = %+v, want %+v", got.URLs, tt.expectedURLs)
+			}
+
+			// Verify each target is valid and from one of the input sites.
+			seenMachines := make(map[string]bool)
+			for _, target := range got.Targets {
+				// Check for duplicates.
+				if seenMachines[target.Machine] {
+					t.Errorf("pickTargets() returned duplicate machine: %s", target.Machine)
+				}
+				seenMachines[target.Machine] = true
+
+				// Check machine is from one of the input sites.
+				sourceSite, ok := machineToSite[target.Machine]
+				if !ok {
+					t.Errorf("pickTargets() returned unknown machine: %s", target.Machine)
+					continue
+				}
+
+				// Verify Location matches the site's registration.
+				if target.Location.City != sourceSite.registration.City {
+					t.Errorf("pickTargets() target %s has City=%s, want %s",
+						target.Machine, target.Location.City, sourceSite.registration.City)
+				}
+				if target.Location.Country != sourceSite.registration.CountryCode {
+					t.Errorf("pickTargets() target %s has Country=%s, want %s",
+						target.Machine, target.Location.Country, sourceSite.registration.CountryCode)
+				}
+
+				// Verify Ranks map contains the machine with correct metro rank.
+				rank, ok := got.Ranks[target.Machine]
+				if !ok {
+					t.Errorf("pickTargets() Ranks missing machine: %s", target.Machine)
+				} else if rank != sourceSite.metroRank {
+					t.Errorf("pickTargets() Ranks[%s] = %d, want %d",
+						target.Machine, rank, sourceSite.metroRank)
+				}
+			}
+
+			// Verify Ranks map has exactly the right number of entries.
+			if len(got.Ranks) != len(got.Targets) {
+				t.Errorf("pickTargets() Ranks has %d entries, want %d",
+					len(got.Ranks), len(got.Targets))
 			}
 		})
 	}
@@ -1018,42 +1025,19 @@ func TestAlwaysPick(t *testing.T) {
 }
 
 func TestPickWithProbability(t *testing.T) {
-	tests := []struct {
-		name        string
-		probability float64
-		seed        int64
-		want        bool
-	}{
-		{
-			name:        "no-probability",
-			probability: 1.0,
-			want:        true,
-		},
-		// If we use 2 as a seed, the pseudo-random number generated will be < 0.5.
-		{
-			name:        "pick-with-probability",
-			probability: 0.5,
-			seed:        2,
-			want:        true,
-		},
-		// If we use 1 as a seed, the pseudo-random number generated will be > 0.5.
-		{
-			name:        "do-not-pick-with-probability",
-			probability: 0.5,
-			seed:        1,
-			want:        false,
-		},
+	// Test deterministic edge cases only.
+	// probability=1.0 should always return true.
+	for i := 0; i < 10; i++ {
+		if got := pickWithProbability(1.0); !got {
+			t.Errorf("pickWithProbability(1.0) = false, want true")
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rand.Seed(tt.seed)
-			got := pickWithProbability(tt.probability)
-
-			if got != tt.want {
-				t.Errorf("pickWithProbability() got: %v, want: %v", got, tt.want)
-			}
-		})
+	// probability=0.0 should always return false.
+	for i := 0; i < 10; i++ {
+		if got := pickWithProbability(0.0); got {
+			t.Errorf("pickWithProbability(0.0) = true, want false")
+		}
 	}
 }
 

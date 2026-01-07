@@ -239,7 +239,9 @@ func main() {
 		Issuer:   static.IssuerMonitoring,
 		Audience: jwt.Audience{static.AudienceLocate},
 	}
-	tc, err := controller.NewTokenController(verifier, true, exp)
+	tc, err := controller.NewTokenController(verifier, true, exp, controller.Paths{
+		"/v2/platform/monitoring/": true,
+	})
 	rtx.Must(err, "Failed to create token controller")
 	monitoringChain := alice.New(tc.Limit).Then(http.HandlerFunc(c.Monitoring))
 
