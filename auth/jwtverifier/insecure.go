@@ -48,16 +48,14 @@ func (v *Insecure) ExtractClaims(req *http.Request) (map[string]interface{}, err
 	// Extract Authorization header
 	authHeader := req.Header.Get("Authorization")
 	if authHeader == "" {
-		return nil, fmt.Errorf("Authorization header not found")
+		return nil, fmt.Errorf("authorization header not found")
 	}
 
-	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return nil, fmt.Errorf("Authorization header must be in format: Bearer <token>")
+	tokenString, found := strings.CutPrefix(authHeader, "Bearer ")
+	if !found {
+		return nil, fmt.Errorf("authorization header must be in format: Bearer <token>")
 	}
 
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-	// Parse JWT without verification
 	token, err := jwt.ParseSigned(tokenString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JWT: %w", err)
