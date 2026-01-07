@@ -898,7 +898,7 @@ func TestPickTargets(t *testing.T) {
 		},
 	}
 
-	// Build a lookup of valid machines per site for validation.
+	// Build a lookup table of valid machines per site for validation.
 	allSites := []site{site1, site2, site3, site4}
 	machineToSite := make(map[string]*site)
 	for i := range allSites {
