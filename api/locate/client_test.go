@@ -106,6 +106,10 @@ func TestClient_Nearest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// There is a theoretical data race between the background goroutine
+			// and the test goroutine accessing seenAuth. Running `go test -race ./...`
+			// does not complain even w/o mutex but I am still adding a mutex
+			// for correctness here.
 			var (
 				seenAuth string
 				mu       = &sync.Mutex{}
