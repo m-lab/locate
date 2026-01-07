@@ -427,6 +427,20 @@ func TestNearest(t *testing.T) {
 				t.Fatalf("Nearest() error got: %t, want %t, err: %v", err != nil, tt.wantErr, err)
 			}
 
+			// Sort targets by Machine name for deterministic comparison
+			// (target selection order depends on random number generation
+			// which varies across Go versions).
+			if got != nil {
+				sort.Slice(got.Targets, func(i, j int) bool {
+					return got.Targets[i].Machine < got.Targets[j].Machine
+				})
+			}
+			if tt.expected != nil {
+				sort.Slice(tt.expected.Targets, func(i, j int) bool {
+					return tt.expected.Targets[i].Machine < tt.expected.Targets[j].Machine
+				})
+			}
+
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("Nearest() targets got: %+v, want %+v", got, tt.expected)
 			}
