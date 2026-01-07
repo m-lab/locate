@@ -10,13 +10,13 @@ addons:
     - ca-certificates
 
 install:
-- go1.25 install -v ./...
-- go1.25 install github.com/mattn/goveralls@latest
+- go install -v ./...
+- go install github.com/mattn/goveralls@latest
 
 script:
-- go1.25 vet ./...
-- go1.25 test -timeout 5m -p 1 ./... -cover=1 -coverprofile=_c.cov
-- go1.25 test -timeout 5m ./... -race
+- go vet ./...
+- go test -timeout 5m -p 1 ./... -cover=1 -coverprofile=_c.cov
+- go test -timeout 5m ./... -race
 
 after_success:
 # Note: Do this in the after_success stage so that
