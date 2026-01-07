@@ -56,14 +56,14 @@ func NewClient(userAgent string) *Client {
 	return &Client{
 		HTTPClient:    http.DefaultClient,
 		UserAgent:     userAgent,
-		BaseURL:       baseURL.URL, // careful: it's a global: cave mutator! 😅
+		BaseURL:       baseURL.URL, // note: this field is mutable but we copy it below
 		Authorization: "",
 	}
 }
 
 // Nearest returns a slice of nearby mlab servers. Returns an error on failure.
 func (c *Client) Nearest(ctx context.Context, service string) ([]v2.Target, error) {
-	reqURL := *c.BaseURL // hey, commenter, I am careful!!! 👻
+	reqURL := *c.BaseURL // this is where we copy the URL
 	reqURL.Path = path.Join(reqURL.Path, service)
 	data, status, err := c.get(ctx, reqURL.String())
 	if err != nil {
