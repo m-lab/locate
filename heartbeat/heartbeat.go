@@ -24,7 +24,8 @@ type heartbeatStatusTracker struct {
 	MemorystoreClient[v2.HeartbeatMessage]
 	instances  map[string]v2.HeartbeatMessage
 	mu         sync.RWMutex
-	stop       chan bool
+	stop       chan struct{}
+	done       chan struct{}
 	lastUpdate time.Time
 }
 
@@ -43,13 +44,15 @@ func NewHeartbeatStatusTracker(client MemorystoreClient[v2.HeartbeatMessage]) *h
 	h := &heartbeatStatusTracker{
 		MemorystoreClient: client,
 		instances:         make(map[string]v2.HeartbeatMessage),
-		stop:              make(chan bool),
+		stop:              make(chan struct{}),
+		done:              make(chan struct{}),
 	}
 
 	// Start import loop.
 	go func(h *heartbeatStatusTracker) {
-		ticker := *time.NewTicker(static.MemorystoreExportPeriod)
+		ticker := time.NewTicker(static.MemorystoreExportPeriod)
 		defer ticker.Stop()
+		defer close(h.done)
 
 		for {
 			select {
@@ -133,7 +136,8 @@ func (h *heartbeatStatusTracker) Ready() bool {
 // StopImport stops importing instance data from the Memorystore.
 // It must be called to release resources.
 func (h *heartbeatStatusTracker) StopImport() {
-	h.stop <- true
+	close(h.stop)
+	<-h.done
 }
 
 func (h *heartbeatStatusTracker) registerInstance(hostname string, rm v2.Registration) {
