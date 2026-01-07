@@ -338,7 +338,7 @@ func TestClient_Nearest(t *testing.T) {
 			if tt.cl == nil {
 				tt.cl = clientgeo.NewAppEngineLocator()
 			}
-			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits, tt.ipLimiter, nil)
+			c := NewClient(tt.project, tt.signer, tt.locator, tt.cl, prom.NewAPI(nil), tt.limits, tt.ipLimiter, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/nearest/", c.Nearest)
@@ -417,7 +417,7 @@ func TestClient_Ready(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil, nil, nil, nil)
+			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: &heartbeattest.FakeStatusTracker{Err: tt.fakeErr}}, nil, nil, nil, nil, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/ready/", c.Ready)
@@ -475,7 +475,7 @@ func TestClient_Registrations(t *testing.T) {
 		}
 
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: fakeStatusTracker}, nil, nil, nil, nil, nil)
+			c := NewClient("foo", &fakeSigner{}, &fakeLocatorV2{StatusTracker: fakeStatusTracker}, nil, nil, nil, nil, nil, nil)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v2/siteinfo/registrations/", c.Registrations)
@@ -743,6 +743,73 @@ func TestClient_limitRequest(t *testing.T) {
 			}
 			if got := c.limitRequest(tt.t, tt.req); got != tt.want {
 				t.Errorf("Client.limitRequest() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetRemoteAddr(t *testing.T) {
+	tests := []struct {
+		name           string
+		xForwardedFor  string
+		remoteAddr     string
+		expectedIP     string
+	}{
+		{
+			name:           "single IP in X-Forwarded-For",
+			xForwardedFor:  "203.0.113.42",
+			remoteAddr:     "192.168.1.1:12345",
+			expectedIP:     "203.0.113.42",
+		},
+		{
+			name:           "two IPs in X-Forwarded-For (client + LB)",
+			xForwardedFor:  "203.0.113.42, 142.250.185.180",
+			remoteAddr:     "192.168.1.1:12345",
+			expectedIP:     "203.0.113.42",
+		},
+		{
+			name:           "four IPs in X-Forwarded-For (spoofed + client + LB)",
+			xForwardedFor:  "8.8.8.8, 1.1.1.1, 203.0.113.42, 142.250.185.180",
+			remoteAddr:     "192.168.1.1:12345",
+			expectedIP:     "203.0.113.42",
+		},
+		{
+			name:           "three IPs in X-Forwarded-For (spoofed + client + LB)",
+			xForwardedFor:  "8.8.8.8, 203.0.113.42, 142.250.185.180",
+			remoteAddr:     "192.168.1.1:12345",
+			expectedIP:     "203.0.113.42",
+		},
+		{
+			name:           "no X-Forwarded-For header (fallback to RemoteAddr)",
+			xForwardedFor:  "",
+			remoteAddr:     "203.0.113.42:12345",
+			expectedIP:     "203.0.113.42",
+		},
+		{
+			name:           "no X-Forwarded-For header without port (fallback to RemoteAddr)",
+			xForwardedFor:  "",
+			remoteAddr:     "203.0.113.42",
+			expectedIP:     "203.0.113.42",
+		},
+		{
+			name:           "IPs with spaces in X-Forwarded-For",
+			xForwardedFor:  "  8.8.8.8  ,  1.1.1.1  ,  203.0.113.42  ,  142.250.185.180  ",
+			remoteAddr:     "192.168.1.1:12345",
+			expectedIP:     "203.0.113.42",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/test", nil)
+			if tt.xForwardedFor != "" {
+				req.Header.Set("X-Forwarded-For", tt.xForwardedFor)
+			}
+			req.RemoteAddr = tt.remoteAddr
+
+			got := getRemoteAddr(req)
+			if got != tt.expectedIP {
+				t.Errorf("getRemoteAddr() = %v, want %v", got, tt.expectedIP)
 			}
 		})
 	}

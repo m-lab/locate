@@ -3,8 +3,8 @@
 ## Redis & Locate Servers
 
 ```sh
-docker-compose build
-docker-compose up
+docker compose build
+docker compose up
 ```
 
 ## Heartbeats
@@ -16,13 +16,20 @@ You may need to run multiple heartbeat instances to simulate multiple machines.
 Each heartbeat service will need a unique prometheusx.listen-address to prevent
 conflicts.
 
+You will need to generate a JWT for local testing. When running with the
+provided docker-compose.yaml, Locate is already set up to not verify JWTs, so
+a valid signature is not required.
+
 ```sh
+export DEV_JWT=$(./scripts/create-dev-jwt.sh)
+
 ./heartbeat -experiment=ndt \
   -heartbeat-url ws://localhost:8080/v2/platform/heartbeat \
-  -hostname=mlab2-lga1t.mlab-sandbox.measurement-lab.org \
+  -hostname=mlab1-lga0t.mlab-sandbox.measurement-lab.org \
   -registration-url=https://siteinfo.mlab-oti.measurementlab.net/v2/sites/registration.json \
   -services 'ndt/ndt7=ws:///ndt/v7/download,ws:///ndt/v7/upload,wss:///ndt/v7/download,wss:///ndt/v7/upload' \
-  -prometheusx.listen-address=:9991
+  -prometheusx.listen-address=:9991 \
+  -jwt-token="$DEV_JWT"
 ```
 
 You may also construct your own registration.json file and provide this to the heartbeat:
@@ -38,11 +45,9 @@ healthy. Since we're faking everything, all we need to do is listen on the ports
 that the heartbeat is scanning. For example:
 
 ```sh
-ncat --broker --listen -p 80 &
-ncat --broker --listen -p 443 &
+nc -l -k -p 80 &
+nc -l -k -p 443 &
 ```
-
-The `--broker` flag will keep the process listening indefinitely.
 
 If the heartbeat does not detect a running service, the machine will be reported
 as unhealthy, and will not be returned by Locate under normal behavior.
@@ -60,7 +65,7 @@ the location headers added by App Engine will be missing. For example:
 Just as in production, the ready handler should return "ok". If it does not,
 there is either a problem communicating with your redis instance, or there may
 be corrupt or junk data in Redis that is confusing Locate. This can happen if
-you run locate and redis separately outside of docker-compose.
+you run locate and redis separately outside docker-compose.
 
 ```sh
 curl --dump-header - localhost:8080/v2/ready

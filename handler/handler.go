@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html/template"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -58,6 +59,7 @@ type Client struct {
 	agentLimits      limits.Agents
 	ipLimiter        Limiter
 	earlyExitClients map[string]bool
+	jwtVerifier      Verifier
 }
 
 // LocatorV2 defines how the Nearest handler requests machines nearest to the
@@ -67,7 +69,7 @@ type LocatorV2 interface {
 	heartbeat.StatusTracker
 }
 
-// ClientLocator defines the interfeace for looking up the client geo location.
+// ClientLocator defines the interface for looking up the client geolocation.
 type ClientLocator interface {
 	Locate(req *http.Request) (*clientgeo.Location, error)
 }
@@ -91,7 +93,7 @@ func init() {
 
 // NewClient creates a new client.
 func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator,
-	prom PrometheusClient, lmts limits.Agents, limiter Limiter, earlyExitClients []string) *Client {
+	prom PrometheusClient, lmts limits.Agents, limiter Limiter, earlyExitClients []string, jwtVerifier Verifier) *Client {
 	// Convert slice to map for O(1) lookups
 	earlyExitMap := make(map[string]bool)
 	for _, client := range earlyExitClients {
@@ -107,10 +109,12 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 		agentLimits:      lmts,
 		ipLimiter:        limiter,
 		earlyExitClients: earlyExitMap,
+		jwtVerifier:      jwtVerifier,
 	}
 }
 
 // NewClientDirect creates a new client with a target template using only the target machine.
+// TODO: Remove this and use NewClient in test code.
 func NewClientDirect(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient) *Client {
 	return &Client{
 		Signer:           private,
@@ -176,13 +180,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 
 	// Check rate limit for IP and UA.
 	if c.ipLimiter != nil {
-		// Get the IP address from the request. X-Forwarded-For is guaranteed to
-		// be set by AppEngine.
-		ip := req.Header.Get("X-Forwarded-For")
-		ips := strings.Split(ip, ",")
-		if len(ips) > 0 {
-			ip = strings.TrimSpace(ips[0])
-		}
+		ip := getRemoteAddr(req)
 		if ip != "" {
 			// An empty UA is technically possible.
 			ua := req.Header.Get("User-Agent")
@@ -435,4 +433,37 @@ func getExperimentAndService(p string) (string, string) {
 	datatype := path.Base(p)
 	experiment := path.Base(path.Dir(p))
 	return experiment, experiment + "/" + datatype
+}
+
+// getRemoteAddr extracts the remote address from the request. When running on
+// Google App Engine, the X-Forwarded-For is guaranteed to be set. The GCP load
+// balancer appends the actual client IP and the load balancer IP to any existing
+// X-Forwarded-For header, so the second-to-last IP is the real client address.
+// When running elsewhere (including on the local machine), the RemoteAddr from
+// the request is used instead.
+func getRemoteAddr(req *http.Request) string {
+	xff := req.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		// Split by comma and trim spaces from each IP
+		ips := strings.Split(xff, ",")
+		for i := range ips {
+			ips[i] = strings.TrimSpace(ips[i])
+		}
+
+		// GCP load balancer appends: <original-header>, <client-ip>, <lb-ip>
+		// The second-to-last IP is the actual client address
+		if len(ips) >= 2 {
+			return ips[len(ips)-2]
+		} else if len(ips) == 1 && ips[0] != "" {
+			return ips[0]
+		}
+	}
+
+	// Fall back to RemoteAddr for local testing or deployments outside of GAE.
+	host, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		// As a last resort, use the whole RemoteAddr.
+		return strings.TrimSpace(req.RemoteAddr)
+	}
+	return host
 }

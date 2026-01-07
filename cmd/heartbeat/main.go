@@ -47,6 +47,7 @@ var (
 	// JWT authentication parameters
 	apiKey           string
 	tokenExchangeURL string
+	jwtToken         string
 )
 
 // Checker generates a health score for the heartbeat instance (0, 1).
@@ -108,9 +109,10 @@ func init() {
 	flag.Var(&kubernetesURL, "kubernetes-url", "URL for Kubernetes API")
 	flag.Var(&registrationURL, "registration-url", "URL for site registration")
 	flag.Var(&services, "services", "Maps experiment target names to their set of services")
-	flag.StringVar(&apiKey, "api-key", "", "API key for JWT token exchange (required)")
+	flag.StringVar(&apiKey, "api-key", "", "API key for JWT token exchange")
 	flag.StringVar(&tokenExchangeURL, "token-exchange-url", "https://auth.mlab-sandbox.measurementlab.net/v0/token/autojoin",
 		"URL for token exchange service")
+	flag.StringVar(&jwtToken, "jwt-token", "", "JWT token for authentication (alternative to -api-key for local dev/testing)")
 }
 
 func main() {
@@ -118,11 +120,14 @@ func main() {
 	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "failed to read args from env")
 
 	// Validate JWT authentication parameters
-	if apiKey == "" {
-		log.Fatal("API key is required for JWT authentication (-api-key flag)")
+	if jwtToken == "" && apiKey == "" {
+		log.Fatal("Either -jwt-token or -api-key must be provided for JWT authentication")
 	}
-	if tokenExchangeURL == "" {
-		log.Fatal("Token exchange URL is required (-token-exchange-url flag)")
+	if jwtToken != "" && apiKey != "" {
+		log.Fatal("Cannot specify both -jwt-token and -api-key, choose one authentication method")
+	}
+	if apiKey != "" && tokenExchangeURL == "" {
+		log.Fatal("Token exchange URL is required when using -api-key (-token-exchange-url flag)")
 	}
 
 	// Start metrics server.
@@ -143,23 +148,35 @@ func main() {
 	hbm := v2.HeartbeatMessage{Registration: r}
 
 	// Get JWT token for authentication
-	log.Printf("Exchanging API key for JWT token...")
-	jwtToken, err := getJWTTokenFunc(apiKey, tokenExchangeURL)
-	rtx.Must(err, "failed to get JWT token")
-	log.Printf("Successfully obtained JWT token")
+	var token string
+	if jwtToken != "" {
+		// Use provided JWT token directly (local dev/testing mode)
+		log.Printf("Using provided JWT token for authentication")
+		token = jwtToken
+		// Note: No automatic token refresh for directly provided tokens.
+		// For local development, create tokens with long expiration times.
+	} else {
+		// Exchange API key for JWT token (production mode)
+		log.Printf("Exchanging API key for JWT token...")
+		token, err = getJWTTokenFunc(apiKey, tokenExchangeURL)
+		rtx.Must(err, "failed to get JWT token")
+		log.Printf("Successfully obtained JWT token")
+	}
 
 	// Prepare headers with JWT authentication
 	headers := http.Header{}
-	headers.Set("Authorization", "Bearer "+jwtToken)
+	headers.Set("Authorization", "Bearer "+token)
 
 	// Establish a connection with JWT authentication.
 	conn := connection.NewConn()
 
-	// Set up JWT token refresh for automatic token renewal
-	conn.SetTokenRefresher(func() (string, error) {
-		log.Printf("Refreshing JWT token...")
-		return getJWTTokenFunc(apiKey, tokenExchangeURL)
-	})
+	// Set up JWT token refresh only when using API key exchange
+	if apiKey != "" {
+		conn.SetTokenRefresher(func() (string, error) {
+			log.Printf("Refreshing JWT token...")
+			return getJWTTokenFunc(apiKey, tokenExchangeURL)
+		})
+	}
 
 	err = conn.Dial(heartbeatURL, headers, hbm)
 	rtx.Must(err, "failed to establish a websocket connection with %s", heartbeatURL)
