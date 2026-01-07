@@ -69,11 +69,6 @@ func (v *Insecure) ExtractClaims(req *http.Request) (map[string]interface{}, err
 		return nil, fmt.Errorf("failed to extract claims: %w", err)
 	}
 
-	log.WithFields(log.Fields{
-		"mode":   "insecure",
-		"claims": claims,
-	}).Debug("JWT claims extracted (UNVERIFIED)")
-
 	return claims, nil
 }
 

@@ -49,11 +49,10 @@ func (v *Direct) ExtractClaims(req *http.Request) (map[string]interface{}, error
 		return nil, fmt.Errorf("authorization header not found")
 	}
 
-	if !strings.HasPrefix(authHeader, "Bearer ") {
+	tokenString, found := strings.CutPrefix(authHeader, "Bearer ")
+	if !found {
 		return nil, fmt.Errorf("authorization header must be in format: Bearer <token>")
 	}
-
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
 	// Fetch JWKS
 	jwks, err := v.fetchJWKS()
@@ -72,10 +71,6 @@ func (v *Direct) ExtractClaims(req *http.Request) (map[string]interface{}, error
 	if err != nil {
 		return nil, fmt.Errorf("JWT verification failed for JWKS %s: %w", v.jwksURL.String(), err)
 	}
-
-	log.WithFields(log.Fields{
-		"mode": "direct",
-	}).Debug("JWT verified successfully with JWKS")
 
 	return claims, nil
 }
