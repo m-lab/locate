@@ -91,7 +91,7 @@ func (c *Client) Nearest(ctx context.Context, service string) ([]v2.Target, erro
 // maxReasonableBody is the maximum reasonable size of a response body
 //
 // A response larger than this feels really off.
-const maxReasonableBody = 1 << 23
+const maxReasonableBody = 1 << 19
 
 // get is an internal function used to perform the request.
 func (c *Client) get(ctx context.Context, URL string) ([]byte, int, error) {
