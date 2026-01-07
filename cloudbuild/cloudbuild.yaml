@@ -11,6 +11,7 @@ steps:
     env:
       - GONOPROXY=github.com/m-lab/go/*
     script: |
+      apk add --no-cache bash
       go version
       go get -v -t ./...
       go vet ./...
