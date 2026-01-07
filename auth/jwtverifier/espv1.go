@@ -19,12 +19,7 @@ func NewESPv1() *ESPv1 {
 // ExtractClaims extracts JWT claims from the X-Endpoint-API-UserInfo header.
 func (v *ESPv1) ExtractClaims(req *http.Request) (map[string]interface{}, error) {
 	// Extract claims from the ESP header (trusted source after ESP validation)
-	espClaims, err := v.extractFromESPHeader(req)
-	if err != nil {
-		return nil, err
-	}
-
-	return espClaims, nil
+	return v.extractFromESPHeader(req)
 }
 
 // extractFromESPHeader extracts claims from X-Endpoint-API-UserInfo header.
