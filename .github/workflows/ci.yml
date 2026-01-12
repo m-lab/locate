@@ -34,9 +34,9 @@ jobs:
         run: go vet ./...
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.0
+          version: v2
           # Only fail on new issues in PRs (allows gradual cleanup)
           args: --new-from-rev=origin/${{ github.base_ref || 'main' }}
           # Don't fail the build if linter has issues for existing code
@@ -58,12 +58,9 @@ jobs:
         run: go test -timeout 5m -race -coverprofile=coverage.out ./...
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: shogo82148/actions-goveralls@v1
         with:
-          files: ./coverage.out
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          path-to-profile: coverage.out
 
   build:
     name: Build
