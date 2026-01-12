@@ -36,7 +36,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2
+          version: v2.8
           # Only fail on new issues in PRs (allows gradual cleanup)
           args: --new-from-rev=origin/${{ github.base_ref || 'main' }}
           # Don't fail the build if linter has issues for existing code
