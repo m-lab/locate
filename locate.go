@@ -239,6 +239,9 @@ func main() {
 		Issuer:   static.IssuerMonitoring,
 		Audience: jwt.Audience{static.AudienceLocate},
 	}
+
+	// The /v2/platform/monitoring endpoint requires a token that is only
+	// available to the monitoring tools. TokenController validates this token.
 	tc, err := controller.NewTokenController(verifier, true, exp, controller.Paths{
 		"/v2/platform/monitoring/": true,
 	})

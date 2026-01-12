@@ -1,0 +1,100 @@
+version: "2"
+
+# Configuration for golangci-lint v2
+# https://golangci-lint.run/docs/configuration/
+
+linters:
+  # Start with the standard set plus useful additions
+  default: standard
+  enable:
+    # Bug detection
+    - bodyclose      # HTTP response body close checker
+    - durationcheck  # Detect duration multiplication issues
+    - gocritic       # Opinionated code checks
+    - nilerr         # Checks that err is not nil before returning nil error
+
+    # Code quality
+    - dogsled        # Too many blank identifiers
+    - goconst        # Find repeated strings that could be constants
+    - goprintffuncname # Printf-like functions should end with f
+    - misspell       # Find commonly misspelled English words
+    - unconvert      # Remove unnecessary type conversions
+
+  disable:
+    # Too noisy for existing codebase
+    - exhaustruct    # Requires all struct fields to be set
+
+  settings:
+    errcheck:
+      # Check for unchecked errors in type assertions
+      check-type-assertions: true
+      # Don't report about Close() calls - these rarely need error handling
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net.Conn).Close
+        - (*net/http.Response.Body).Close
+        - (net/http.ResponseWriter).Write
+        - (*bytes.Buffer).Write
+        - (*bytes.Buffer).WriteString
+        - fmt.Fprintf
+        - fmt.Printf
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - commentFormatting
+        - hugeParam
+
+    staticcheck:
+      checks:
+        - "all"
+        - "-SA1019"  # Deprecated APIs - tracked via dependabot
+
+    gosec:
+      excludes:
+        - G104  # Duplicate of errcheck
+        - G304  # File path from variable (often false positive)
+
+    misspell:
+      locale: US
+
+  exclusions:
+    # Enable common exclusion presets
+    presets:
+      - std-error-handling
+      - common-false-positives
+    rules:
+      # Test files can be less strict
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - goconst
+          - bodyclose
+      # Allow some patterns in test helper packages
+      - path: test
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      simplify: true
+
+output:
+  formats:
+    text:
+      print-linter-name: true
+  sort-order:
+    - linter
+    - file
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
