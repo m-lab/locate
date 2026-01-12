@@ -750,52 +750,52 @@ func TestClient_limitRequest(t *testing.T) {
 
 func TestGetRemoteAddr(t *testing.T) {
 	tests := []struct {
-		name           string
-		xForwardedFor  string
-		remoteAddr     string
-		expectedIP     string
+		name          string
+		xForwardedFor string
+		remoteAddr    string
+		expectedIP    string
 	}{
 		{
-			name:           "single IP in X-Forwarded-For",
-			xForwardedFor:  "203.0.113.42",
-			remoteAddr:     "192.168.1.1:12345",
-			expectedIP:     "203.0.113.42",
+			name:          "single IP in X-Forwarded-For",
+			xForwardedFor: "203.0.113.42",
+			remoteAddr:    "192.168.1.1:12345",
+			expectedIP:    "203.0.113.42",
 		},
 		{
-			name:           "two IPs in X-Forwarded-For (client + LB)",
-			xForwardedFor:  "203.0.113.42, 142.250.185.180",
-			remoteAddr:     "192.168.1.1:12345",
-			expectedIP:     "203.0.113.42",
+			name:          "two IPs in X-Forwarded-For (client + LB)",
+			xForwardedFor: "203.0.113.42, 142.250.185.180",
+			remoteAddr:    "192.168.1.1:12345",
+			expectedIP:    "203.0.113.42",
 		},
 		{
-			name:           "four IPs in X-Forwarded-For (spoofed + client + LB)",
-			xForwardedFor:  "8.8.8.8, 1.1.1.1, 203.0.113.42, 142.250.185.180",
-			remoteAddr:     "192.168.1.1:12345",
-			expectedIP:     "203.0.113.42",
+			name:          "four IPs in X-Forwarded-For (spoofed + client + LB)",
+			xForwardedFor: "8.8.8.8, 1.1.1.1, 203.0.113.42, 142.250.185.180",
+			remoteAddr:    "192.168.1.1:12345",
+			expectedIP:    "203.0.113.42",
 		},
 		{
-			name:           "three IPs in X-Forwarded-For (spoofed + client + LB)",
-			xForwardedFor:  "8.8.8.8, 203.0.113.42, 142.250.185.180",
-			remoteAddr:     "192.168.1.1:12345",
-			expectedIP:     "203.0.113.42",
+			name:          "three IPs in X-Forwarded-For (spoofed + client + LB)",
+			xForwardedFor: "8.8.8.8, 203.0.113.42, 142.250.185.180",
+			remoteAddr:    "192.168.1.1:12345",
+			expectedIP:    "203.0.113.42",
 		},
 		{
-			name:           "no X-Forwarded-For header (fallback to RemoteAddr)",
-			xForwardedFor:  "",
-			remoteAddr:     "203.0.113.42:12345",
-			expectedIP:     "203.0.113.42",
+			name:          "no X-Forwarded-For header (fallback to RemoteAddr)",
+			xForwardedFor: "",
+			remoteAddr:    "203.0.113.42:12345",
+			expectedIP:    "203.0.113.42",
 		},
 		{
-			name:           "no X-Forwarded-For header without port (fallback to RemoteAddr)",
-			xForwardedFor:  "",
-			remoteAddr:     "203.0.113.42",
-			expectedIP:     "203.0.113.42",
+			name:          "no X-Forwarded-For header without port (fallback to RemoteAddr)",
+			xForwardedFor: "",
+			remoteAddr:    "203.0.113.42",
+			expectedIP:    "203.0.113.42",
 		},
 		{
-			name:           "IPs with spaces in X-Forwarded-For",
-			xForwardedFor:  "  8.8.8.8  ,  1.1.1.1  ,  203.0.113.42  ,  142.250.185.180  ",
-			remoteAddr:     "192.168.1.1:12345",
-			expectedIP:     "203.0.113.42",
+			name:          "IPs with spaces in X-Forwarded-For",
+			xForwardedFor: "  8.8.8.8  ,  1.1.1.1  ,  203.0.113.42  ,  142.250.185.180  ",
+			remoteAddr:    "192.168.1.1:12345",
+			expectedIP:    "203.0.113.42",
 		},
 	}
 
