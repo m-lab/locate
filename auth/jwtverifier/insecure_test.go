@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"gopkg.in/square/go-jose.v2"
+	"github.com/go-jose/go-jose/v4"
 )
 
 func TestInsecureVerifier_ExtractClaims(t *testing.T) {

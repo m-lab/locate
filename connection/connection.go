@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/gorilla/websocket"
+
 	"github.com/m-lab/locate/metrics"
 	"github.com/m-lab/locate/static"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 var (
@@ -257,7 +258,7 @@ func (c *Conn) getBackoff() *backoff.ExponentialBackOff {
 
 // parseJWTExpiry extracts the expiry time from a JWT token without verification
 func (c *Conn) parseJWTExpiry(token string) time.Time {
-	parsed, err := jwt.ParseSigned(token)
+	parsed, err := jwt.ParseSigned(token, static.SupportedSignatureAlgorithms)
 	if err != nil {
 		log.Printf("failed to parse JWT for expiry check: %v", err)
 		return time.Time{} // Return zero time on error

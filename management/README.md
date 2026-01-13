@@ -1,7 +1,25 @@
 # Management of Locate Service JWKs
 
 The Locate Service (LS) loads multiple JSON Web Keys (JWK) for signing and
-verifying request tokens. To safely configure and deploy private signer and
+verifying request tokens.
+
+## JWT Algorithm Choices
+
+The Locate service uses two different JWT signature algorithms due to
+infrastructure constraints:
+
+- **EdDSA (Ed25519)** - Used for access tokens signed by Locate and verified
+  by ndt-server (via m-lab/access library). Chosen for its performance,
+  small signature size (64 bytes), and strong security properties.
+
+- **RS256** - Used for tokens validated by Google Cloud Endpoints (ESPv2).
+  Required because ESPv2 only supports RSA and HMAC algorithms—it does not
+  support EdDSA. These tokens authenticate requests TO the Locate service
+  (e.g., heartbeat-jwt endpoint).
+
+## Key Storage
+
+To safely configure and deploy private signer and
 public verifier keys in AppEngine, we rely on Google Secret Manager (SM).
 
 To bootstrap keys and secrets in a project, where none currently exist, an

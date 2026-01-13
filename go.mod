@@ -8,6 +8,7 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/apex/log v1.9.0
 	github.com/cenkalti/backoff/v4 v4.3.0
+	github.com/go-jose/go-jose/v4 v4.1.3
 	github.com/go-test/deep v1.1.1
 	github.com/gomodule/redigo v1.9.3
 	github.com/google/uuid v1.6.0
@@ -15,7 +16,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/justinas/alice v1.2.0
-	github.com/m-lab/access v0.0.12
+	github.com/m-lab/access v0.0.13
 	github.com/m-lab/go v0.1.76
 	github.com/m-lab/uuid-annotator v0.5.10
 	github.com/oschwald/geoip2-golang v1.13.0
@@ -28,7 +29,6 @@ require (
 	golang.org/x/net v0.49.0
 	google.golang.org/api v0.259.0
 	google.golang.org/genproto v0.0.0-20251222181119-0a764e51fe1b
-	gopkg.in/square/go-jose.v2 v2.6.0
 	k8s.io/api v0.35.0
 	k8s.io/apimachinery v0.35.0
 	k8s.io/client-go v0.35.0
@@ -49,7 +49,6 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.3.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.22.4 // indirect
 	github.com/go-openapi/jsonreference v0.21.4 // indirect
