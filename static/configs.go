@@ -4,6 +4,8 @@ package static
 import (
 	"net/url"
 	"time"
+
+	"github.com/go-jose/go-jose/v4"
 )
 
 // Constants used by the locate service, clients, and target servers accepting
@@ -39,6 +41,15 @@ const (
 	OrgParameter               = "org"
 	MachineTypeParameter       = "machine-type"
 )
+
+// SupportedSignatureAlgorithms lists the JWT signature algorithms accepted by
+// the locate service. This includes EdDSA (used for Locate-signed access tokens)
+// and RS256 (used by Cloud Endpoints). See management/README.md for details.
+var SupportedSignatureAlgorithms = []jose.SignatureAlgorithm{
+	jose.EdDSA,
+	jose.ES256,
+	jose.RS256,
+}
 
 // URL creates inline url.URLs.
 func URL(scheme, port, path string) url.URL {

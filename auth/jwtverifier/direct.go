@@ -8,10 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/square/go-jose.v2"
-	"gopkg.in/square/go-jose.v2/jwt"
-
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/m-lab/locate/static"
 )
 
 // Direct validates JWTs from the Authorization header using JWKS.
@@ -60,8 +61,8 @@ func (v *Direct) ExtractClaims(req *http.Request) (map[string]interface{}, error
 		return nil, fmt.Errorf("failed to fetch JWKS: %w", err)
 	}
 
-	// Parse JWT
-	token, err := jwt.ParseSigned(tokenString)
+	// Parse JWT with supported signature algorithms
+	token, err := jwt.ParseSigned(tokenString, static.SupportedSignatureAlgorithms)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JWT: %w", err)
 	}
