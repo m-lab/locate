@@ -897,17 +897,16 @@ func TestClient_PriorityNearest(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		path           string
-		signer         Signer
-		locator        *fakeLocatorV2
-		cl             ClientLocator
-		tierLimits     limits.TierLimits
-		ipLimiter      Limiter
-		header         http.Header
-		setupRedis     func()
-		wantStatus     int
-		wantFallback   bool // If true, expects fallback to regular Nearest behavior
+		name       string
+		path       string
+		signer     Signer
+		locator    *fakeLocatorV2
+		cl         ClientLocator
+		tierLimits limits.TierLimits
+		ipLimiter  Limiter
+		header     http.Header
+		setupRedis func()
+		wantStatus int
 	}{
 		{
 			name:   "success-with-valid-jwt-and-tier",
@@ -933,7 +932,7 @@ func TestClient_PriorityNearest(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:   "fallback-missing-jwt-header",
+			name:   "error-missing-jwt-header",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
 			locator: &fakeLocatorV2{
@@ -948,11 +947,10 @@ func TestClient_PriorityNearest(t *testing.T) {
 				"X-Forwarded-For":         []string{"192.0.2.1"},
 				// No X-Endpoint-API-UserInfo header
 			},
-			wantStatus:   http.StatusOK,
-			wantFallback: true,
+			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:   "fallback-missing-int-id-claim",
+			name:   "error-missing-int-id-claim",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
 			locator: &fakeLocatorV2{
@@ -967,8 +965,7 @@ func TestClient_PriorityNearest(t *testing.T) {
 				"X-Forwarded-For":          []string{"192.0.2.1"},
 				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithoutIntID()},
 			},
-			wantStatus:   http.StatusOK,
-			wantFallback: true,
+			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:   "success-missing-tier-defaults-to-0",
@@ -1040,7 +1037,7 @@ func TestClient_PriorityNearest(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:   "fallback-limiter-not-supporting-tier",
+			name:   "error-limiter-not-supporting-tier",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
 			locator: &fakeLocatorV2{
@@ -1050,7 +1047,7 @@ func TestClient_PriorityNearest(t *testing.T) {
 				},
 			},
 			tierLimits: tierLimits,
-			ipLimiter: &fakeRateLimiter{ // fakeRateLimiter doesn't support tier-based limiting
+			ipLimiter: &fakeRateLimiter{ // fakeRateLimiter doesn't implement TierLimiter
 				status: limits.LimitStatus{IsLimited: false},
 			},
 			header: http.Header{
@@ -1058,8 +1055,7 @@ func TestClient_PriorityNearest(t *testing.T) {
 				"X-Forwarded-For":          []string{"192.0.2.1"},
 				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", 1)},
 			},
-			wantStatus:   http.StatusOK,
-			wantFallback: true,
+			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:   "rate-limit-exceeded",

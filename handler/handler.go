@@ -290,8 +290,8 @@ func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request,
 }
 
 // PriorityNearest handles requests to /v2/priority/nearest with tier-based rate limiting.
-// It extracts the tier and org from the JWT claims, applies tier-specific rate limits,
-// and then calls the common nearest logic.
+// It requires a valid integration JWT with an int_id claim. Requests without valid
+// credentials receive a 401 Unauthorized response.
 func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 	result := v2.NearestResult{}
@@ -300,18 +300,20 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	// Extract JWT claims from the X-Endpoint-API-UserInfo header
 	claims, err := c.extractJWTClaims(req)
 	if err != nil {
-		// JWT extraction failed - fall back to regular Nearest handler
-		log.Printf("Failed to extract JWT claims for priority endpoint, falling back to regular limits: %v", err)
-		c.Nearest(rw, req)
+		log.Printf("Failed to extract JWT claims for priority endpoint: %v", err)
+		result.Error = v2.NewError("auth", "Valid JWT token required", http.StatusUnauthorized)
+		writeResult(rw, result.Error.Status, &result)
+		metrics.RequestsTotal.WithLabelValues("priority_nearest", "auth", http.StatusText(http.StatusUnauthorized)).Inc()
 		return
 	}
 
 	// Extract integration ID claim
 	intID, err := extractIntegrationID(claims)
 	if err != nil {
-		// int_id claim extraction failed - fall back to regular Nearest handler
-		log.Printf("Failed to extract int_id claim for priority endpoint, falling back to regular limits: %v", err)
-		c.Nearest(rw, req)
+		log.Printf("Failed to extract int_id claim for priority endpoint: %v", err)
+		result.Error = v2.NewError("auth", "Valid int_id claim required", http.StatusUnauthorized)
+		writeResult(rw, result.Error.Status, &result)
+		metrics.RequestsTotal.WithLabelValues("priority_nearest", "auth", http.StatusText(http.StatusUnauthorized)).Inc()
 		return
 	}
 
@@ -342,9 +344,11 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 		tier = 0
 		tierConfig, ok = c.tierLimits[0]
 		if !ok {
-			// Tier 0 not configured - fall back to regular Nearest handler
-			log.Printf("Tier 0 not configured, falling back to regular limits")
-			c.Nearest(rw, req)
+			// Tier 0 not configured - this is a server misconfiguration
+			log.Printf("Tier 0 not configured, cannot serve priority requests")
+			result.Error = v2.NewError("server", "Service misconfigured", http.StatusInternalServerError)
+			writeResult(rw, result.Error.Status, &result)
+			metrics.RequestsTotal.WithLabelValues("priority_nearest", "config", http.StatusText(http.StatusInternalServerError)).Inc()
 			return
 		}
 	}
@@ -374,8 +378,11 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 					return
 				}
 			} else {
-				log.Printf("ipLimiter does not support tier-based limiting, falling back to regular limits")
-				c.Nearest(rw, req)
+				// This is a server misconfiguration - ipLimiter should implement TierLimiter
+				log.Printf("ipLimiter does not support tier-based limiting")
+				result.Error = v2.NewError("server", "Service misconfigured", http.StatusInternalServerError)
+				writeResult(rw, result.Error.Status, &result)
+				metrics.RequestsTotal.WithLabelValues("priority_nearest", "config", http.StatusText(http.StatusInternalServerError)).Inc()
 				return
 			}
 		} else {
