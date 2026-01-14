@@ -350,13 +350,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 
 	// Apply tier-based rate limiting
 	if c.ipLimiter != nil {
-		// Get the IP address from the request. X-Forwarded-For is guaranteed to
-		// be set by AppEngine.
-		ip := req.Header.Get("X-Forwarded-For")
-		ips := strings.Split(ip, ",")
-		if len(ips) > 0 {
-			ip = strings.TrimSpace(ips[0])
-		}
+		ip := getRemoteAddr(req)
 		if ip != "" {
 			// Check if RateLimiter supports tier-based limiting
 			if rl, ok := c.ipLimiter.(*limits.RateLimiter); ok {
