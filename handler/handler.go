@@ -48,6 +48,11 @@ type Limiter interface {
 	IsLimited(ip, ua string) (limits.LimitStatus, error)
 }
 
+// TierLimiter extends rate limiting with tier-based limits for priority endpoints.
+type TierLimiter interface {
+	IsLimitedWithTier(org, ip string, tierConfig limits.LimitConfig) (limits.LimitStatus, error)
+}
+
 // Client handles HTTP requests for the locate service, including nearest server
 // lookups, heartbeat processing, and monitoring endpoints. It maintains dependencies
 // for geolocation, rate limiting, access token signing, and metrics collection.
@@ -352,9 +357,9 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	if c.ipLimiter != nil {
 		ip := getRemoteAddr(req)
 		if ip != "" {
-			// Check if RateLimiter supports tier-based limiting
-			if rl, ok := c.ipLimiter.(*limits.RateLimiter); ok {
-				status, err := rl.IsLimitedWithTier(org, ip, tierConfig)
+			// Check if limiter supports tier-based limiting
+			if tl, ok := c.ipLimiter.(TierLimiter); ok {
+				status, err := tl.IsLimitedWithTier(org, ip, tierConfig)
 				if err != nil {
 					// Log error but don't block request (fail open).
 					log.Printf("Tier rate limiter error for org %s, tier %d: %v", org, tier, err)
