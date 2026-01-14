@@ -3,6 +3,8 @@
 package handler
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -12,9 +14,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis"
 	"github.com/go-jose/go-jose/v4/jwt"
+	"github.com/gomodule/redigo/redis"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
+	"github.com/m-lab/locate/auth/jwtverifier"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/heartbeat"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
@@ -810,6 +815,370 @@ func TestGetRemoteAddr(t *testing.T) {
 			got := getRemoteAddr(req)
 			if got != tt.expectedIP {
 				t.Errorf("getRemoteAddr() = %v, want %v", got, tt.expectedIP)
+			}
+		})
+	}
+}
+
+// createESPv1HeaderWithTier creates a valid X-Endpoint-API-UserInfo header value for testing
+// with org and tier claims.
+func createESPv1HeaderWithTier(org string, tier interface{}) string {
+	claims := map[string]interface{}{
+		"iss": "token-exchange",
+		"sub": "user123",
+		"aud": "autojoin",
+		"exp": 9999999999,
+		"iat": 1600000000,
+		"org": org,
+	}
+	if tier != nil {
+		claims["tier"] = tier
+	}
+	claimsString, _ := json.Marshal(claims)
+
+	espData := map[string]interface{}{
+		"issuer":    "token-exchange",
+		"audiences": []string{"autojoin"},
+		"claims":    string(claimsString),
+	}
+
+	jsonBytes, _ := json.Marshal(espData)
+	return base64.StdEncoding.EncodeToString(jsonBytes)
+}
+
+// createESPv1HeaderWithoutOrg creates a header without the org claim.
+func createESPv1HeaderWithoutOrg() string {
+	claims := map[string]interface{}{
+		"iss":  "token-exchange",
+		"sub":  "user123",
+		"aud":  "autojoin",
+		"exp":  9999999999,
+		"iat":  1600000000,
+		"tier": 1,
+	}
+	claimsString, _ := json.Marshal(claims)
+
+	espData := map[string]interface{}{
+		"issuer":    "token-exchange",
+		"audiences": []string{"autojoin"},
+		"claims":    string(claimsString),
+	}
+
+	jsonBytes, _ := json.Marshal(espData)
+	return base64.StdEncoding.EncodeToString(jsonBytes)
+}
+
+func TestClient_PriorityNearest(t *testing.T) {
+	// Start miniredis for rate limiter tests
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatalf("failed to start miniredis: %v", err)
+	}
+	defer s.Close()
+
+	pool := &redis.Pool{
+		MaxIdle:     3,
+		IdleTimeout: 240 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", s.Addr())
+		},
+	}
+
+	cleanRedis := func() {
+		conn := pool.Get()
+		defer conn.Close()
+		conn.Do("FLUSHDB")
+	}
+
+	tierLimits := limits.TierLimits{
+		1: limits.LimitConfig{Interval: time.Hour, MaxEvents: 100},
+		2: limits.LimitConfig{Interval: time.Hour, MaxEvents: 2}, // Low limit for testing
+	}
+
+	tests := []struct {
+		name           string
+		path           string
+		signer         Signer
+		locator        *fakeLocatorV2
+		cl             ClientLocator
+		tierLimits     limits.TierLimits
+		ipLimiter      Limiter
+		header         http.Header
+		setupRedis     func()
+		wantStatus     int
+		wantFallback   bool // If true, expects fallback to regular Nearest behavior
+	}{
+		{
+			name:   "success-with-valid-jwt-and-tier",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			ipLimiter: limits.NewRateLimiter(pool, limits.RateLimitConfig{
+				IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
+				IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
+				KeyPrefix:  "test:",
+			}),
+			header: http.Header{
+				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
+				"X-Forwarded-For":          []string{"192.0.2.1"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", 1)},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "fallback-missing-jwt-header",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.1"},
+				// No X-Endpoint-API-UserInfo header
+			},
+			wantStatus:   http.StatusOK,
+			wantFallback: true,
+		},
+		{
+			name:   "fallback-missing-org-claim",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			header: http.Header{
+				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
+				"X-Forwarded-For":          []string{"192.0.2.1"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithoutOrg()},
+			},
+			wantStatus:   http.StatusOK,
+			wantFallback: true,
+		},
+		{
+			name:   "fallback-missing-tier-claim",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			header: http.Header{
+				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
+				"X-Forwarded-For":          []string{"192.0.2.1"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", nil)}, // No tier
+			},
+			wantStatus:   http.StatusOK,
+			wantFallback: true,
+		},
+		{
+			name:   "fallback-invalid-tier-format",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			header: http.Header{
+				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
+				"X-Forwarded-For":          []string{"192.0.2.1"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", "not-a-number")},
+			},
+			wantStatus:   http.StatusOK,
+			wantFallback: true,
+		},
+		{
+			name:   "fallback-unconfigured-tier",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			header: http.Header{
+				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
+				"X-Forwarded-For":          []string{"192.0.2.1"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", 99)}, // Tier 99 not configured
+			},
+			wantStatus:   http.StatusOK,
+			wantFallback: true,
+		},
+		{
+			name:   "fallback-limiter-not-supporting-tier",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			ipLimiter: &fakeRateLimiter{ // fakeRateLimiter doesn't support tier-based limiting
+				status: limits.LimitStatus{IsLimited: false},
+			},
+			header: http.Header{
+				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
+				"X-Forwarded-For":          []string{"192.0.2.1"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", 1)},
+			},
+			wantStatus:   http.StatusOK,
+			wantFallback: true,
+		},
+		{
+			name:   "rate-limit-exceeded",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			ipLimiter: limits.NewRateLimiter(pool, limits.RateLimitConfig{
+				IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
+				IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
+				KeyPrefix:  "test:",
+			}),
+			header: http.Header{
+				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
+				"X-Forwarded-For":          []string{"192.0.2.100"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("ratelimited-org", 2)}, // Tier 2 has max 2 events
+			},
+			setupRedis: func() {
+				// Pre-populate Redis to simulate hitting the rate limit
+				rl := limits.NewRateLimiter(pool, limits.RateLimitConfig{
+					IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
+					IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
+					KeyPrefix:  "test:",
+				})
+				// Make 2 requests to hit the limit (tier 2 max is 2)
+				tierConfig := limits.LimitConfig{Interval: time.Hour, MaxEvents: 2}
+				rl.IsLimitedWithTier("ratelimited-org", "192.0.2.100", tierConfig)
+				rl.IsLimitedWithTier("ratelimited-org", "192.0.2.100", tierConfig)
+			},
+			wantStatus: http.StatusTooManyRequests,
+		},
+		{
+			name:   "success-tier-as-float64",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			ipLimiter: limits.NewRateLimiter(pool, limits.RateLimitConfig{
+				IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
+				IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
+				KeyPrefix:  "test:",
+			}),
+			header: http.Header{
+				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
+				"X-Forwarded-For":          []string{"192.0.2.50"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyY", 1.0)}, // float64 tier
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "success-tier-as-string",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			ipLimiter: limits.NewRateLimiter(pool, limits.RateLimitConfig{
+				IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
+				IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
+				KeyPrefix:  "test:",
+			}),
+			header: http.Header{
+				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
+				"X-Forwarded-For":          []string{"192.0.2.51"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyZ", "1")}, // string tier
+			},
+			wantStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cleanRedis()
+			if tt.setupRedis != nil {
+				tt.setupRedis()
+			}
+
+			if tt.cl == nil {
+				tt.cl = clientgeo.NewAppEngineLocator()
+			}
+
+			verifier := jwtverifier.NewESPv1()
+			c := NewClient("test-project", tt.signer, tt.locator, tt.cl, prom.NewAPI(nil),
+				nil, tt.tierLimits, tt.ipLimiter, nil, verifier)
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("/v2/priority/nearest/", c.PriorityNearest)
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2/priority/nearest/"+tt.path, nil)
+			rtx.Must(err, "Failed to create request")
+			req.Header = tt.header
+
+			result := &v2.NearestResult{}
+			resp, err := proxy.UnmarshalResponse(req, result)
+			if err != nil {
+				t.Fatalf("Failed to get response: %v", err)
+			}
+
+			// Check status code
+			if result.Error != nil {
+				if result.Error.Status != tt.wantStatus {
+					t.Errorf("PriorityNearest() status = %d, want %d", result.Error.Status, tt.wantStatus)
+				}
+			} else if tt.wantStatus != http.StatusOK {
+				t.Errorf("PriorityNearest() expected error status %d, got success", tt.wantStatus)
+			}
+
+			// Verify CORS headers are set
+			if resp.Header.Get("Access-Control-Allow-Origin") != "*" {
+				t.Errorf("PriorityNearest() wrong Access-Control-Allow-Origin header; got %s, want '*'",
+					resp.Header.Get("Access-Control-Allow-Origin"))
+			}
+
+			// For successful requests, verify we got results
+			if tt.wantStatus == http.StatusOK && len(result.Results) == 0 {
+				t.Errorf("PriorityNearest() expected results but got none")
 			}
 		})
 	}
