@@ -891,7 +891,7 @@ func TestClient_PriorityNearest(t *testing.T) {
 	}
 
 	tierLimits := limits.TierLimits{
-		0: limits.LimitConfig{Interval: time.Hour, MaxEvents: 50},  // Default tier for registered integrations
+		0: limits.LimitConfig{Interval: time.Hour, MaxEvents: 50}, // Default tier for registered integrations
 		1: limits.LimitConfig{Interval: time.Hour, MaxEvents: 100},
 		2: limits.LimitConfig{Interval: time.Hour, MaxEvents: 2}, // Low limit for testing
 	}
@@ -925,9 +925,9 @@ func TestClient_PriorityNearest(t *testing.T) {
 				KeyPrefix:  "test:",
 			}),
 			header: http.Header{
-				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.1"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", 1)},
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.1"},
+				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyX", 1)},
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -961,9 +961,9 @@ func TestClient_PriorityNearest(t *testing.T) {
 			},
 			tierLimits: tierLimits,
 			header: http.Header{
-				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.1"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithoutIntID()},
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.1"},
+				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithoutIntID()},
 			},
 			wantStatus: http.StatusUnauthorized,
 		},
@@ -984,9 +984,9 @@ func TestClient_PriorityNearest(t *testing.T) {
 				KeyPrefix:  "test:",
 			}),
 			header: http.Header{
-				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.2"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", nil)}, // No tier = tier 0
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.2"},
+				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyX", nil)}, // No tier = tier 0
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -1007,9 +1007,9 @@ func TestClient_PriorityNearest(t *testing.T) {
 				KeyPrefix:  "test:",
 			}),
 			header: http.Header{
-				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.3"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", "not-a-number")},
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.3"},
+				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyX", "not-a-number")},
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -1030,9 +1030,9 @@ func TestClient_PriorityNearest(t *testing.T) {
 				KeyPrefix:  "test:",
 			}),
 			header: http.Header{
-				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.4"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", 99)}, // Tier 99 not configured, defaults to 0
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.4"},
+				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyX", 99)}, // Tier 99 not configured, defaults to 0
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -1051,9 +1051,9 @@ func TestClient_PriorityNearest(t *testing.T) {
 				status: limits.LimitStatus{IsLimited: false},
 			},
 			header: http.Header{
-				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.1"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", 1)},
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.1"},
+				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyX", 1)},
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
@@ -1074,9 +1074,9 @@ func TestClient_PriorityNearest(t *testing.T) {
 				KeyPrefix:  "test:",
 			}),
 			header: http.Header{
-				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.100"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("ratelimited-org", 2)}, // Tier 2 has max 2 events
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.100"},
+				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("ratelimited-org", 2)}, // Tier 2 has max 2 events
 			},
 			setupRedis: func() {
 				// Pre-populate Redis to simulate hitting the rate limit
@@ -1109,9 +1109,9 @@ func TestClient_PriorityNearest(t *testing.T) {
 				KeyPrefix:  "test:",
 			}),
 			header: http.Header{
-				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.50"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyY", 1.0)}, // float64 tier
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.50"},
+				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyY", 1.0)}, // float64 tier
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -1132,9 +1132,9 @@ func TestClient_PriorityNearest(t *testing.T) {
 				KeyPrefix:  "test:",
 			}),
 			header: http.Header{
-				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.51"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyZ", "1")}, // string tier
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.51"},
+				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyZ", "1")}, // string tier
 			},
 			wantStatus: http.StatusOK,
 		},

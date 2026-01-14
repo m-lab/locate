@@ -45,11 +45,11 @@ func TestParseConfig(t *testing.T) {
 
 func TestParseFullConfig(t *testing.T) {
 	tests := []struct {
-		name         string
-		path         string
-		wantAgents   Agents
-		wantTiers    TierLimits
-		wantErr      bool
+		name       string
+		path       string
+		wantAgents Agents
+		wantTiers  TierLimits
+		wantErr    bool
 	}{
 		{
 			name: "success-with-tiers",

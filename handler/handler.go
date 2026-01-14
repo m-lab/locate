@@ -300,7 +300,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	// Extract JWT claims from the X-Endpoint-API-UserInfo header
 	claims, err := c.extractJWTClaims(req)
 	if err != nil {
-		log.Printf("Failed to extract JWT claims for priority endpoint: %v", err)
+		log.Debugf("Failed to extract JWT claims for priority endpoint: %v", err)
 		result.Error = v2.NewError("auth", "Valid JWT token required", http.StatusUnauthorized)
 		writeResult(rw, result.Error.Status, &result)
 		metrics.RequestsTotal.WithLabelValues("priority_nearest", "auth", http.StatusText(http.StatusUnauthorized)).Inc()
@@ -310,7 +310,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	// Extract integration ID claim
 	intID, err := extractIntegrationID(claims)
 	if err != nil {
-		log.Printf("Failed to extract int_id claim for priority endpoint: %v", err)
+		log.Debugf("Failed to extract int_id claim for priority endpoint: %v", err)
 		result.Error = v2.NewError("auth", "Valid int_id claim required", http.StatusUnauthorized)
 		writeResult(rw, result.Error.Status, &result)
 		metrics.RequestsTotal.WithLabelValues("priority_nearest", "auth", http.StatusText(http.StatusUnauthorized)).Inc()
@@ -329,23 +329,23 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 		case string:
 			tier, err = strconv.Atoi(v)
 			if err != nil {
-				log.Printf("Invalid tier claim format for int_id %s: %v, using default tier 0", intID, err)
+				log.Debugf("Invalid tier claim format for int_id %s: %v, using default tier 0", intID, err)
 				tier = 0
 			}
 		default:
-			log.Printf("Unexpected tier claim type for int_id %s: %T, using default tier 0", intID, tierClaim)
+			log.Debugf("Unexpected tier claim type for int_id %s: %T, using default tier 0", intID, tierClaim)
 		}
 	}
 
 	// Look up tier configuration
 	tierConfig, ok := c.tierLimits[tier]
 	if !ok {
-		log.Printf("Tier %d not configured for int_id %s, using tier 0", tier, intID)
+		log.Debugf("Tier %d not configured for int_id %s, using tier 0", tier, intID)
 		tier = 0
 		tierConfig, ok = c.tierLimits[0]
 		if !ok {
 			// Tier 0 not configured - this is a server misconfiguration
-			log.Printf("Tier 0 not configured, cannot serve priority requests")
+			log.Errorf("Tier 0 not configured, cannot serve priority requests")
 			result.Error = v2.NewError("server", "Service misconfigured", http.StatusInternalServerError)
 			writeResult(rw, result.Error.Status, &result)
 			metrics.RequestsTotal.WithLabelValues("priority_nearest", "config", http.StatusText(http.StatusInternalServerError)).Inc()
@@ -362,7 +362,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 				status, err := tl.IsLimitedWithTier(intID, ip, tierConfig)
 				if err != nil {
 					// Log error but don't block request (fail open).
-					log.Printf("Tier rate limiter error for int_id %s, tier %d: %v", intID, tier, err)
+					log.Errorf("Tier rate limiter error for int_id %s, tier %d: %v", intID, tier, err)
 				} else if status.IsLimited {
 					// Rate limited - block the request
 					result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
@@ -372,14 +372,14 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 					clientName := req.Form.Get("client_name")
 					metrics.RateLimitedTotal.WithLabelValues(clientName, status.LimitType).Inc()
 
-					log.Printf("Tier rate limit (%s) exceeded for int_id: %s, tier: %d, IP: %s, client: %s",
+					log.Debugf("Tier rate limit (%s) exceeded for int_id: %s, tier: %d, IP: %s, client: %s",
 						status.LimitType, intID, tier, ip, clientName)
 					writeResult(rw, result.Error.Status, &result)
 					return
 				}
 			} else {
 				// This is a server misconfiguration - ipLimiter should implement TierLimiter
-				log.Printf("ipLimiter does not support tier-based limiting")
+				log.Errorf("ipLimiter does not support tier-based limiting")
 				result.Error = v2.NewError("server", "Service misconfigured", http.StatusInternalServerError)
 				writeResult(rw, result.Error.Status, &result)
 				metrics.RequestsTotal.WithLabelValues("priority_nearest", "config", http.StatusText(http.StatusInternalServerError)).Inc()
@@ -387,7 +387,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 			}
 		} else {
 			// This should never happen if Locate is deployed on AppEngine.
-			log.Println("Cannot find IP address for tier-based rate limiting.")
+			log.Warnf("Cannot find IP address for tier-based rate limiting.")
 		}
 	}
 

@@ -24,8 +24,8 @@ type TierLimitConfig struct {
 // FullConfig holds the complete limit configuration including both
 // agent-based and tier-based limits.
 type FullConfig struct {
-	Agents []AgentConfig              `yaml:"agents"`
-	Tiers  map[int]TierLimitConfig    `yaml:"tiers"`
+	Agents []AgentConfig           `yaml:"agents"`
+	Tiers  map[int]TierLimitConfig `yaml:"tiers"`
 }
 
 // Config holds the limit configuration for all user agents.
