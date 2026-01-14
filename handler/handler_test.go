@@ -88,6 +88,13 @@ func (r *fakeRateLimiter) IsLimited(ip, ua string) (limits.LimitStatus, error) {
 	return r.status, nil
 }
 
+func (r *fakeRateLimiter) IsLimitedWithTier(org, ip string, tierConfig limits.LimitConfig) (limits.LimitStatus, error) {
+	if r.err != nil {
+		return limits.LimitStatus{}, r.err
+	}
+	return r.status, nil
+}
+
 func TestClient_Nearest(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -98,7 +105,7 @@ func TestClient_Nearest(t *testing.T) {
 		project    string
 		latlon     string
 		limits     limits.Agents
-		ipLimiter  Limiter
+		ipLimiter  TierLimiter
 		header     http.Header
 		wantLatLon string
 		wantKey    string
@@ -903,7 +910,7 @@ func TestClient_PriorityNearest(t *testing.T) {
 		locator    *fakeLocatorV2
 		cl         ClientLocator
 		tierLimits limits.TierLimits
-		ipLimiter  Limiter
+		ipLimiter  TierLimiter
 		header     http.Header
 		setupRedis func()
 		wantStatus int
@@ -1037,27 +1044,6 @@ func TestClient_PriorityNearest(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:   "error-limiter-not-supporting-tier",
-			path:   "ndt/ndt5",
-			signer: &fakeSigner{},
-			locator: &fakeLocatorV2{
-				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
-				urls: []url.URL{
-					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
-				},
-			},
-			tierLimits: tierLimits,
-			ipLimiter: &fakeRateLimiter{ // fakeRateLimiter doesn't implement TierLimiter
-				status: limits.LimitStatus{IsLimited: false},
-			},
-			header: http.Header{
-				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
-				"X-Forwarded-For":         []string{"192.0.2.1"},
-				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyX", 1)},
-			},
-			wantStatus: http.StatusInternalServerError,
-		},
-		{
 			name:   "rate-limit-exceeded",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
@@ -1091,52 +1077,6 @@ func TestClient_PriorityNearest(t *testing.T) {
 				rl.IsLimitedWithTier("ratelimited-org", "192.0.2.100", tierConfig)
 			},
 			wantStatus: http.StatusTooManyRequests,
-		},
-		{
-			name:   "success-tier-as-float64",
-			path:   "ndt/ndt5",
-			signer: &fakeSigner{},
-			locator: &fakeLocatorV2{
-				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
-				urls: []url.URL{
-					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
-				},
-			},
-			tierLimits: tierLimits,
-			ipLimiter: limits.NewRateLimiter(pool, limits.RateLimitConfig{
-				IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
-				IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
-				KeyPrefix:  "test:",
-			}),
-			header: http.Header{
-				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
-				"X-Forwarded-For":         []string{"192.0.2.50"},
-				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyY", 1.0)}, // float64 tier
-			},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:   "success-tier-as-string",
-			path:   "ndt/ndt5",
-			signer: &fakeSigner{},
-			locator: &fakeLocatorV2{
-				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
-				urls: []url.URL{
-					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
-				},
-			},
-			tierLimits: tierLimits,
-			ipLimiter: limits.NewRateLimiter(pool, limits.RateLimitConfig{
-				IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
-				IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
-				KeyPrefix:  "test:",
-			}),
-			header: http.Header{
-				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
-				"X-Forwarded-For":         []string{"192.0.2.51"},
-				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyZ", "1")}, // string tier
-			},
-			wantStatus: http.StatusOK,
 		},
 	}
 

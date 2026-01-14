@@ -48,8 +48,9 @@ type Limiter interface {
 	IsLimited(ip, ua string) (limits.LimitStatus, error)
 }
 
-// TierLimiter extends rate limiting with tier-based limits for priority endpoints.
+// TierLimiter extends Limiter with tier-based limits for priority endpoints.
 type TierLimiter interface {
+	Limiter
 	IsLimitedWithTier(org, ip string, tierConfig limits.LimitConfig) (limits.LimitStatus, error)
 }
 
@@ -66,7 +67,7 @@ type Client struct {
 	targetTmpl       *template.Template
 	agentLimits      limits.Agents
 	tierLimits       limits.TierLimits
-	ipLimiter        Limiter
+	ipLimiter        TierLimiter
 	earlyExitClients map[string]bool
 	jwtVerifier      Verifier
 }
@@ -102,7 +103,7 @@ func init() {
 
 // NewClient creates a new client.
 func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator,
-	promClient PrometheusClient, lmts limits.Agents, tierLmts limits.TierLimits, limiter Limiter, earlyExitClients []string, jwtVerifier Verifier) *Client {
+	promClient PrometheusClient, lmts limits.Agents, tierLmts limits.TierLimits, limiter TierLimiter, earlyExitClients []string, jwtVerifier Verifier) *Client {
 	// Convert slice to map for O(1) lookups
 	earlyExitMap := make(map[string]bool)
 	for _, client := range earlyExitClients {
@@ -319,22 +320,13 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Extract tier claim, defaulting to 0 if not present
+	// Extract tier claim, defaulting to 0 if not present.
+	// JSON numbers always unmarshal to float64 in Go.
 	tier := 0
 	if tierClaim, ok := claims["tier"]; ok {
-		// Convert tier claim to int (it might be float64 from JSON)
-		switch v := tierClaim.(type) {
-		case float64:
+		if v, ok := tierClaim.(float64); ok {
 			tier = int(v)
-		case int:
-			tier = v
-		case string:
-			tier, err = strconv.Atoi(v)
-			if err != nil {
-				log.Debugf("Invalid tier claim format for int_id %s: %v, using default tier 0", intID, err)
-				tier = 0
-			}
-		default:
+		} else {
 			log.Debugf("Unexpected tier claim type for int_id %s: %T, using default tier 0", intID, tierClaim)
 		}
 	}
@@ -359,32 +351,22 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	if c.ipLimiter != nil {
 		ip := getRemoteAddr(req)
 		if ip != "" {
-			// Check if limiter supports tier-based limiting
-			if tl, ok := c.ipLimiter.(TierLimiter); ok {
-				status, err := tl.IsLimitedWithTier(intID, ip, tierConfig)
-				if err != nil {
-					// Log error but don't block request (fail open).
-					log.Errorf("Tier rate limiter error for int_id %s, tier %d: %v", intID, tier, err)
-				} else if status.IsLimited {
-					// Rate limited - block the request
-					result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
-					metrics.RequestsTotal.WithLabelValues("priority_nearest", "rate limit",
-						http.StatusText(result.Error.Status)).Inc()
+			status, err := c.ipLimiter.IsLimitedWithTier(intID, ip, tierConfig)
+			if err != nil {
+				// Log error but don't block request (fail open).
+				log.Errorf("Tier rate limiter error for int_id %s, tier %d: %v", intID, tier, err)
+			} else if status.IsLimited {
+				// Rate limited - block the request
+				result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
+				metrics.RequestsTotal.WithLabelValues("priority_nearest", "rate limit",
+					http.StatusText(result.Error.Status)).Inc()
 
-					clientName := req.Form.Get("client_name")
-					metrics.RateLimitedTotal.WithLabelValues(clientName, status.LimitType).Inc()
+				clientName := req.Form.Get("client_name")
+				metrics.RateLimitedTotal.WithLabelValues(clientName, status.LimitType).Inc()
 
-					log.Debugf("Tier rate limit (%s) exceeded for int_id: %s, tier: %d, IP: %s, client: %s",
-						status.LimitType, intID, tier, ip, clientName)
-					writeResult(rw, result.Error.Status, &result)
-					return
-				}
-			} else {
-				// This is a server misconfiguration - ipLimiter should implement TierLimiter
-				log.Errorf("ipLimiter does not support tier-based limiting")
-				result.Error = v2.NewError("server", "Service misconfigured", http.StatusInternalServerError)
+				log.Debugf("Tier rate limit (%s) exceeded for int_id: %s, tier: %d, IP: %s, client: %s",
+					status.LimitType, intID, tier, ip, clientName)
 				writeResult(rw, result.Error.Status, &result)
-				metrics.RequestsTotal.WithLabelValues("priority_nearest", "config", http.StatusText(http.StatusInternalServerError)).Inc()
 				return
 			}
 		} else {
