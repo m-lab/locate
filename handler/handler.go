@@ -102,7 +102,7 @@ func init() {
 
 // NewClient creates a new client.
 func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator,
-	prom PrometheusClient, lmts limits.Agents, tierLmts limits.TierLimits, limiter Limiter, earlyExitClients []string, jwtVerifier Verifier) *Client {
+	promClient PrometheusClient, lmts limits.Agents, tierLmts limits.TierLimits, limiter Limiter, earlyExitClients []string, jwtVerifier Verifier) *Client {
 	// Convert slice to map for O(1) lookups
 	earlyExitMap := make(map[string]bool)
 	for _, client := range earlyExitClients {
@@ -113,7 +113,7 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 		project:          project,
 		LocatorV2:        locatorV2,
 		ClientLocator:    client,
-		PrometheusClient: prom,
+		PrometheusClient: promClient,
 		targetTmpl:       template.Must(template.New("name").Parse("{{.Hostname}}{{.Ports}}")),
 		agentLimits:      lmts,
 		tierLimits:       tierLmts,
@@ -293,7 +293,9 @@ func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request,
 // It requires a valid integration JWT with an int_id claim. Requests without valid
 // credentials receive a 401 Unauthorized response.
 func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
-	req.ParseForm()
+	if err := req.ParseForm(); err != nil {
+		log.Debugf("ParseForm error: %v", err)
+	}
 	result := v2.NearestResult{}
 	setHeaders(rw)
 

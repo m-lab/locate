@@ -168,14 +168,19 @@ func (rl *RateLimiter) IsLimitedWithTier(org, ip string, tierConfig LimitConfig)
 	now := time.Now().UnixMicro()
 	key := rl.generateOrgIPKey(org, ip)
 
-	// Remove old events outside the tier's window
-	conn.Send("ZREMRANGEBYSCORE", key, "-inf", now-tierConfig.Interval.Microseconds())
-	// Add current event
-	conn.Send("ZADD", key, now, strconv.FormatInt(now, 10))
-	// Set key expiration
-	conn.Send("EXPIRE", key, int64(tierConfig.Interval.Seconds()))
-	// Get count of events in window
-	conn.Send("ZCARD", key)
+	// Pipeline commands for atomic operation
+	if err := conn.Send("ZREMRANGEBYSCORE", key, "-inf", now-tierConfig.Interval.Microseconds()); err != nil {
+		return LimitStatus{}, fmt.Errorf("failed to send ZREMRANGEBYSCORE: %w", err)
+	}
+	if err := conn.Send("ZADD", key, now, strconv.FormatInt(now, 10)); err != nil {
+		return LimitStatus{}, fmt.Errorf("failed to send ZADD: %w", err)
+	}
+	if err := conn.Send("EXPIRE", key, int64(tierConfig.Interval.Seconds())); err != nil {
+		return LimitStatus{}, fmt.Errorf("failed to send EXPIRE: %w", err)
+	}
+	if err := conn.Send("ZCARD", key); err != nil {
+		return LimitStatus{}, fmt.Errorf("failed to send ZCARD: %w", err)
+	}
 
 	// Flush pipeline
 	if err := conn.Flush(); err != nil {

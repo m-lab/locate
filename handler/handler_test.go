@@ -1160,7 +1160,7 @@ func TestClient_PriorityNearest(t *testing.T) {
 			srv := httptest.NewServer(mux)
 			defer srv.Close()
 
-			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2/priority/nearest/"+tt.path, nil)
+			req, err := http.NewRequest(http.MethodGet, srv.URL+"/v2/priority/nearest/"+tt.path, http.NoBody)
 			rtx.Must(err, "Failed to create request")
 			req.Header = tt.header
 
