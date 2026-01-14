@@ -6,8 +6,8 @@ agents:
   duration: 1m
 
 # Tier-based rate limiting for /v2/priority/nearest endpoint
-# Each tier defines the maximum number of requests per IP per organization
-# within the specified interval.
+# Each tier defines the maximum number of requests per IP per integration
+# within the specified interval. Tier 0 is the default for registered integrations.
 tiers:
   0:
     interval: 1h

@@ -821,15 +821,15 @@ func TestGetRemoteAddr(t *testing.T) {
 }
 
 // createESPv1HeaderWithTier creates a valid X-Endpoint-API-UserInfo header value for testing
-// with org and tier claims.
-func createESPv1HeaderWithTier(org string, tier interface{}) string {
+// with int_id and optional tier claims.
+func createESPv1HeaderWithTier(intID string, tier interface{}) string {
 	claims := map[string]interface{}{
-		"iss": "token-exchange",
-		"sub": "user123",
-		"aud": "autojoin",
-		"exp": 9999999999,
-		"iat": 1600000000,
-		"org": org,
+		"iss":    "token-exchange",
+		"sub":    "user123",
+		"aud":    "autojoin",
+		"exp":    9999999999,
+		"iat":    1600000000,
+		"int_id": intID,
 	}
 	if tier != nil {
 		claims["tier"] = tier
@@ -846,8 +846,8 @@ func createESPv1HeaderWithTier(org string, tier interface{}) string {
 	return base64.StdEncoding.EncodeToString(jsonBytes)
 }
 
-// createESPv1HeaderWithoutOrg creates a header without the org claim.
-func createESPv1HeaderWithoutOrg() string {
+// createESPv1HeaderWithoutIntID creates a header without the int_id claim.
+func createESPv1HeaderWithoutIntID() string {
 	claims := map[string]interface{}{
 		"iss":  "token-exchange",
 		"sub":  "user123",
@@ -891,6 +891,7 @@ func TestClient_PriorityNearest(t *testing.T) {
 	}
 
 	tierLimits := limits.TierLimits{
+		0: limits.LimitConfig{Interval: time.Hour, MaxEvents: 50},  // Default tier for registered integrations
 		1: limits.LimitConfig{Interval: time.Hour, MaxEvents: 100},
 		2: limits.LimitConfig{Interval: time.Hour, MaxEvents: 2}, // Low limit for testing
 	}
@@ -951,7 +952,7 @@ func TestClient_PriorityNearest(t *testing.T) {
 			wantFallback: true,
 		},
 		{
-			name:   "fallback-missing-org-claim",
+			name:   "fallback-missing-int-id-claim",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
 			locator: &fakeLocatorV2{
@@ -964,13 +965,13 @@ func TestClient_PriorityNearest(t *testing.T) {
 			header: http.Header{
 				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
 				"X-Forwarded-For":          []string{"192.0.2.1"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithoutOrg()},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithoutIntID()},
 			},
 			wantStatus:   http.StatusOK,
 			wantFallback: true,
 		},
 		{
-			name:   "fallback-missing-tier-claim",
+			name:   "success-missing-tier-defaults-to-0",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
 			locator: &fakeLocatorV2{
@@ -980,16 +981,20 @@ func TestClient_PriorityNearest(t *testing.T) {
 				},
 			},
 			tierLimits: tierLimits,
+			ipLimiter: limits.NewRateLimiter(pool, limits.RateLimitConfig{
+				IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
+				IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
+				KeyPrefix:  "test:",
+			}),
 			header: http.Header{
 				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.1"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", nil)}, // No tier
+				"X-Forwarded-For":          []string{"192.0.2.2"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", nil)}, // No tier = tier 0
 			},
-			wantStatus:   http.StatusOK,
-			wantFallback: true,
+			wantStatus: http.StatusOK,
 		},
 		{
-			name:   "fallback-invalid-tier-format",
+			name:   "success-invalid-tier-defaults-to-0",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
 			locator: &fakeLocatorV2{
@@ -999,16 +1004,20 @@ func TestClient_PriorityNearest(t *testing.T) {
 				},
 			},
 			tierLimits: tierLimits,
+			ipLimiter: limits.NewRateLimiter(pool, limits.RateLimitConfig{
+				IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
+				IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
+				KeyPrefix:  "test:",
+			}),
 			header: http.Header{
 				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.1"},
+				"X-Forwarded-For":          []string{"192.0.2.3"},
 				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", "not-a-number")},
 			},
-			wantStatus:   http.StatusOK,
-			wantFallback: true,
+			wantStatus: http.StatusOK,
 		},
 		{
-			name:   "fallback-unconfigured-tier",
+			name:   "success-unconfigured-tier-defaults-to-0",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
 			locator: &fakeLocatorV2{
@@ -1018,13 +1027,17 @@ func TestClient_PriorityNearest(t *testing.T) {
 				},
 			},
 			tierLimits: tierLimits,
+			ipLimiter: limits.NewRateLimiter(pool, limits.RateLimitConfig{
+				IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
+				IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
+				KeyPrefix:  "test:",
+			}),
 			header: http.Header{
 				"X-AppEngine-CityLatLong":  []string{"40.3,-70.4"},
-				"X-Forwarded-For":          []string{"192.0.2.1"},
-				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", 99)}, // Tier 99 not configured
+				"X-Forwarded-For":          []string{"192.0.2.4"},
+				"X-Endpoint-API-UserInfo":  []string{createESPv1HeaderWithTier("companyX", 99)}, // Tier 99 not configured, defaults to 0
 			},
-			wantStatus:   http.StatusOK,
-			wantFallback: true,
+			wantStatus: http.StatusOK,
 		},
 		{
 			name:   "fallback-limiter-not-supporting-tier",

@@ -306,51 +306,47 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Extract org claim
-	org, err := c.extractOrgClaim(claims)
+	// Extract integration ID claim
+	intID, err := extractIntegrationID(claims)
 	if err != nil {
-		// Org claim extraction failed - fall back to regular Nearest handler
-		log.Printf("Failed to extract org claim for priority endpoint, falling back to regular limits: %v", err)
+		// int_id claim extraction failed - fall back to regular Nearest handler
+		log.Printf("Failed to extract int_id claim for priority endpoint, falling back to regular limits: %v", err)
 		c.Nearest(rw, req)
 		return
 	}
 
-	// Extract tier claim
-	tierClaim, ok := claims["tier"]
-	if !ok {
-		// Tier claim not found - fall back to regular Nearest handler
-		log.Printf("Tier claim not found for org %s, falling back to regular limits", org)
-		c.Nearest(rw, req)
-		return
-	}
-
-	// Convert tier claim to int (it might be float64 from JSON)
-	var tier int
-	switch v := tierClaim.(type) {
-	case float64:
-		tier = int(v)
-	case int:
-		tier = v
-	case string:
-		tier, err = strconv.Atoi(v)
-		if err != nil {
-			log.Printf("Invalid tier claim format for org %s: %v, falling back to regular limits", org, err)
-			c.Nearest(rw, req)
-			return
+	// Extract tier claim, defaulting to 0 if not present
+	tier := 0
+	if tierClaim, ok := claims["tier"]; ok {
+		// Convert tier claim to int (it might be float64 from JSON)
+		switch v := tierClaim.(type) {
+		case float64:
+			tier = int(v)
+		case int:
+			tier = v
+		case string:
+			tier, err = strconv.Atoi(v)
+			if err != nil {
+				log.Printf("Invalid tier claim format for int_id %s: %v, using default tier 0", intID, err)
+				tier = 0
+			}
+		default:
+			log.Printf("Unexpected tier claim type for int_id %s: %T, using default tier 0", intID, tierClaim)
 		}
-	default:
-		log.Printf("Unexpected tier claim type for org %s: %T, falling back to regular limits", org, tierClaim)
-		c.Nearest(rw, req)
-		return
 	}
 
 	// Look up tier configuration
 	tierConfig, ok := c.tierLimits[tier]
 	if !ok {
-		// Tier not configured - fall back to regular Nearest handler
-		log.Printf("Tier %d not configured for org %s, falling back to regular limits", tier, org)
-		c.Nearest(rw, req)
-		return
+		log.Printf("Tier %d not configured for int_id %s, using tier 0", tier, intID)
+		tier = 0
+		tierConfig, ok = c.tierLimits[0]
+		if !ok {
+			// Tier 0 not configured - fall back to regular Nearest handler
+			log.Printf("Tier 0 not configured, falling back to regular limits")
+			c.Nearest(rw, req)
+			return
+		}
 	}
 
 	// Apply tier-based rate limiting
@@ -359,10 +355,10 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 		if ip != "" {
 			// Check if limiter supports tier-based limiting
 			if tl, ok := c.ipLimiter.(TierLimiter); ok {
-				status, err := tl.IsLimitedWithTier(org, ip, tierConfig)
+				status, err := tl.IsLimitedWithTier(intID, ip, tierConfig)
 				if err != nil {
 					// Log error but don't block request (fail open).
-					log.Printf("Tier rate limiter error for org %s, tier %d: %v", org, tier, err)
+					log.Printf("Tier rate limiter error for int_id %s, tier %d: %v", intID, tier, err)
 				} else if status.IsLimited {
 					// Rate limited - block the request
 					result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
@@ -372,8 +368,8 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 					clientName := req.Form.Get("client_name")
 					metrics.RateLimitedTotal.WithLabelValues(clientName, status.LimitType).Inc()
 
-					log.Printf("Tier rate limit (%s) exceeded for org: %s, tier: %d, IP: %s, client: %s",
-						status.LimitType, org, tier, ip, clientName)
+					log.Printf("Tier rate limit (%s) exceeded for int_id: %s, tier: %d, IP: %s, client: %s",
+						status.LimitType, intID, tier, ip, clientName)
 					writeResult(rw, result.Error.Status, &result)
 					return
 				}
@@ -390,6 +386,25 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 
 	// Rate limit passed - handle the nearest request
 	c.handleNearestRequest(rw, req, &result, "priority_nearest")
+}
+
+// extractIntegrationID extracts the "int_id" claim from integration JWT claims.
+func extractIntegrationID(claims map[string]interface{}) (string, error) {
+	intIDClaim, ok := claims["int_id"]
+	if !ok {
+		return "", fmt.Errorf("int_id claim not found in JWT")
+	}
+
+	intID, ok := intIDClaim.(string)
+	if !ok {
+		return "", fmt.Errorf("int_id claim is not a string")
+	}
+
+	if intID == "" {
+		return "", fmt.Errorf("int_id claim is empty")
+	}
+
+	return intID, nil
 }
 
 // Live is a minimal handler to indicate that the server is operating at all.
