@@ -297,7 +297,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	if err := req.ParseForm(); err != nil {
 		log.Debugf("ParseForm error: %v", err)
 	}
-	result := v2.NearestResult{}
+	result := &v2.NearestResult{}
 	setHeaders(rw)
 
 	// Extract JWT claims from the X-Endpoint-API-UserInfo header
@@ -305,7 +305,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Debugf("Failed to extract JWT claims for priority endpoint: %v", err)
 		result.Error = v2.NewError("auth", "Valid JWT token required", http.StatusUnauthorized)
-		writeResult(rw, result.Error.Status, &result)
+		writeResult(rw, result.Error.Status, result)
 		metrics.RequestsTotal.WithLabelValues("priority_nearest", "auth", http.StatusText(http.StatusUnauthorized)).Inc()
 		return
 	}
@@ -315,7 +315,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Debugf("Failed to extract int_id claim for priority endpoint: %v", err)
 		result.Error = v2.NewError("auth", "Valid int_id claim required", http.StatusUnauthorized)
-		writeResult(rw, result.Error.Status, &result)
+		writeResult(rw, result.Error.Status, result)
 		metrics.RequestsTotal.WithLabelValues("priority_nearest", "auth", http.StatusText(http.StatusUnauthorized)).Inc()
 		return
 	}
@@ -341,7 +341,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 			// Tier 0 not configured - this is a server misconfiguration
 			log.Errorf("Tier 0 not configured, cannot serve priority requests")
 			result.Error = v2.NewError("server", "Service misconfigured", http.StatusInternalServerError)
-			writeResult(rw, result.Error.Status, &result)
+			writeResult(rw, result.Error.Status, result)
 			metrics.RequestsTotal.WithLabelValues("priority_nearest", "config", http.StatusText(http.StatusInternalServerError)).Inc()
 			return
 		}
@@ -366,7 +366,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 
 				log.Debugf("Tier rate limit (%s) exceeded for int_id: %s, tier: %d, IP: %s, client: %s",
 					status.LimitType, intID, tier, ip, clientName)
-				writeResult(rw, result.Error.Status, &result)
+				writeResult(rw, result.Error.Status, result)
 				return
 			}
 		} else {
@@ -376,7 +376,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Rate limit passed - handle the nearest request
-	c.handleNearestRequest(rw, req, &result, "priority_nearest")
+	c.handleNearestRequest(rw, req, result, "priority_nearest")
 }
 
 // extractIntegrationID extracts the "int_id" claim from integration JWT claims.
