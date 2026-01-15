@@ -178,9 +178,17 @@ func (c *Client) extraParams(hostname string, index int, p paramOpts) url.Values
 // Nearest uses an implementation of the LocatorV2 interface to look up
 // nearest servers.
 func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
-	req.ParseForm()
 	result := v2.NearestResult{}
 	setHeaders(rw)
+
+	if err := req.ParseForm(); err != nil {
+		log.Debugf("ParseForm error: %v", err)
+		result.Error = v2.NewError("server", "Failed to parse form", http.StatusInternalServerError)
+		writeResult(rw, result.Error.Status, result)
+		metrics.RequestsTotal.WithLabelValues("nearest", "server",
+			http.StatusText(result.Error.Status)).Inc()
+		return
+	}
 
 	if c.limitRequest(time.Now().UTC(), req) {
 		result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
@@ -306,7 +314,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Extract JWT claims from the X-Endpoint-API-UserInfo header
+	// Extract JWT claims from thee X-Endpoint-API-UserInfo header
 	claims, err := c.extractJWTClaims(req)
 	if err != nil {
 		log.Debugf("Failed to extract JWT claims for priority endpoint: %v", err)
