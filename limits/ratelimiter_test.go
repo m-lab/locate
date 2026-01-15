@@ -203,6 +203,50 @@ func TestRateLimiter_IsLimited(t *testing.T) {
 		}
 	})
 
+	t.Run("ipv6 address", func(t *testing.T) {
+		cleanRedis()
+		rl := NewRateLimiter(pool, RateLimitConfig{
+			IPConfig: LimitConfig{
+				Interval:  time.Hour,
+				MaxEvents: 2,
+			},
+			IPUAConfig: LimitConfig{
+				Interval:  time.Hour,
+				MaxEvents: 2,
+			},
+			KeyPrefix: "test:",
+		})
+
+		// First two requests with IPv6 (should be allowed)
+		for i := 0; i < 2; i++ {
+			status, err := rl.IsLimited("2001:db8::1", "test-agent")
+			if err != nil {
+				t.Fatalf("IsLimited() error = %v", err)
+			}
+			if status.IsLimited {
+				t.Errorf("request %d: IsLimited() = %+v, want not limited", i, status)
+			}
+		}
+
+		// Third request (should be IP-limited)
+		status, err := rl.IsLimited("2001:db8::1", "test-agent")
+		if err != nil {
+			t.Fatalf("IsLimited() error = %v", err)
+		}
+		if !status.IsLimited {
+			t.Error("IsLimited() = not limited, want limited")
+		}
+
+		// Different IPv6 should not be limited
+		status, err = rl.IsLimited("2001:db8::2", "test-agent")
+		if err != nil {
+			t.Fatalf("IsLimited() error = %v", err)
+		}
+		if status.IsLimited {
+			t.Errorf("different IPv6: IsLimited() = %+v, want not limited", status)
+		}
+	})
+
 	t.Run("redis errors", func(t *testing.T) {
 		cleanRedis()
 		failPool := &redis.Pool{
@@ -396,6 +440,49 @@ func TestRateLimiter_IsLimitedWithTier(t *testing.T) {
 		}
 		if status.IsLimited {
 			t.Errorf("after expiration: IsLimitedWithTier() = %+v, want not limited", status)
+		}
+	})
+
+	t.Run("ipv6 address", func(t *testing.T) {
+		cleanRedis()
+		rl := NewRateLimiter(pool, RateLimitConfig{
+			IPConfig:   LimitConfig{Interval: time.Hour, MaxEvents: 60},
+			IPUAConfig: LimitConfig{Interval: time.Hour, MaxEvents: 30},
+			KeyPrefix:  "test:",
+		})
+
+		tierConfig := LimitConfig{
+			Interval:  time.Hour,
+			MaxEvents: 2,
+		}
+
+		// First two requests with IPv6 (should be allowed)
+		for i := 0; i < 2; i++ {
+			status, err := rl.IsLimitedWithTier("companyX", "2001:db8::1", tierConfig)
+			if err != nil {
+				t.Fatalf("IsLimitedWithTier() error = %v", err)
+			}
+			if status.IsLimited {
+				t.Errorf("request %d: IsLimitedWithTier() = %+v, want not limited", i, status)
+			}
+		}
+
+		// Third request (should be tier-limited)
+		status, err := rl.IsLimitedWithTier("companyX", "2001:db8::1", tierConfig)
+		if err != nil {
+			t.Fatalf("IsLimitedWithTier() error = %v", err)
+		}
+		if !status.IsLimited {
+			t.Error("IsLimitedWithTier() = not limited, want limited")
+		}
+
+		// Different IPv6 should not be limited
+		status, err = rl.IsLimitedWithTier("companyX", "2001:db8::2", tierConfig)
+		if err != nil {
+			t.Fatalf("IsLimitedWithTier() error = %v", err)
+		}
+		if status.IsLimited {
+			t.Errorf("different IPv6: IsLimitedWithTier() = %+v, want not limited", status)
 		}
 	})
 }

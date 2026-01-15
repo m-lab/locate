@@ -841,11 +841,11 @@ func createESPv1HeaderWithTier(intID string, tier interface{}) string {
 	if tier != nil {
 		claims["tier"] = tier
 	}
-	claimsString, _ := json.Marshal(claims)
+	claimsString := rtx.ValueOrPanic(json.Marshal(claims))
 
 	espData := map[string]interface{}{
 		"issuer":    "token-exchange",
-		"audiences": []string{"autojoin"},
+		"audiences": []string{"locate"},
 		"claims":    string(claimsString),
 	}
 
