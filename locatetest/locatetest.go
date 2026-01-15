@@ -41,7 +41,7 @@ type LocatorV2 struct {
 	//
 	// If both are non-nil, Err takes precedence.
 	//
-	// The [NewTargetInfoNdt7] allows to construct a suitable instance that
+	// The [NewTargetInfoNdt7] func allows to construct a suitable instance that
 	// makes sense for returning meaningful ndt7 entries.
 	TargetInfo *heartbeat.TargetInfo
 
