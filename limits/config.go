@@ -34,26 +34,6 @@ type Config []AgentConfig
 // TierLimits maps tier numbers to their LimitConfig.
 type TierLimits map[int]LimitConfig
 
-// ParseConfig interprets the configuration file and returns the set
-// of agent limits.
-func ParseConfig(path string) (Agents, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	config := &Config{}
-	decoder := yaml.NewDecoder(f)
-	err = decoder.Decode(config)
-
-	lmts := make(Agents)
-	for _, l := range *config {
-		lmts[l.Agent] = NewCron(l.Schedule, l.Duration)
-	}
-	return lmts, err
-}
-
 // ParseFullConfig interprets the configuration file and returns both
 // agent limits and tier limits.
 func ParseFullConfig(path string) (Agents, TierLimits, error) {
