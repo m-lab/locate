@@ -849,7 +849,7 @@ func createESPv1HeaderWithTier(intID string, tier interface{}) string {
 		"claims":    string(claimsString),
 	}
 
-	jsonBytes, _ := json.Marshal(espData)
+	jsonBytes := rtx.ValueOrPanic(json.Marshal(espData))
 	return base64.StdEncoding.EncodeToString(jsonBytes)
 }
 
