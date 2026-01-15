@@ -89,7 +89,7 @@ func NewLocateServerV2(loc *LocatorV2) *httptest.Server {
 // NewTargetInfoNdt7 is a convenience function to build a [*heartbeat.TargetInfo] to
 // initialize a [*LocatorV2] type with targets meaningful for ndt7.
 //
-// This function servers as a reference implementation example regarding how to fill
+// This function serves as a reference implementation example regarding how to fill
 // a [*heartbeat.TestInfo] structure for testing. If you have specific needs for other
 // experiments hosted by M-Lab, you're probably better off adding the code you need
 // inside your implementation rather than inside this package.

@@ -60,8 +60,7 @@ func (exp *v2TargetExpectation) check(t *testing.T, target *v2.Target) {
 	if len(exp.urls) != len(target.URLs) {
 		t.Fatal("expected", len(exp.urls), "got", len(target.URLs))
 	}
-	for idx := 0; idx < len(target.URLs); idx++ {
-		expect := exp.urls[0]
+	for _, expect := range exp.urls {
 		got, ok := target.URLs[expect.key]
 		if !ok {
 			t.Error("missing entry for", expect.key)
