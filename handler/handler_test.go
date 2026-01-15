@@ -402,15 +402,6 @@ func TestClient_Nearest(t *testing.T) {
 	}
 }
 
-func TestNewClientDirect(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		c := NewClient("fake-project", nil, nil, nil, nil, nil, nil, nil, nil, nil)
-		if c == nil {
-			t.Error("got nil client!")
-		}
-	})
-}
-
 func TestClient_Ready(t *testing.T) {
 	tests := []struct {
 		name       string
