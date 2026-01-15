@@ -371,6 +371,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 			}
 		} else {
 			// This should never happen if Locate is deployed on AppEngine.
+			// For local deployments, RemoteAddr is assumed to always be there.
 			log.Warnf("Cannot find IP address for tier-based rate limiting.")
 		}
 	}
