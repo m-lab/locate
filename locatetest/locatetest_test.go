@@ -44,6 +44,8 @@ func (exp *v2TargetExpectation) check(t *testing.T, target *v2.Target) {
 		// nothing
 
 	case exp.loc != nil && target.Location == nil:
+		t.Errorf("expected %+v, got %+v", exp.loc, target.Location)
+
 	case exp.loc == nil && target.Location != nil:
 		t.Errorf("expected %+v, got %+v", exp.loc, target.Location)
 
