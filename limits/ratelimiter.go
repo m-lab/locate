@@ -168,7 +168,16 @@ func (rl *RateLimiter) IsLimitedWithTier(org, ip string, tierConfig LimitConfig)
 	now := time.Now().UnixMicro()
 	key := rl.generateOrgIPKey(org, ip)
 
-	// Pipeline commands for atomic operation
+	// Sliding window rate limiting using Redis sorted sets:
+	// - Each request adds its timestamp to the set
+	// - Old timestamps outside the window are pruned
+	// - The set size equals requests within the window
+	// - If size > MaxEvents, the request is rate limited
+	//
+	// ZREMRANGEBYSCORE: remove entries with score (timestamp) outside the window
+	// ZADD: add current timestamp as score and member
+	// EXPIRE: auto-cleanup key after interval (garbage collection)
+	// ZCARD: count entries in set = requests in window
 	if err := conn.Send("ZREMRANGEBYSCORE", key, "-inf", now-tierConfig.Interval.Microseconds()); err != nil {
 		return LimitStatus{}, fmt.Errorf("failed to send ZREMRANGEBYSCORE: %w", err)
 	}
