@@ -294,11 +294,17 @@ func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request,
 // It requires a valid integration JWT with an int_id claim. Requests without valid
 // credentials receive a 401 Unauthorized response.
 func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
-	if err := req.ParseForm(); err != nil {
-		log.Debugf("ParseForm error: %v", err)
-	}
 	result := &v2.NearestResult{}
 	setHeaders(rw)
+
+	if err := req.ParseForm(); err != nil {
+		log.Debugf("ParseForm error: %v", err)
+		result.Error = v2.NewError("server", "Failed to parse form", http.StatusInternalServerError)
+		writeResult(rw, result.Error.Status, result)
+		metrics.RequestsTotal.WithLabelValues("priority_nearest", "server",
+			http.StatusText(result.Error.Status)).Inc()
+		return
+	}
 
 	// Extract JWT claims from the X-Endpoint-API-UserInfo header
 	claims, err := c.extractJWTClaims(req)
