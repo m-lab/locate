@@ -152,7 +152,7 @@ func TestLocateServer(t *testing.T) {
 		},
 
 		{
-			name: "success-locate-server-v2-with-IP-address",
+			name: "success-locate-server-v2-with-IP-address-and-port",
 			locator: &LocatorV2{
 				TargetInfo: NewTargetInfoNdt7("130.192.91.211:54321"),
 			},
