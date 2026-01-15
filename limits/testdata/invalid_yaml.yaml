@@ -1,0 +1,5 @@
+---
+tiers:
+  0:
+    interval: 1h
+    max_events: [unclosed

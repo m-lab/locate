@@ -48,7 +48,16 @@ type Limiter interface {
 	IsLimited(ip, ua string) (limits.LimitStatus, error)
 }
 
-// Client contains state needed for xyz.
+// TierLimiter extends Limiter with tier-based limits for priority endpoints.
+type TierLimiter interface {
+	Limiter
+	IsLimitedWithTier(org, ip string, tierConfig limits.LimitConfig) (limits.LimitStatus, error)
+}
+
+// Client handles HTTP requests for the locate service, including nearest server
+// lookups, heartbeat processing, and monitoring endpoints. It maintains dependencies
+// for geolocation, rate limiting, access token signing, and metrics collection.
+// TODO: This should probably be a Handler, not a Client.
 type Client struct {
 	Signer
 	project string
@@ -57,7 +66,8 @@ type Client struct {
 	PrometheusClient
 	targetTmpl       *template.Template
 	agentLimits      limits.Agents
-	ipLimiter        Limiter
+	tierLimits       limits.TierLimits
+	ipLimiter        TierLimiter
 	earlyExitClients map[string]bool
 	jwtVerifier      Verifier
 }
@@ -93,7 +103,7 @@ func init() {
 
 // NewClient creates a new client.
 func NewClient(project string, private Signer, locatorV2 LocatorV2, client ClientLocator,
-	prom PrometheusClient, lmts limits.Agents, limiter Limiter, earlyExitClients []string, jwtVerifier Verifier) *Client {
+	promClient PrometheusClient, lmts limits.Agents, tierLmts limits.TierLimits, limiter TierLimiter, earlyExitClients []string, jwtVerifier Verifier) *Client {
 	// Convert slice to map for O(1) lookups
 	earlyExitMap := make(map[string]bool)
 	for _, client := range earlyExitClients {
@@ -104,26 +114,13 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 		project:          project,
 		LocatorV2:        locatorV2,
 		ClientLocator:    client,
-		PrometheusClient: prom,
+		PrometheusClient: promClient,
 		targetTmpl:       template.Must(template.New("name").Parse("{{.Hostname}}{{.Ports}}")),
 		agentLimits:      lmts,
+		tierLimits:       tierLmts,
 		ipLimiter:        limiter,
 		earlyExitClients: earlyExitMap,
 		jwtVerifier:      jwtVerifier,
-	}
-}
-
-// NewClientDirect creates a new client with a target template using only the target machine.
-// TODO: Remove this and use NewClient in test code.
-func NewClientDirect(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient) *Client {
-	return &Client{
-		Signer:           private,
-		project:          project,
-		LocatorV2:        locatorV2,
-		ClientLocator:    client,
-		PrometheusClient: prom,
-		// Useful for the locatetest package when running a local server.
-		targetTmpl: template.Must(template.New("name").Parse("{{.Hostname}}{{.Ports}}")),
 	}
 }
 
@@ -167,9 +164,17 @@ func (c *Client) extraParams(hostname string, index int, p paramOpts) url.Values
 // Nearest uses an implementation of the LocatorV2 interface to look up
 // nearest servers.
 func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
-	req.ParseForm()
 	result := v2.NearestResult{}
 	setHeaders(rw)
+
+	if err := req.ParseForm(); err != nil {
+		log.Debugf("ParseForm error: %v", err)
+		result.Error = v2.NewError("server", "Failed to parse form", http.StatusInternalServerError)
+		writeResult(rw, result.Error.Status, result)
+		metrics.RequestsTotal.WithLabelValues("nearest", "server",
+			http.StatusText(result.Error.Status)).Inc()
+		return
+	}
 
 	if c.limitRequest(time.Now().UTC(), req) {
 		result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
@@ -210,6 +215,13 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	c.handleNearestRequest(rw, req, &result, "nearest")
+}
+
+// handleNearestRequest is a helper that contains the common logic for looking up
+// nearest machines and generating the response. It's used by both Nearest and
+// PriorityNearest handlers.
+func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request, result *v2.NearestResult, metricLabel string) {
 	experiment, service := getExperimentAndService(req.URL.Path)
 
 	// Look up client location.
@@ -217,8 +229,8 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		status := http.StatusServiceUnavailable
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", status)
-		writeResult(rw, result.Error.Status, &result)
-		metrics.RequestsTotal.WithLabelValues("nearest", "client location",
+		writeResult(rw, result.Error.Status, result)
+		metrics.RequestsTotal.WithLabelValues(metricLabel, "client location",
 			http.StatusText(result.Error.Status)).Inc()
 		return
 	}
@@ -228,8 +240,8 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	lon, errLon := strconv.ParseFloat(loc.Longitude, 64)
 	if errLat != nil || errLon != nil {
 		result.Error = v2.NewError("client", errFailedToLookupClient.Error(), http.StatusInternalServerError)
-		writeResult(rw, result.Error.Status, &result)
-		metrics.RequestsTotal.WithLabelValues("nearest", "parse client location",
+		writeResult(rw, result.Error.Status, result)
+		metrics.RequestsTotal.WithLabelValues(metricLabel, "parse client location",
 			http.StatusText(result.Error.Status)).Inc()
 		return
 	}
@@ -253,8 +265,8 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	targetInfo, err := c.LocatorV2.Nearest(service, lat, lon, opts)
 	if err != nil {
 		result.Error = v2.NewError("nearest", "Failed to lookup nearest machines", http.StatusInternalServerError)
-		writeResult(rw, result.Error.Status, &result)
-		metrics.RequestsTotal.WithLabelValues("nearest", "server location",
+		writeResult(rw, result.Error.Status, result)
+		metrics.RequestsTotal.WithLabelValues(metricLabel, "server location",
 			http.StatusText(result.Error.Status)).Inc()
 		return
 	}
@@ -268,8 +280,123 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 	// Populate target URLs and write out response.
 	c.populateURLs(targetInfo.Targets, targetInfo.URLs, experiment, pOpts)
 	result.Results = targetInfo.Targets
-	writeResult(rw, http.StatusOK, &result)
-	metrics.RequestsTotal.WithLabelValues("nearest", "success", http.StatusText(http.StatusOK)).Inc()
+	writeResult(rw, http.StatusOK, result)
+	metrics.RequestsTotal.WithLabelValues(metricLabel, "success", http.StatusText(http.StatusOK)).Inc()
+}
+
+// PriorityNearest handles requests to /v2/priority/nearest with tier-based rate limiting.
+// It requires a valid integration JWT with an int_id claim. Requests without valid
+// credentials receive a 401 Unauthorized response.
+func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
+	result := &v2.NearestResult{}
+	setHeaders(rw)
+
+	if err := req.ParseForm(); err != nil {
+		log.Debugf("ParseForm error: %v", err)
+		result.Error = v2.NewError("server", "Failed to parse form", http.StatusInternalServerError)
+		writeResult(rw, result.Error.Status, result)
+		metrics.RequestsTotal.WithLabelValues("priority_nearest", "server",
+			http.StatusText(result.Error.Status)).Inc()
+		return
+	}
+
+	// Extract JWT claims from thee X-Endpoint-API-UserInfo header
+	claims, err := c.extractJWTClaims(req)
+	if err != nil {
+		log.Debugf("Failed to extract JWT claims for priority endpoint: %v", err)
+		result.Error = v2.NewError("auth", "Valid JWT token required", http.StatusUnauthorized)
+		writeResult(rw, result.Error.Status, result)
+		metrics.RequestsTotal.WithLabelValues("priority_nearest", "auth", http.StatusText(http.StatusUnauthorized)).Inc()
+		return
+	}
+
+	// Extract integration ID claim
+	intID, err := extractIntegrationID(claims)
+	if err != nil {
+		log.Debugf("Failed to extract int_id claim for priority endpoint: %v", err)
+		result.Error = v2.NewError("auth", "Valid int_id claim required", http.StatusUnauthorized)
+		writeResult(rw, result.Error.Status, result)
+		metrics.RequestsTotal.WithLabelValues("priority_nearest", "auth", http.StatusText(http.StatusUnauthorized)).Inc()
+		return
+	}
+
+	// Extract tier claim, defaulting to 0 if not present.
+	// JSON numbers always unmarshal to float64 in Go.
+	tier := 0
+	if tierClaim, ok := claims["tier"]; ok {
+		if v, ok := tierClaim.(float64); ok {
+			tier = int(v)
+		} else {
+			log.Debugf("Unexpected tier claim type for int_id %s: %T, using default tier 0", intID, tierClaim)
+		}
+	}
+
+	// Look up tier configuration
+	tierConfig, ok := c.tierLimits[tier]
+	if !ok {
+		log.Debugf("Tier %d not configured for int_id %s, using tier 0", tier, intID)
+		tier = 0
+		tierConfig, ok = c.tierLimits[0]
+		if !ok {
+			// Tier 0 not configured - this is a server misconfiguration
+			log.Errorf("Tier 0 not configured, cannot serve priority requests")
+			result.Error = v2.NewError("server", "Service misconfigured", http.StatusInternalServerError)
+			writeResult(rw, result.Error.Status, result)
+			metrics.RequestsTotal.WithLabelValues("priority_nearest", "config", http.StatusText(http.StatusInternalServerError)).Inc()
+			return
+		}
+	}
+
+	// Apply tier-based rate limiting
+	if c.ipLimiter != nil {
+		ip := getRemoteAddr(req)
+		if ip != "" {
+			status, err := c.ipLimiter.IsLimitedWithTier(intID, ip, tierConfig)
+			if err != nil {
+				// Log error but don't block request (fail open).
+				log.Errorf("Tier rate limiter error for int_id %s, tier %d: %v", intID, tier, err)
+			} else if status.IsLimited {
+				// Rate limited - block the request
+				result.Error = v2.NewError("client", tooManyRequests, http.StatusTooManyRequests)
+				metrics.RequestsTotal.WithLabelValues("priority_nearest", "rate limit",
+					http.StatusText(result.Error.Status)).Inc()
+
+				clientName := req.Form.Get("client_name")
+				metrics.RateLimitedTotal.WithLabelValues(clientName, status.LimitType).Inc()
+
+				log.Debugf("Tier rate limit (%s) exceeded for int_id: %s, tier: %d, IP: %s, client: %s",
+					status.LimitType, intID, tier, ip, clientName)
+				writeResult(rw, result.Error.Status, result)
+				return
+			}
+		} else {
+			// This should never happen if Locate is deployed on AppEngine.
+			// For local deployments, RemoteAddr is assumed to always be there.
+			log.Warnf("Cannot find IP address for tier-based rate limiting.")
+		}
+	}
+
+	// Rate limit passed - handle the nearest request
+	c.handleNearestRequest(rw, req, result, "priority_nearest")
+}
+
+// extractIntegrationID extracts the "int_id" claim from integration JWT claims.
+func extractIntegrationID(claims map[string]interface{}) (string, error) {
+	intIDClaim, ok := claims["int_id"]
+	if !ok {
+		return "", fmt.Errorf("int_id claim not found in JWT")
+	}
+
+	intID, ok := intIDClaim.(string)
+	if !ok {
+		return "", fmt.Errorf("int_id claim is not a string")
+	}
+
+	if intID == "" {
+		return "", fmt.Errorf("int_id claim is empty")
+	}
+
+	return intID, nil
 }
 
 // Live is a minimal handler to indicate that the server is operating at all.

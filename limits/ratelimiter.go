@@ -152,3 +152,73 @@ func (rl *RateLimiter) IsLimited(ip, ua string) (LimitStatus, error) {
 		LimitType: "",
 	}, nil
 }
+
+// generateOrgIPKey creates a Redis key from organization and IP for tier-based limiting.
+func (rl *RateLimiter) generateOrgIPKey(org, ip string) string {
+	return fmt.Sprintf("%s:org:%s:%s", rl.keyPrefix, org, ip)
+}
+
+// IsLimitedWithTier checks if the given organization+IP combination should be rate limited
+// based on the tier-specific configuration. This is used for /v2/priority/nearest endpoint
+// where different tiers have different rate limits.
+func (rl *RateLimiter) IsLimitedWithTier(org, ip string, tierConfig LimitConfig) (LimitStatus, error) {
+	conn := rl.pool.Get()
+	defer conn.Close()
+
+	now := time.Now().UnixMicro()
+	key := rl.generateOrgIPKey(org, ip)
+
+	// Sliding window rate limiting using Redis sorted sets:
+	// - Each request adds its timestamp to the set
+	// - Old timestamps outside the window are pruned
+	// - The set size equals requests within the window
+	// - If size > MaxEvents, the request is rate limited
+	//
+	// ZREMRANGEBYSCORE: remove entries with score (timestamp) outside the window
+	// ZADD: add current timestamp as score and member
+	// EXPIRE: auto-cleanup key after interval (garbage collection)
+	// ZCARD: count entries in set = requests in window
+	if err := conn.Send("ZREMRANGEBYSCORE", key, "-inf", now-tierConfig.Interval.Microseconds()); err != nil {
+		return LimitStatus{}, fmt.Errorf("failed to send ZREMRANGEBYSCORE: %w", err)
+	}
+	if err := conn.Send("ZADD", key, now, strconv.FormatInt(now, 10)); err != nil {
+		return LimitStatus{}, fmt.Errorf("failed to send ZADD: %w", err)
+	}
+	if err := conn.Send("EXPIRE", key, int64(tierConfig.Interval.Seconds())); err != nil {
+		return LimitStatus{}, fmt.Errorf("failed to send EXPIRE: %w", err)
+	}
+	if err := conn.Send("ZCARD", key); err != nil {
+		return LimitStatus{}, fmt.Errorf("failed to send ZCARD: %w", err)
+	}
+
+	// Flush pipeline
+	if err := conn.Flush(); err != nil {
+		return LimitStatus{}, fmt.Errorf("failed to flush pipeline: %w", err)
+	}
+
+	// Receive first 3 replies (ZREMRANGEBYSCORE, ZADD, EXPIRE)
+	for i := range 3 {
+		if _, err := conn.Receive(); err != nil {
+			return LimitStatus{}, fmt.Errorf("failed to receive reply %d: %w", i, err)
+		}
+	}
+
+	// Receive count
+	count, err := redis.Int64(conn.Receive())
+	if err != nil {
+		return LimitStatus{}, fmt.Errorf("failed to receive count: %w", err)
+	}
+
+	// Check tier limit
+	if count > int64(tierConfig.MaxEvents) {
+		return LimitStatus{
+			IsLimited: true,
+			LimitType: "tier",
+		}, nil
+	}
+
+	return LimitStatus{
+		IsLimited: false,
+		LimitType: "",
+	}, nil
+}
