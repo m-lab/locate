@@ -1,6 +1,6 @@
 # locate
 
-[![Version](https://img.shields.io/github/tag/m-lab/locate.svg)](https://github.com/m-lab/locate/releases) [![Build Status](https://github.com/m-lab/locate/actions/workflows/ci.yml/badge.svg)](https://github.com/m-lab/locate/actions) [![Coverage Status](https://coveralls.io/repos/m-lab/locate/badge.svg?branch=master)](https://coveralls.io/github/m-lab/locate?branch=main) [![GoDoc](https://godoc.org/github.com/m-lab/locate?status.svg)](https://godoc.org/github.com/m-lab/locate) [![Go Report Card](https://goreportcard.com/badge/github.com/m-lab/locate)](https://goreportcard.com/report/github.com/m-lab/locate)
+[![Version](https://img.shields.io/github/tag/m-lab/locate.svg)](https://github.com/m-lab/locate/releases) [![Build Status](https://github.com/m-lab/locate/actions/workflows/ci.yml/badge.svg)](https://github.com/m-lab/locate/actions) [![Coverage Status](https://coveralls.io/repos/github/m-lab/locate/badge.svg?branch=main)](https://coveralls.io/github/m-lab/locate?branch=main) [![GoDoc](https://godoc.org/github.com/m-lab/locate?status.svg)](https://godoc.org/github.com/m-lab/locate) [![Go Report Card](https://goreportcard.com/badge/github.com/m-lab/locate)](https://goreportcard.com/report/github.com/m-lab/locate)
 
 M-Lab Locate Service, a load balancer providing consistent “expected
 measurement quality” using access control.
