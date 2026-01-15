@@ -124,20 +124,6 @@ func NewClient(project string, private Signer, locatorV2 LocatorV2, client Clien
 	}
 }
 
-// NewClientDirect creates a new client with a target template using only the target machine.
-// TODO: Remove this and use NewClient in test code.
-func NewClientDirect(project string, private Signer, locatorV2 LocatorV2, client ClientLocator, prom PrometheusClient) *Client {
-	return &Client{
-		Signer:           private,
-		project:          project,
-		LocatorV2:        locatorV2,
-		ClientLocator:    client,
-		PrometheusClient: prom,
-		// Useful for the locatetest package when running a local server.
-		targetTmpl: template.Must(template.New("name").Parse("{{.Hostname}}{{.Ports}}")),
-	}
-}
-
 func (c *Client) extraParams(hostname string, index int, p paramOpts) url.Values {
 	v := url.Values{}
 

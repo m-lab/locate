@@ -55,7 +55,8 @@ func (l *LocatorV2) Nearest(service string, lat, lon float64, opts *heartbeat.Ne
 func NewLocateServerV2(loc *LocatorV2) *httptest.Server {
 	// fake signer, fake locator.
 	s := &Signer{}
-	c := handler.NewClientDirect("fake-project", s, loc, &clientgeo.NullLocator{}, prom.NewAPI(nil))
+	c := handler.NewClient("fake-project", s, loc, &clientgeo.NullLocator{}, prom.NewAPI(nil),
+		nil, nil, nil, nil, nil)
 
 	// USER APIs
 	mux := http.NewServeMux()
