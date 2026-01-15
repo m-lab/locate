@@ -834,8 +834,8 @@ func createESPv1HeaderWithTier(intID string, tier interface{}) string {
 		"iss":    "token-exchange",
 		"sub":    "user123",
 		"aud":    "autojoin",
-		"exp":    9999999999,
-		"iat":    1600000000,
+		"exp":    9999999999, // random time in the future
+		"iat":    1000000000, // random time in the past
 		"int_id": intID,
 	}
 	if tier != nil {
