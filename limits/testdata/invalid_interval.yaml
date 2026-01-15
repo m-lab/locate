@@ -1,0 +1,6 @@
+---
+agents: []
+tiers:
+  0:
+    interval: "not-a-duration"
+    max_events: 100

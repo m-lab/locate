@@ -29,8 +29,22 @@ func TestParseFullConfig(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:       "file-error",
+			name:       "file-not-found",
 			path:       "nonexistent.yaml",
+			wantAgents: nil,
+			wantTiers:  nil,
+			wantErr:    true,
+		},
+		{
+			name:       "invalid-yaml",
+			path:       "testdata/invalid_yaml.yaml",
+			wantAgents: nil,
+			wantTiers:  nil,
+			wantErr:    true,
+		},
+		{
+			name:       "invalid-tier-interval",
+			path:       "testdata/invalid_interval.yaml",
 			wantAgents: nil,
 			wantTiers:  nil,
 			wantErr:    true,
