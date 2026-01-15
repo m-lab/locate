@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"testing"
 
-	"gopkg.in/square/go-jose.v2"
-	"gopkg.in/square/go-jose.v2/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 )
 
 func TestDirectVerifier_ExtractClaims(t *testing.T) {
@@ -195,7 +195,7 @@ func createSignedJWT(t *testing.T, signingKey jose.SigningKey, claims map[string
 	builder := jwt.Signed(signer)
 	builder = builder.Claims(claims)
 
-	token, err := builder.CompactSerialize()
+	token, err := builder.Serialize()
 	if err != nil {
 		t.Fatalf("Failed to create JWT: %v", err)
 	}

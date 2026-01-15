@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/logx"
@@ -18,7 +19,6 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/proxy"
 	"github.com/m-lab/locate/static"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 var (

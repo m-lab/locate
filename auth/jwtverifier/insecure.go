@@ -7,9 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/square/go-jose.v2/jwt"
-
+	"github.com/go-jose/go-jose/v4/jwt"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/m-lab/locate/static"
 )
 
 // Insecure parses JWTs from the Authorization header WITHOUT signature verification.
@@ -56,7 +57,10 @@ func (v *Insecure) ExtractClaims(req *http.Request) (map[string]interface{}, err
 		return nil, fmt.Errorf("authorization header must be in format: Bearer <token>")
 	}
 
-	token, err := jwt.ParseSigned(tokenString)
+	// Note: We must specify algorithms even though we don't verify signatures,
+	// because go-jose/v4 requires it for parsing. Using the shared list ensures
+	// consistency across the codebase.
+	token, err := jwt.ParseSigned(tokenString, static.SupportedSignatureAlgorithms)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JWT: %w", err)
 	}

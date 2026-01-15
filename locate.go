@@ -9,11 +9,11 @@ import (
 	"time"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/gomodule/redigo/redis"
 	"github.com/justinas/alice"
 	promet "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/m-lab/access/controller"
 	"github.com/m-lab/access/token"
@@ -236,9 +236,12 @@ func main() {
 	verifier, err := cfg.LoadVerifier(mainCtx, verifySecretName)
 	rtx.Must(err, "Failed to create verifier")
 	exp := jwt.Expected{
-		Issuer:   static.IssuerMonitoring,
-		Audience: jwt.Audience{static.AudienceLocate},
+		Issuer:      static.IssuerMonitoring,
+		AnyAudience: jwt.Audience{static.AudienceLocate},
 	}
+
+	// The /v2/platform/monitoring endpoint requires a token that is only
+	// available to the monitoring tools. TokenController validates this token.
 	tc, err := controller.NewTokenController(verifier, true, exp, controller.Paths{
 		"/v2/platform/monitoring/": true,
 	})

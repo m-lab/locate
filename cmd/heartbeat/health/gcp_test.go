@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/compute/apiv1/computepb"
-	"github.com/googleapis/gax-go"
+	gax "github.com/googleapis/gax-go/v2"
 	"github.com/m-lab/locate/cmd/heartbeat/metadata"
 )
 

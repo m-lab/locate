@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
-	"github.com/googleapis/gax-go"
+	gax "github.com/googleapis/gax-go/v2"
 	"github.com/m-lab/locate/prometheus"
 	"github.com/prometheus/common/config"
 	"google.golang.org/api/iterator"

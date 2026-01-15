@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/compute/apiv1/computepb"
-	"github.com/googleapis/gax-go"
+	gax "github.com/googleapis/gax-go/v2"
 )
 
 // GCPChecker queries the VM's load balancer to check its status.
