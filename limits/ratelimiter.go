@@ -188,7 +188,7 @@ func (rl *RateLimiter) IsLimitedWithTier(org, ip string, tierConfig LimitConfig)
 	}
 
 	// Receive first 3 replies (ZREMRANGEBYSCORE, ZADD, EXPIRE)
-	for range 3 {
+	for i := range 3 {
 		if _, err := conn.Receive(); err != nil {
 			return LimitStatus{}, fmt.Errorf("failed to receive reply %d: %w", i, err)
 		}
