@@ -215,7 +215,7 @@ func main() {
 // HeartbeatPeriod.
 func write(ws *connection.Conn, hc Checker, ldr *registration.Loader) {
 	defer ws.Close()
-	hbTicker := *time.NewTicker(heartbeatPeriod)
+	hbTicker := time.NewTicker(heartbeatPeriod)
 	defer hbTicker.Stop()
 
 	// Register the channel to receive SIGTERM events.
