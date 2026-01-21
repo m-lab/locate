@@ -9,15 +9,16 @@ agents:
 # Each tier defines the maximum number of requests per IP per integration
 # within the specified interval. Tier 0 is the default for registered integrations.
 tiers:
+  # The default tier (0) has the same limit as the non-registered integrations.
   0:
-    interval: 1h
-    max_events: 100
+    interval: 12h
+    max_events: 40
   1:
     interval: 1h
-    max_events: 500
+    max_events: 50
   2:
     interval: 1h
-    max_events: 1000
+    max_events: 100
   3:
     interval: 1h
-    max_events: 5000
+    max_events: 200
