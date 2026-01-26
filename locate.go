@@ -242,8 +242,11 @@ func main() {
 
 	// The /v2/platform/monitoring endpoint requires a token that is only
 	// available to the monitoring tools. TokenController validates this token.
+	// TODO: update m-lab/access to support prefix matching, then simplify to
+	// just "/v2/platform/monitoring/".
 	tc, err := controller.NewTokenController(verifier, true, exp, controller.Paths{
-		"/v2/platform/monitoring/": true,
+		"/v2/platform/monitoring/ndt/ndt7":    true,
+		"/v2/platform/monitoring/wehe/replay": true,
 	})
 	rtx.Must(err, "Failed to create token controller")
 	monitoringChain := alice.New(tc.Limit).Then(http.HandlerFunc(c.Monitoring))
