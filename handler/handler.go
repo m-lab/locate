@@ -291,6 +291,15 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	result := &v2.NearestResult{}
 	setHeaders(rw)
 
+	// Handle CORS preflight requests. Use 200 instead of 204 for broader browser
+	// compatibility (some Firefox versions reject 204 for CORS).
+	//
+	// See https://stackoverflow.com/a/46028619.
+	if req.Method == http.MethodOptions {
+		rw.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if err := req.ParseForm(); err != nil {
 		log.Debugf("ParseForm error: %v", err)
 		result.Error = v2.NewError("server", "Failed to parse form", http.StatusInternalServerError)
@@ -539,6 +548,8 @@ func setHeaders(rw http.ResponseWriter) {
 	// Set CORS policy to allow third-party websites to use returned resources.
 	rw.Header().Set("Content-Type", "application/json")
 	rw.Header().Set("Access-Control-Allow-Origin", "*")
+	rw.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	rw.Header().Set("Access-Control-Allow-Headers", "Authorization")
 	// Prevent caching of result.
 	// See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
 	rw.Header().Set("Cache-Control", "no-store")

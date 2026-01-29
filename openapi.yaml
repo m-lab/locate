@@ -120,6 +120,25 @@ paths:
       - jwt_auth: []
       tags:
         - public
+    options:
+      description: CORS preflight request handler.
+      operationId: "v2-priority-nearest-cors"
+      parameters:
+        - name: name
+          in: path
+          description: service
+          type: string
+          required: true
+        - name: type
+          in: path
+          description: datatype
+          type: string
+          required: true
+      responses:
+        '200':
+          description: CORS preflight response.
+      tags:
+        - public
 
   "/v2/platform/heartbeat":
     get:

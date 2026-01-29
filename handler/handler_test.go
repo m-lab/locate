@@ -1123,3 +1123,39 @@ func TestClient_PriorityNearest(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_PriorityNearest_CORS_Preflight(t *testing.T) {
+	// Create minimal client for testing OPTIONS handling
+	c := NewClient("test-project", nil, nil, nil, prom.NewAPI(nil), nil, nil, nil, nil, nil)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v2/priority/nearest/", c.PriorityNearest)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	req, err := http.NewRequest(http.MethodOptions, srv.URL+"/v2/priority/nearest/ndt/ndt7", http.NoBody)
+	rtx.Must(err, "Failed to create request")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to send OPTIONS request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Verify status code is 200 OK (not 204, for broader browser compatibility)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("OPTIONS request status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	// Verify CORS headers for preflight
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Errorf("Access-Control-Allow-Origin = %q, want %q", got, "*")
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Methods"); got != "GET, OPTIONS" {
+		t.Errorf("Access-Control-Allow-Methods = %q, want %q", got, "GET, OPTIONS")
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Headers"); got != "Authorization" {
+		t.Errorf("Access-Control-Allow-Headers = %q, want %q", got, "Authorization")
+	}
+}
