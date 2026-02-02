@@ -1,6 +1,6 @@
 module github.com/m-lab/locate
 
-go 1.25.5
+go 1.25.6
 
 require (
 	cloud.google.com/go/compute/metadata v0.9.0
@@ -101,7 +101,7 @@ require (
 	cloud.google.com/go/compute v1.54.0
 	cloud.google.com/go/iam v1.5.3 // indirect
 	cloud.google.com/go/storage v1.58.0 // indirect
-	github.com/aptible/supercronic v0.2.41
+	github.com/aptible/supercronic v0.2.42
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
