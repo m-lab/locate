@@ -222,6 +222,39 @@ paths:
       tags:
         - siteinfo
 
+  # Legacy mlab-ns compatibility
+  # TODO(https://github.com/m-lab/locate/issues/185)
+  "/ndt":
+    get:
+      description: |-
+        Compatibility endpoint for the retired mlab-ns /ndt resource.
+
+        This endpoint exists solely to support known integrators that have not
+        yet completed their migration away from mlab-ns. It returns ndt7 server
+        metadata in the legacy mlab-ns JSON format.
+
+        No support is offered for this resource. It will be removed once affected
+        integrators confirm they no longer depend on it.
+
+        See https://github.com/m-lab/locate/issues/185.
+
+      operationId: "v1-ndt"
+      produces:
+      - "application/json"
+      responses:
+        '200':
+          description: The result of the request.
+        '204':
+          description: No results available.
+        '400':
+          description: Unsupported query parameter value.
+        '501':
+          description: Unsupported HTTP method.
+        '502':
+          description: The inner nearest lookup failed.
+      tags:
+        - public
+
 definitions:
   # Define the query reply without being specific about the structure.
   ErrorResult:
