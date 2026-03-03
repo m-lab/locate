@@ -122,8 +122,6 @@ func mlabnsCompatSerializeAndSendResponse(rw http.ResponseWriter, respRec *httpt
 		return // status code already set
 	}
 
-	rw.Header().Set("content-type", "application/json")
-
 	respBody, err := json.Marshal(compatResp)
 	rtx.PanicOnError(err, "Failed to format result") // json.Marshal cannot fail here
 	rw.Write(respBody)

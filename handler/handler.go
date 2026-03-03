@@ -543,13 +543,23 @@ func (c *Client) limitRequest(now time.Time, req *http.Request) bool {
 	return l.IsLimited(now)
 }
 
-// setHeaders sets the response headers for "nearest" requests.
+// setHeaders sets the response headers for "nearest" requests and
+// other similar requests where we need:
+//
+// 1. Content-Type equal to application/json
+//
+// 2. Cache-Control equal to no-store
+//
+// 3. CORS headers
 func setHeaders(rw http.ResponseWriter) {
-	// Set CORS policy to allow third-party websites to use returned resources.
+	// Set the content-type header to imply we will return JSON
 	rw.Header().Set("Content-Type", "application/json")
+
+	// Set CORS policy to allow third-party websites to use returned resources.
 	rw.Header().Set("Access-Control-Allow-Origin", "*")
 	rw.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	rw.Header().Set("Access-Control-Allow-Headers", "Authorization")
+
 	// Prevent caching of result.
 	// See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
 	rw.Header().Set("Cache-Control", "no-store")

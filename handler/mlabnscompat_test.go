@@ -292,8 +292,6 @@ func Test_mlabnsCompatSerializeAndSendResponse(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, "application/json", rw.Header().Get("content-type"))
-
 			var got mlabnsCompatResponse
 			require.NoError(t, json.Unmarshal(rw.Body.Bytes(), &got))
 			assert.Equal(t, "New York", got.City)
@@ -370,6 +368,15 @@ func TestClient_MLabNSCompat(t *testing.T) {
 			defer resp.Body.Close()
 
 			assert.Equal(t, tt.wantStatus, resp.StatusCode)
+
+			// Verify all headers set by setHeaders are present regardless
+			// of success or failure, since MLabNSCompat calls setHeaders
+			// unconditionally before any status-code logic.
+			assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+			assert.Equal(t, "*", resp.Header.Get("Access-Control-Allow-Origin"))
+			assert.Equal(t, "GET, OPTIONS", resp.Header.Get("Access-Control-Allow-Methods"))
+			assert.Equal(t, "Authorization", resp.Header.Get("Access-Control-Allow-Headers"))
+			assert.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 
 			if tt.wantStatus != http.StatusOK {
 				return
