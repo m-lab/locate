@@ -48,6 +48,11 @@ linters:
       disabled-checks:
         - commentFormatting
         - hugeParam
+        # sloppyLen's only useful patterns (len(x) >= 0 always true,
+        # len(x) < 0 always false) are already caught by staticcheck.
+        # Its remaining check (len(x) <= 0 → len(x) == 0) is a style
+        # preference that conflicts with defensive domain-exclusion style.
+        - sloppyLen
 
     staticcheck:
       checks:

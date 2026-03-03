@@ -274,14 +274,23 @@ func main() {
 		monitoringChain))
 
 	// USER APIs
+	//
 	// Clients request access tokens for specific services.
 	mux.HandleFunc("/v2/nearest/", promhttp.InstrumentHandlerDuration(
 		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/v2/nearest/"}),
 		http.HandlerFunc(c.Nearest)))
+
 	// REQUIRED: API keys parameters required for priority requests.
 	mux.HandleFunc("/v2/priority/nearest/", promhttp.InstrumentHandlerDuration(
 		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/v2/priority/nearest/"}),
 		http.HandlerFunc(c.PriorityNearest)))
+
+	// DEPRECATED USER APIs
+	//
+	// TODO(https://github.com/m-lab/locate/issues/185).
+	mux.HandleFunc("/ndt", promhttp.InstrumentHandlerDuration(
+		metrics.RequestHandlerDuration.MustCurryWith(promet.Labels{"path": "/ndt"}),
+		http.HandlerFunc(c.MLabNSCompat)))
 
 	// Liveness and Readiness checks to support deployments.
 	mux.HandleFunc("/v2/live", c.Live)
