@@ -62,6 +62,7 @@ steps:
         -e 's/{{EARLY_EXIT_CLIENTS}}/$_EARLY_EXIT_CLIENTS/'
         app.yaml
       - gcloud --project $PROJECT_ID app deploy --no-promote app.yaml
+      - gcloud --project $PROJECT_ID app deploy dispatch.yaml
       # After deploying the new service, deploy the openapi spec.
       - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/' -e 's/{{DEPLOYMENT}}/Production/' openapi.yaml
       - gcloud endpoints services deploy openapi.yaml
