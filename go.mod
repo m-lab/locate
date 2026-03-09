@@ -101,7 +101,7 @@ require (
 
 require (
 	cloud.google.com/go v0.123.0 // indirect
-	cloud.google.com/go/compute v1.55.0
+	cloud.google.com/go/compute v1.56.0
 	cloud.google.com/go/iam v1.5.3 // indirect
 	cloud.google.com/go/storage v1.58.0 // indirect
 	github.com/aptible/supercronic v0.2.43
