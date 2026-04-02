@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
@@ -42,6 +43,7 @@ var (
 // Signer defines how access tokens are signed.
 type Signer interface {
 	Sign(cl jwt.Claims) (string, error)
+	SignWithIntegrationClaims(cl jwt.Claims, ic token.IntegrationClaims) (string, error)
 }
 
 type Limiter interface {
@@ -215,13 +217,13 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	c.handleNearestRequest(rw, req, &result, "nearest")
+	c.handleNearestRequest(rw, req, &result, "nearest", nil)
 }
 
 // handleNearestRequest is a helper that contains the common logic for looking up
 // nearest machines and generating the response. It's used by both Nearest and
 // PriorityNearest handlers.
-func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request, result *v2.NearestResult, metricLabel string) {
+func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request, result *v2.NearestResult, metricLabel string, ic *token.IntegrationClaims) {
 	experiment, service := getExperimentAndService(req.URL.Path)
 
 	// Look up client location.
@@ -278,7 +280,7 @@ func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request,
 		svcParams: static.ServiceParams,
 	}
 	// Populate target URLs and write out response.
-	c.populateURLs(targetInfo.Targets, targetInfo.URLs, experiment, pOpts)
+	c.populateURLs(targetInfo.Targets, targetInfo.URLs, experiment, pOpts, ic)
 	result.Results = targetInfo.Targets
 	writeResult(rw, http.StatusOK, result)
 	metrics.RequestsTotal.WithLabelValues(metricLabel, "success", http.StatusText(http.StatusOK)).Inc()
@@ -385,8 +387,20 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Extract key_id claim if present.
+	keyID := ""
+	if keyIDClaim, ok := claims["key_id"]; ok {
+		if v, ok := keyIDClaim.(string); ok {
+			keyID = v
+		}
+	}
+
 	// Rate limit passed - handle the nearest request
-	c.handleNearestRequest(rw, req, result, "priority_nearest")
+	ic := &token.IntegrationClaims{
+		IntegrationID: intID,
+		KeyID:         keyID,
+	}
+	c.handleNearestRequest(rw, req, result, "priority_nearest", ic)
 }
 
 // extractIntegrationID extracts the "int_id" claim from integration JWT claims.
@@ -475,17 +489,17 @@ func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) 
 }
 
 // populateURLs populates each set of URLs using the target configuration.
-func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, pOpts paramOpts) {
+func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, pOpts paramOpts, ic *token.IntegrationClaims) {
 	for i, target := range targets {
-		token := c.getAccessToken(target.Machine, exp)
+		tkn := c.getAccessToken(target.Machine, exp, ic)
 		params := c.extraParams(target.Machine, i, pOpts)
-		targets[i].URLs = c.getURLs(ports, target.Hostname, token, params)
+		targets[i].URLs = c.getURLs(ports, target.Hostname, tkn, params)
 	}
 }
 
 // getAccessToken allocates a new access token using the given machine name as
 // the intended audience and the subject as the target service.
-func (c *Client) getAccessToken(machine, subject string) string {
+func (c *Client) getAccessToken(machine, subject string, ic *token.IntegrationClaims) string {
 	// Create the token. The same access token is reused for every URL of a
 	// target port.
 	// A uuid is added to the claims so that each new token is unique.
@@ -496,11 +510,17 @@ func (c *Client) getAccessToken(machine, subject string) string {
 		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Minute)),
 		ID:       uuid.NewString(),
 	}
-	token, err := c.Sign(cl)
+	var t string
+	var err error
+	if ic != nil && ic.IntegrationID != "" {
+		t, err = c.SignWithIntegrationClaims(cl, *ic)
+	} else {
+		t, err = c.Sign(cl)
+	}
 	// Sign errors can only happen due to a misconfiguration of the key.
 	// A good config will remain good.
 	rtx.PanicOnError(err, "signing claims has failed")
-	return token
+	return t
 }
 
 // getURLs creates URLs for the named experiment, running on the named machine

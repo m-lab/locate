@@ -17,6 +17,7 @@ import (
 	"github.com/alicebob/miniredis"
 	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/gomodule/redigo/redis"
+	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/auth/jwtverifier"
@@ -46,6 +47,23 @@ func (s *fakeSigner) Sign(cl jwt.Claims) (string, error) {
 	t := strings.Join([]string{
 		cl.Audience[0], cl.Subject, cl.Issuer, cl.Expiry.Time().Format(time.RFC3339),
 	}, "--")
+	return t, nil
+}
+
+func (s *fakeSigner) SignWithIntegrationClaims(cl jwt.Claims, ic token.IntegrationClaims) (string, error) {
+	if s.err != nil {
+		return "", s.err
+	}
+	parts := []string{
+		cl.Audience[0], cl.Subject, cl.Issuer, cl.Expiry.Time().Format(time.RFC3339),
+	}
+	if ic.IntegrationID != "" {
+		parts = append(parts, "int_id="+ic.IntegrationID)
+	}
+	if ic.KeyID != "" {
+		parts = append(parts, "key_id="+ic.KeyID)
+	}
+	t := strings.Join(parts, "--")
 	return t, nil
 }
 
@@ -866,6 +884,29 @@ func createESPv1HeaderWithoutIntID() string {
 	return base64.StdEncoding.EncodeToString(jsonBytes)
 }
 
+func createESPv1HeaderWithIntegrationClaims(intID, keyID string, tier interface{}) string {
+	claims := map[string]interface{}{
+		"iss":    "token-exchange",
+		"sub":    "user123",
+		"aud":    "autojoin",
+		"exp":    9999999999,
+		"iat":    1000000000,
+		"int_id": intID,
+		"key_id": keyID,
+	}
+	if tier != nil {
+		claims["tier"] = tier
+	}
+	claimsString := rtx.ValueOrPanic(json.Marshal(claims))
+	espData := map[string]interface{}{
+		"issuer":    "token-exchange",
+		"audiences": []string{"locate"},
+		"claims":    string(claimsString),
+	}
+	jsonBytes := rtx.ValueOrPanic(json.Marshal(espData))
+	return base64.StdEncoding.EncodeToString(jsonBytes)
+}
+
 func TestClient_PriorityNearest(t *testing.T) {
 	// Start miniredis for rate limiter tests
 	s, err := miniredis.Run()
@@ -895,16 +936,17 @@ func TestClient_PriorityNearest(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		path       string
-		signer     Signer
-		locator    *fakeLocatorV2
-		cl         ClientLocator
-		tierLimits limits.TierLimits
-		ipLimiter  TierLimiter
-		header     http.Header
-		setupRedis func()
-		wantStatus int
+		name        string
+		path        string
+		signer      Signer
+		locator     *fakeLocatorV2
+		cl          ClientLocator
+		tierLimits  limits.TierLimits
+		ipLimiter   TierLimiter
+		header      http.Header
+		setupRedis  func()
+		wantStatus  int
+		wantBodyStr []string // optional: check response body contains these strings
 	}{
 		{
 			name:   "success-with-valid-jwt-and-tier",
@@ -1035,6 +1077,30 @@ func TestClient_PriorityNearest(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			name:   "success-int-id-and-key-id-in-access-token",
+			path:   "ndt/ndt5",
+			signer: &fakeSigner{},
+			locator: &fakeLocatorV2{
+				targets: []v2.Target{{Machine: "mlab1-lga0t.measurement-lab.org"}},
+				urls: []url.URL{
+					{Scheme: "ws", Host: ":3001", Path: "/ndt_protocol"},
+				},
+			},
+			tierLimits: tierLimits,
+			ipLimiter: limits.NewRateLimiter(pool, limits.RateLimitConfig{
+				IPConfig:   limits.LimitConfig{Interval: time.Hour, MaxEvents: 60},
+				IPUAConfig: limits.LimitConfig{Interval: time.Hour, MaxEvents: 30},
+				KeyPrefix:  "test:",
+			}),
+			header: http.Header{
+				"X-AppEngine-CityLatLong": []string{"40.3,-70.4"},
+				"X-Forwarded-For":         []string{"192.0.2.50"},
+				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithIntegrationClaims("companyX", "ki_abc123", 1)},
+			},
+			wantStatus:  http.StatusOK,
+			wantBodyStr: []string{"int_id=companyX", "key_id=ki_abc123"},
+		},
+		{
 			name:   "rate-limit-exceeded",
 			path:   "ndt/ndt5",
 			signer: &fakeSigner{},
@@ -1119,6 +1185,22 @@ func TestClient_PriorityNearest(t *testing.T) {
 			// For successful requests, verify we got results
 			if tt.wantStatus == http.StatusOK && len(result.Results) == 0 {
 				t.Errorf("PriorityNearest() expected results but got none")
+			}
+
+			// Check that expected strings appear in access tokens within result URLs.
+			if len(tt.wantBodyStr) > 0 && len(result.Results) > 0 {
+				for _, rawURL := range result.Results[0].URLs {
+					parsed, err := url.Parse(rawURL)
+					if err != nil {
+						t.Fatalf("Failed to parse URL %q: %v", rawURL, err)
+					}
+					accessToken := parsed.Query().Get("access_token")
+					for _, want := range tt.wantBodyStr {
+						if !strings.Contains(accessToken, want) {
+							t.Errorf("PriorityNearest() access token missing %q; got %s", want, accessToken)
+						}
+					}
+				}
 			}
 		})
 	}

@@ -44,7 +44,7 @@ func (c *Client) Monitoring(rw http.ResponseWriter, req *http.Request) {
 
 	// Get monitoring subject access tokens for the given machine.
 	machine := cl.Subject
-	token := c.getAccessToken(cl.Subject, static.SubjectMonitoring)
+	token := c.getAccessToken(cl.Subject, static.SubjectMonitoring, nil)
 	// NOTE: v2 vs v3 naming
 	// v2 monitoring uses the non-service, machine name as the subject.
 	// v3 monitoring uses the service name as the subject, so this should be a noop.
