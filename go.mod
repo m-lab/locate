@@ -135,5 +135,3 @@ require (
 	k8s.io/utils v0.0.0-20260106112306-0fe9cd71b2f8 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
-
-replace github.com/m-lab/access => /home/roberto/git/m-lab/access
