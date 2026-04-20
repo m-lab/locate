@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-jose/go-jose/v4/jwt"
 
-	"github.com/m-lab/access/token"
 	"github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
 	"github.com/m-lab/locate/handler"
@@ -22,24 +21,11 @@ import (
 // Signer implements the Signer interface for unit tests.
 type Signer struct{}
 
-// Sign creates a fake signature using the given claims.
-func (s *Signer) Sign(cl jwt.Claims) (string, error) {
-	t := strings.Join([]string{
-		cl.Audience[0], cl.Subject, cl.Issuer, cl.Expiry.Time().Format(time.RFC3339),
-	}, "--")
-	return t, nil
-}
-
-// SignWithIntegrationClaims creates a fake signature including integration claims.
-func (s *Signer) SignWithIntegrationClaims(cl jwt.Claims, ic token.IntegrationClaims) (string, error) {
+// Sign creates a fake signature using the given claims and optional extra
+// claim objects (matching the token.Signer.Sign variadic signature).
+func (s *Signer) Sign(cl jwt.Claims, extra ...any) (string, error) {
 	parts := []string{
 		cl.Audience[0], cl.Subject, cl.Issuer, cl.Expiry.Time().Format(time.RFC3339),
-	}
-	if ic.IntegrationID != "" {
-		parts = append(parts, "int_id="+ic.IntegrationID)
-	}
-	if ic.KeyID != "" {
-		parts = append(parts, "key_id="+ic.KeyID)
 	}
 	return strings.Join(parts, "--"), nil
 }

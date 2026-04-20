@@ -17,7 +17,6 @@ import (
 	"github.com/alicebob/miniredis"
 	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/gomodule/redigo/redis"
-	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/auth/jwtverifier"
@@ -40,31 +39,24 @@ type fakeSigner struct {
 	err error
 }
 
-func (s *fakeSigner) Sign(cl jwt.Claims) (string, error) {
-	if s.err != nil {
-		return "", s.err
-	}
-	t := strings.Join([]string{
-		cl.Audience[0], cl.Subject, cl.Issuer, cl.Expiry.Time().Format(time.RFC3339),
-	}, "--")
-	return t, nil
-}
-
-func (s *fakeSigner) SignWithIntegrationClaims(cl jwt.Claims, ic token.IntegrationClaims) (string, error) {
+func (s *fakeSigner) Sign(cl jwt.Claims, extra ...any) (string, error) {
 	if s.err != nil {
 		return "", s.err
 	}
 	parts := []string{
 		cl.Audience[0], cl.Subject, cl.Issuer, cl.Expiry.Time().Format(time.RFC3339),
 	}
-	if ic.IntegrationID != "" {
-		parts = append(parts, "int_id="+ic.IntegrationID)
+	for _, e := range extra {
+		if ic, ok := e.(IntegrationClaims); ok {
+			if ic.IntegrationID != "" {
+				parts = append(parts, "int_id="+ic.IntegrationID)
+			}
+			if ic.KeyID != "" {
+				parts = append(parts, "key_id="+ic.KeyID)
+			}
+		}
 	}
-	if ic.KeyID != "" {
-		parts = append(parts, "key_id="+ic.KeyID)
-	}
-	t := strings.Join(parts, "--")
-	return t, nil
+	return strings.Join(parts, "--"), nil
 }
 
 type fakeLocatorV2 struct {

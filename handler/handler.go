@@ -22,7 +22,6 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/m-lab/access/token"
 	"github.com/m-lab/go/rtx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/clientgeo"
@@ -40,10 +39,19 @@ var (
 	tooManyRequests         = "Too many periodic requests. Please contact support@measurementlab.net."
 )
 
-// Signer defines how access tokens are signed.
+// Signer defines how access tokens are signed. Extra claim objects are merged
+// into the JWT payload via go-jose's variadic Claims support (see
+// token.Signer.Sign).
 type Signer interface {
-	Sign(cl jwt.Claims) (string, error)
-	SignWithIntegrationClaims(cl jwt.Claims, ic token.IntegrationClaims) (string, error)
+	Sign(cl jwt.Claims, extra ...any) (string, error)
+}
+
+// IntegrationClaims holds M-Lab integration-specific claims that are embedded
+// into access tokens issued for priority requests. The JSON tags are the
+// wire-level claim names in the resulting JWT payload.
+type IntegrationClaims struct {
+	IntegrationID string `json:"int_id,omitempty"`
+	KeyID         string `json:"key_id,omitempty"`
 }
 
 type Limiter interface {
@@ -223,7 +231,7 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 // handleNearestRequest is a helper that contains the common logic for looking up
 // nearest machines and generating the response. It's used by both Nearest and
 // PriorityNearest handlers.
-func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request, result *v2.NearestResult, metricLabel string, ic *token.IntegrationClaims) {
+func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request, result *v2.NearestResult, metricLabel string, ic *IntegrationClaims) {
 	experiment, service := getExperimentAndService(req.URL.Path)
 
 	// Look up client location.
@@ -396,7 +404,7 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Rate limit passed - handle the nearest request
-	ic := &token.IntegrationClaims{
+	ic := &IntegrationClaims{
 		IntegrationID: intID,
 		KeyID:         keyID,
 	}
@@ -489,7 +497,7 @@ func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) 
 }
 
 // populateURLs populates each set of URLs using the target configuration.
-func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, pOpts paramOpts, ic *token.IntegrationClaims) {
+func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, pOpts paramOpts, ic *IntegrationClaims) {
 	for i, target := range targets {
 		tkn := c.getAccessToken(target.Machine, exp, ic)
 		params := c.extraParams(target.Machine, i, pOpts)
@@ -499,7 +507,7 @@ func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp strin
 
 // getAccessToken allocates a new access token using the given machine name as
 // the intended audience and the subject as the target service.
-func (c *Client) getAccessToken(machine, subject string, ic *token.IntegrationClaims) string {
+func (c *Client) getAccessToken(machine, subject string, ic *IntegrationClaims) string {
 	// Create the token. The same access token is reused for every URL of a
 	// target port.
 	// A uuid is added to the claims so that each new token is unique.
@@ -513,7 +521,7 @@ func (c *Client) getAccessToken(machine, subject string, ic *token.IntegrationCl
 	var t string
 	var err error
 	if ic != nil && ic.IntegrationID != "" {
-		t, err = c.SignWithIntegrationClaims(cl, *ic)
+		t, err = c.Sign(cl, *ic)
 	} else {
 		t, err = c.Sign(cl)
 	}
