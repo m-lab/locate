@@ -231,6 +231,11 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 // handleNearestRequest is a helper that contains the common logic for looking up
 // nearest machines and generating the response. It's used by both Nearest and
 // PriorityNearest handlers.
+//
+// ic carries the integration claims to embed into each issued access token. It
+// may be nil; a nil ic means the request is not associated with an integration
+// JWT (i.e. the standard /v2/nearest path) and no integration claims are added
+// to the access tokens.
 func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request, result *v2.NearestResult, metricLabel string, ic *IntegrationClaims) {
 	experiment, service := getExperimentAndService(req.URL.Path)
 
@@ -395,7 +400,14 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Extract key_id claim if present.
+	// Extract the key_id claim if present. Unlike int_id, key_id is not
+	// required: int_id identifies the integrator and is the key used for
+	// tier-based rate limiting above, so a missing or invalid int_id is a
+	// hard authentication failure. key_id, in contrast, is purely
+	// attributional metadata that downstream consumers (e.g. ndt-server,
+	// BigQuery) record when available, so we accept JWTs that carry int_id
+	// without key_id rather than rejecting otherwise-valid priority
+	// requests.
 	keyID := ""
 	if keyIDClaim, ok := claims["key_id"]; ok {
 		if v, ok := keyIDClaim.(string); ok {
@@ -497,6 +509,10 @@ func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) 
 }
 
 // populateURLs populates each set of URLs using the target configuration.
+//
+// ic, when non-nil, carries the integration claims to embed into the access
+// token of each URL. A nil ic means the call originates from a non-priority
+// request and no integration claims are added.
 func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, pOpts paramOpts, ic *IntegrationClaims) {
 	for i, target := range targets {
 		tkn := c.getAccessToken(target.Machine, exp, ic)
@@ -507,6 +523,12 @@ func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp strin
 
 // getAccessToken allocates a new access token using the given machine name as
 // the intended audience and the subject as the target service.
+//
+// When ic is non-nil and has a non-empty IntegrationID, its claims are merged
+// into the JWT payload so downstream experiments can attribute the
+// measurement to a specific integration. A nil ic (or one with an empty
+// IntegrationID) signals a non-priority request and no integration claims
+// are added to the resulting token.
 func (c *Client) getAccessToken(machine, subject string, ic *IntegrationClaims) string {
 	// Create the token. The same access token is reused for every URL of a
 	// target port.
