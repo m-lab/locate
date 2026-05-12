@@ -21,8 +21,9 @@ import (
 // Signer implements the Signer interface for unit tests.
 type Signer struct{}
 
-// Sign creates a fake signature using the given claims and optional extra
-// claim objects (matching the token.Signer.Sign variadic signature).
+// Sign creates a fake signature using the given claims. Extra claim objects
+// are accepted to satisfy the token.Signer interface but intentionally
+// discarded — this helper only serves the non-priority /v2/nearest/ path.
 func (s *Signer) Sign(cl jwt.Claims, extra ...any) (string, error) {
 	parts := []string{
 		cl.Audience[0], cl.Subject, cl.Issuer, cl.Expiry.Time().Format(time.RFC3339),

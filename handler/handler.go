@@ -542,6 +542,8 @@ func (c *Client) getAccessToken(machine, subject string, ic *IntegrationClaims) 
 	}
 	var t string
 	var err error
+	// IntegrationID is validated non-empty by PriorityNearest, so in
+	// practice ic is either nil (non-priority) or fully populated.
 	if ic != nil && ic.IntegrationID != "" {
 		t, err = c.Sign(cl, *ic)
 	} else {

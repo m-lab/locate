@@ -938,7 +938,8 @@ func TestClient_PriorityNearest(t *testing.T) {
 		header      http.Header
 		setupRedis  func()
 		wantStatus  int
-		wantBodyStr []string // optional: check response body contains these strings
+		wantBodyStr   []string // optional: check response body contains these strings
+		wantAbsentStr []string // optional: check response body does NOT contain these strings
 	}{
 		{
 			name:   "success-with-valid-jwt-and-tier",
@@ -961,7 +962,8 @@ func TestClient_PriorityNearest(t *testing.T) {
 				"X-Forwarded-For":         []string{"192.0.2.1"},
 				"X-Endpoint-API-UserInfo": []string{createESPv1HeaderWithTier("companyX", 1)},
 			},
-			wantStatus: http.StatusOK,
+			wantStatus:    http.StatusOK,
+			wantAbsentStr: []string{"key_id="},
 		},
 		{
 			name:   "error-missing-jwt-header",
@@ -1190,6 +1192,22 @@ func TestClient_PriorityNearest(t *testing.T) {
 					for _, want := range tt.wantBodyStr {
 						if !strings.Contains(accessToken, want) {
 							t.Errorf("PriorityNearest() access token missing %q; got %s", want, accessToken)
+						}
+					}
+				}
+			}
+
+			// Check that unwanted strings do NOT appear in access tokens.
+			if len(tt.wantAbsentStr) > 0 && len(result.Results) > 0 {
+				for _, rawURL := range result.Results[0].URLs {
+					parsed, err := url.Parse(rawURL)
+					if err != nil {
+						t.Fatalf("Failed to parse URL %q: %v", rawURL, err)
+					}
+					accessToken := parsed.Query().Get("access_token")
+					for _, absent := range tt.wantAbsentStr {
+						if strings.Contains(accessToken, absent) {
+							t.Errorf("PriorityNearest() access token should not contain %q; got %s", absent, accessToken)
 						}
 					}
 				}
