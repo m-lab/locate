@@ -39,9 +39,19 @@ var (
 	tooManyRequests         = "Too many periodic requests. Please contact support@measurementlab.net."
 )
 
-// Signer defines how access tokens are signed.
+// Signer defines how access tokens are signed. Extra claim objects are merged
+// into the JWT payload via go-jose's variadic Claims support (see
+// token.Signer.Sign).
 type Signer interface {
-	Sign(cl jwt.Claims) (string, error)
+	Sign(cl jwt.Claims, extra ...any) (string, error)
+}
+
+// IntegrationClaims holds M-Lab integration-specific claims that are embedded
+// into access tokens issued for priority requests. The JSON tags are the
+// wire-level claim names in the resulting JWT payload.
+type IntegrationClaims struct {
+	IntegrationID string `json:"int_id,omitempty"`
+	KeyID         string `json:"key_id,omitempty"`
 }
 
 type Limiter interface {
@@ -215,13 +225,18 @@ func (c *Client) Nearest(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	c.handleNearestRequest(rw, req, &result, "nearest")
+	c.handleNearestRequest(rw, req, &result, "nearest", nil)
 }
 
 // handleNearestRequest is a helper that contains the common logic for looking up
 // nearest machines and generating the response. It's used by both Nearest and
 // PriorityNearest handlers.
-func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request, result *v2.NearestResult, metricLabel string) {
+//
+// ic carries the integration claims to embed into each issued access token. It
+// may be nil; a nil ic means the request is not associated with an integration
+// JWT (i.e. the standard /v2/nearest path) and no integration claims are added
+// to the access tokens.
+func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request, result *v2.NearestResult, metricLabel string, ic *IntegrationClaims) {
 	experiment, service := getExperimentAndService(req.URL.Path)
 
 	// Look up client location.
@@ -278,7 +293,7 @@ func (c *Client) handleNearestRequest(rw http.ResponseWriter, req *http.Request,
 		svcParams: static.ServiceParams,
 	}
 	// Populate target URLs and write out response.
-	c.populateURLs(targetInfo.Targets, targetInfo.URLs, experiment, pOpts)
+	c.populateURLs(targetInfo.Targets, targetInfo.URLs, experiment, pOpts, ic)
 	result.Results = targetInfo.Targets
 	writeResult(rw, http.StatusOK, result)
 	metrics.RequestsTotal.WithLabelValues(metricLabel, "success", http.StatusText(http.StatusOK)).Inc()
@@ -385,8 +400,27 @@ func (c *Client) PriorityNearest(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Extract the key_id claim if present. Unlike int_id, key_id is not
+	// required: int_id identifies the integrator and is the key used for
+	// tier-based rate limiting above, so a missing or invalid int_id is a
+	// hard authentication failure. key_id, in contrast, is purely
+	// attributional metadata that downstream consumers (e.g. ndt-server,
+	// BigQuery) record when available, so we accept JWTs that carry int_id
+	// without key_id rather than rejecting otherwise-valid priority
+	// requests.
+	keyID := ""
+	if keyIDClaim, ok := claims["key_id"]; ok {
+		if v, ok := keyIDClaim.(string); ok {
+			keyID = v
+		}
+	}
+
 	// Rate limit passed - handle the nearest request
-	c.handleNearestRequest(rw, req, result, "priority_nearest")
+	ic := &IntegrationClaims{
+		IntegrationID: intID,
+		KeyID:         keyID,
+	}
+	c.handleNearestRequest(rw, req, result, "priority_nearest", ic)
 }
 
 // extractIntegrationID extracts the "int_id" claim from integration JWT claims.
@@ -475,17 +509,27 @@ func (c *Client) checkClientLocation(rw http.ResponseWriter, req *http.Request) 
 }
 
 // populateURLs populates each set of URLs using the target configuration.
-func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, pOpts paramOpts) {
+//
+// ic, when non-nil, carries the integration claims to embed into the access
+// token of each URL. A nil ic means the call originates from a non-priority
+// request and no integration claims are added.
+func (c *Client) populateURLs(targets []v2.Target, ports static.Ports, exp string, pOpts paramOpts, ic *IntegrationClaims) {
 	for i, target := range targets {
-		token := c.getAccessToken(target.Machine, exp)
+		tkn := c.getAccessToken(target.Machine, exp, ic)
 		params := c.extraParams(target.Machine, i, pOpts)
-		targets[i].URLs = c.getURLs(ports, target.Hostname, token, params)
+		targets[i].URLs = c.getURLs(ports, target.Hostname, tkn, params)
 	}
 }
 
 // getAccessToken allocates a new access token using the given machine name as
 // the intended audience and the subject as the target service.
-func (c *Client) getAccessToken(machine, subject string) string {
+//
+// When ic is non-nil and has a non-empty IntegrationID, its claims are merged
+// into the JWT payload so downstream experiments can attribute the
+// measurement to a specific integration. A nil ic (or one with an empty
+// IntegrationID) signals a non-priority request and no integration claims
+// are added to the resulting token.
+func (c *Client) getAccessToken(machine, subject string, ic *IntegrationClaims) string {
 	// Create the token. The same access token is reused for every URL of a
 	// target port.
 	// A uuid is added to the claims so that each new token is unique.
@@ -496,11 +540,19 @@ func (c *Client) getAccessToken(machine, subject string) string {
 		Expiry:   jwt.NewNumericDate(time.Now().Add(time.Minute)),
 		ID:       uuid.NewString(),
 	}
-	token, err := c.Sign(cl)
+	var t string
+	var err error
+	// IntegrationID is validated non-empty by PriorityNearest, so in
+	// practice ic is either nil (non-priority) or fully populated.
+	if ic != nil && ic.IntegrationID != "" {
+		t, err = c.Sign(cl, *ic)
+	} else {
+		t, err = c.Sign(cl)
+	}
 	// Sign errors can only happen due to a misconfiguration of the key.
 	// A good config will remain good.
 	rtx.PanicOnError(err, "signing claims has failed")
-	return token
+	return t
 }
 
 // getURLs creates URLs for the named experiment, running on the named machine

@@ -16,7 +16,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/justinas/alice v1.2.0
-	github.com/m-lab/access v0.0.13
+	github.com/m-lab/access v0.0.14-0.20260420095404-0a3b3b6587e2
 	github.com/m-lab/go v0.1.76
 	github.com/m-lab/uuid-annotator v0.5.10
 	github.com/oschwald/geoip2-golang v1.13.0
