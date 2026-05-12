@@ -928,16 +928,16 @@ func TestClient_PriorityNearest(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		path        string
-		signer      Signer
-		locator     *fakeLocatorV2
-		cl          ClientLocator
-		tierLimits  limits.TierLimits
-		ipLimiter   TierLimiter
-		header      http.Header
-		setupRedis  func()
-		wantStatus  int
+		name          string
+		path          string
+		signer        Signer
+		locator       *fakeLocatorV2
+		cl            ClientLocator
+		tierLimits    limits.TierLimits
+		ipLimiter     TierLimiter
+		header        http.Header
+		setupRedis    func()
+		wantStatus    int
 		wantBodyStr   []string // optional: check response body contains these strings
 		wantAbsentStr []string // optional: check response body does NOT contain these strings
 	}{
