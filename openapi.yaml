@@ -61,6 +61,50 @@ paths:
           description: The service type, e.g. "ndt7", "dash", "replay", etc.
           type: string
           required: true
+        - name: site
+          in: query
+          description: |-
+            Limit results to machines at the specified site(s). Repeat the
+            parameter to include multiple sites, e.g. "?site=lga01&site=mil05".
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          required: false
+        - name: country
+          in: query
+          description: |-
+            ISO 3166-1 alpha-2 country code. When provided (without "strict"),
+            the locate API resolves the client position to the geographic center
+            of the given country and returns the nearest servers to that point.
+            For example, "?country=AU" returns servers closest to Australia
+            regardless of where the request actually originates.
+          type: string
+          required: false
+        - name: strict
+          in: query
+          description: |-
+            Requires "country". When both are set, the locate API uses the
+            client's real IP-based location instead of repositioning to the
+            country center, and only returns servers physically located in the
+            specified country. Returns an error if no servers exist there.
+          type: boolean
+          required: false
+        - name: org
+          in: query
+          description: |-
+            Limit results to servers operated by a specific organization.
+            Use "mlab" for M-Lab managed infrastructure. Other values
+            correspond to Autonode partner identifiers.
+          type: string
+          required: false
+        - name: machine-type
+          in: query
+          description: |-
+            Limit results to a specific machine type. Valid values are
+            "physical" (bare-metal servers) and "virtual" (virtual machines).
+          type: string
+          required: false
       responses:
         # NOTE: non-number values are a schema error for the config, despite
         # openapi documentation.
@@ -103,6 +147,50 @@ paths:
           description: datatype
           type: string
           required: true
+        - name: site
+          in: query
+          description: |-
+            Limit results to machines at the specified site(s). Repeat the
+            parameter to include multiple sites, e.g. "?site=lga01&site=mil05".
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          required: false
+        - name: country
+          in: query
+          description: |-
+            ISO 3166-1 alpha-2 country code. When provided (without "strict"),
+            the locate API resolves the client position to the geographic center
+            of the given country and returns the nearest servers to that point.
+            For example, "?country=AU" returns servers closest to Australia
+            regardless of where the request actually originates.
+          type: string
+          required: false
+        - name: strict
+          in: query
+          description: |-
+            Requires "country". When both are set, the locate API uses the
+            client's real IP-based location instead of repositioning to the
+            country center, and only returns servers physically located in the
+            specified country. Returns an error if no servers exist there.
+          type: boolean
+          required: false
+        - name: org
+          in: query
+          description: |-
+            Limit results to servers operated by a specific organization.
+            Use "mlab" for M-Lab managed infrastructure. Other values
+            correspond to Autonode partner identifiers.
+          type: string
+          required: false
+        - name: machine-type
+          in: query
+          description: |-
+            Limit results to a specific machine type. Valid values are
+            "physical" (bare-metal servers) and "virtual" (virtual machines).
+          type: string
+          required: false
       responses:
         '200':
           description: The result of the nearest request. Clients should use the
