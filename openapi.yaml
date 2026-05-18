@@ -47,6 +47,10 @@ paths:
         This resource does not require an API key. All requests to this resource
         are managed collectively as if they all used a single API key.
 
+        Any query parameter prefixed with "client_" is forwarded to the
+        measurement server URLs. By convention, integrations should pass
+        "client_name" (application identifier) and "client_version".
+
       operationId: "v2-shared-nearest"
       produces:
       - "application/json"
@@ -61,6 +65,35 @@ paths:
           description: The service type, e.g. "ndt7", "dash", "replay", etc.
           type: string
           required: true
+        - name: lat
+          in: query
+          description: |-
+            Client latitude (-90 to 90). Must be used together with "lon".
+            When both are provided, the locate API uses these coordinates
+            instead of IP-based geolocation to find the nearest servers.
+            Takes priority over "region" and "country".
+          type: number
+          format: double
+          required: false
+        - name: lon
+          in: query
+          description: |-
+            Client longitude (-180 to 180). Must be used together with "lat".
+            When both are provided, the locate API uses these coordinates
+            instead of IP-based geolocation to find the nearest servers.
+            Takes priority over "region" and "country".
+          type: number
+          format: double
+          required: false
+        - name: region
+          in: query
+          description: |-
+            ISO 3166-2 region/subdivision code (e.g. "US-NY", "KE-30").
+            When provided, the locate API resolves the client position to
+            the geographic center of the given region. Takes priority over
+            "country" but is overridden by "lat"/"lon".
+          type: string
+          required: false
         - name: site
           in: query
           description: |-
@@ -133,6 +166,10 @@ paths:
         load that the locate API must choose which requests to allow and which
         to reject, these requests are prioritized over "shared" requests.
 
+        Any query parameter prefixed with "client_" is forwarded to the
+        measurement server URLs. By convention, integrations should pass
+        "client_name" (application identifier) and "client_version".
+
       operationId: "v2-priority-nearest"
       produces:
       - "application/json"
@@ -147,6 +184,35 @@ paths:
           description: datatype
           type: string
           required: true
+        - name: lat
+          in: query
+          description: |-
+            Client latitude (-90 to 90). Must be used together with "lon".
+            When both are provided, the locate API uses these coordinates
+            instead of IP-based geolocation to find the nearest servers.
+            Takes priority over "region" and "country".
+          type: number
+          format: double
+          required: false
+        - name: lon
+          in: query
+          description: |-
+            Client longitude (-180 to 180). Must be used together with "lat".
+            When both are provided, the locate API uses these coordinates
+            instead of IP-based geolocation to find the nearest servers.
+            Takes priority over "region" and "country".
+          type: number
+          format: double
+          required: false
+        - name: region
+          in: query
+          description: |-
+            ISO 3166-2 region/subdivision code (e.g. "US-NY", "KE-30").
+            When provided, the locate API resolves the client position to
+            the geographic center of the given region. Takes priority over
+            "country" but is overridden by "lat"/"lon".
+          type: string
+          required: false
         - name: site
           in: query
           description: |-
