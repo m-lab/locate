@@ -579,6 +579,35 @@ func TestFilterSites(t *testing.T) {
 	}
 }
 
+func TestFilterSitesProbabilityOverride(t *testing.T) {
+	// The autonode reports Probability 1.0; derive its machine name the same
+	// way filterSites does so the override key is exact.
+	autonodeName, err := host.Parse(autonodeInstance.Registration.Hostname)
+	if err != nil {
+		t.Fatalf("failed to parse autonode hostname: %v", err)
+	}
+
+	instances := map[string]v2.HeartbeatMessage{
+		"autonode": autonodeInstance,
+	}
+	opts := &NearestOptions{Type: "virtual", Country: "US"}
+
+	// Without an override the autonode site is returned (Probability 1.0).
+	if got := filterSites("ndt/ndt7", 43.1988, -75.3242, instances, opts); len(got) != 1 {
+		t.Fatalf("filterSites() without override got %d sites, want 1", len(got))
+	}
+
+	// With an override to 0, the autonode site is always filtered out.
+	ProbabilityOverrides = map[string]float64{autonodeName.String(): 0}
+	defer func() { ProbabilityOverrides = map[string]float64{} }()
+
+	for i := 0; i < 100; i++ {
+		if got := filterSites("ndt/ndt7", 43.1988, -75.3242, instances, opts); len(got) != 0 {
+			t.Fatalf("filterSites() with probability override 0 got %d sites, want 0", len(got))
+		}
+	}
+}
+
 func TestIsValidInstance(t *testing.T) {
 	validHost := "ndt-mlab1-lga00.mlab-sandbox.measurement-lab.org"
 	validLat := 40.7667

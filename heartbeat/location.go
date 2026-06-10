@@ -17,6 +17,14 @@ import (
 var (
 	// ErrNoAvailableServers is returned when there are no available servers
 	ErrNoAvailableServers = errors.New("no available M-Lab servers")
+
+	// ProbabilityOverrides maps a machine name (e.g.
+	// mlab1-lga01.mlab-oti.measurement-lab.org) to a probability that
+	// overrides whatever the machine reports in its registration. It is a
+	// locate-side kill-switch for individual machines (e.g. an autojoined
+	// node whose registration we don't control) without disabling its whole
+	// organization. It is populated once at startup and read-only thereafter.
+	ProbabilityOverrides = map[string]float64{}
 )
 
 // Locator manages requests to "locate" mlab-ns servers.
@@ -56,6 +64,11 @@ type site struct {
 	metroRank    int
 	registration v2.Registration
 	machines     []machine
+	// overridden is true when a ProbabilityOverrides entry set this site's
+	// probability. Overridden sites are always subject to probability
+	// filtering, even for queries that otherwise skip it (alwaysPick), so the
+	// override acts as a reliable kill-switch.
+	overridden bool
 }
 
 // StatusTracker defines the interface for tracking the status of experiment instances.
@@ -120,6 +133,14 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 			s.registration.Machine = ""
 			m[r.Site] = s
 		}
+		// Apply a per-machine probability override, if configured. Because
+		// the pick happens at the site level, this overrides the effective
+		// probability for the site this machine belongs to (an autojoined
+		// node is its own single-machine site).
+		if p, ok := ProbabilityOverrides[machineName.String()]; ok {
+			s.registration.Probability = p
+			s.overridden = true
+		}
 		s.machines = append(s.machines, machine{
 			name:   machineName.String(),
 			host:   machineName.StringWithService(),
@@ -128,7 +149,11 @@ func filterSites(service string, lat, lon float64, instances map[string]v2.Heart
 
 	sites := make([]site, 0)
 	for _, v := range m {
-		if alwaysPick(opts) || pickWithProbability(v.registration.Probability) {
+		// An explicit per-machine override always applies probability
+		// filtering, even when the query would otherwise skip it; this keeps
+		// the override effective as a kill-switch for org- or virtual-targeted
+		// queries.
+		if (alwaysPick(opts) && !v.overridden) || pickWithProbability(v.registration.Probability) {
 			sites = append(sites, *v)
 		}
 	}
