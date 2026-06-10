@@ -7,7 +7,7 @@ options:
 
 steps:
   # Run unit tests for environment.
-  - name: golang:1.25-alpine
+  - name: golang:1.26-alpine
     env:
       - GONOPROXY=github.com/m-lab/go/*
     script: |
