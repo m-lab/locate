@@ -2,6 +2,8 @@ package memorystore
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -10,15 +12,31 @@ import (
 )
 
 const (
+	// fieldMissingReply is the value the script below returns when the field
+	// named by PutOptions.FieldMustExist does not exist. HSET replies with the
+	// number of fields that were added (zero or more), so a negative reply
+	// cannot be confused with a successful write.
+	fieldMissingReply = -1
+)
+
+var (
 	// This is a Lua script that will be interpreted by the Redis server.
 	// The key/argument parameters (e.g., KEYS[1]) are passed to the script
 	// when it is invoked in the Put method (e.g., redis.Args{}.Add(...)).
 	// The command used to interpret the script in Redis is the EVAL command.
 	// Its documentation can be found under https://redis.io/commands/eval/.
-	script = `if redis.call('HEXISTS', KEYS[1], ARGV[1]) == 1
+	// When the required field is missing the script returns fieldMissingReply
+	// rather than raising an error, so that callers can tell an entry that has
+	// gone away apart from a Redis or network failure.
+	script = fmt.Sprintf(`if redis.call('HEXISTS', KEYS[1], ARGV[1]) == 1
 		then return redis.call('HSET', KEYS[1], ARGV[2], ARGV[3])
-		else error('key not found')
-		end`
+		else return %d
+		end`, fieldMissingReply)
+
+	// ErrFieldNotFound is returned by Put when PutOptions.FieldMustExist names a
+	// field that does not exist in the entry. Entries expire, so this is expected
+	// whenever an instance stops heartbeating and is not a Redis failure.
+	ErrFieldNotFound = errors.New("field must exist but was not found")
 )
 
 // PutOptions defines the parameters that can be used for PUT operations.
@@ -39,6 +57,8 @@ func NewClient[V any](pool *redis.Pool) *client[V] {
 
 // Put sets a Redis Hash using the `HSET key field value` command.
 // If the `opts.WithExpire` option is true, it also (re)sets the key's timeout.
+// If the `opts.FieldMustExist` option is set and the named field does not
+// exist, nothing is written and ErrFieldNotFound is returned.
 func (c *client[V]) Put(key string, field string, value redis.Scanner, opts *PutOptions) error {
 	t := time.Now()
 	conn := c.pool.Get()
@@ -52,10 +72,15 @@ func (c *client[V]) Put(key string, field string, value redis.Scanner, opts *Put
 
 	if opts.FieldMustExist != "" {
 		args := redis.Args{}.Add(script).Add(1).Add(key).Add(opts.FieldMustExist).Add(field).AddFlat(string(b))
-		_, err = conn.Do("EVAL", args...)
+		var reply interface{}
+		reply, err = conn.Do("EVAL", args...)
 		if err != nil {
 			metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "EVAL error").Observe(time.Since(t).Seconds())
 			return err
+		}
+		if n, ok := reply.(int64); ok && n == fieldMissingReply {
+			metrics.LocateMemorystoreRequestDuration.WithLabelValues("put", field, "EVAL error").Observe(time.Since(t).Seconds())
+			return ErrFieldNotFound
 		}
 	} else {
 		args := redis.Args{}.Add(key).Add(field).AddFlat(string(b))

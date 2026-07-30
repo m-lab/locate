@@ -59,7 +59,10 @@ func (c *Client) UpdatePrometheusForMachine(ctx context.Context, hostname string
 	machine := name.String()
 	err = c.updatePrometheus(ctx, fmt.Sprintf("machine=%q", machine))
 	if err != nil {
-		log.Printf("Error updating Prometheus signals for machine %s", machine)
+		// The failure is not necessarily about this machine: it triggered the
+		// refresh, but the error may come from the Prometheus queries or from
+		// another instance. The details are logged by updatePrometheus.
+		log.Printf("Error updating Prometheus signals triggered by machine %s: %v", machine, err)
 	}
 	return err
 }

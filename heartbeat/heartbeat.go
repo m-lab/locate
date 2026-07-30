@@ -91,21 +91,42 @@ func (h *heartbeatStatusTracker) UpdateHealth(hostname string, hm v2.Health) err
 }
 
 // UpdatePrometheus updates the v2.Prometheus field for the instances.
+// Instances whose Memorystore entry has already expired are skipped without
+// failing the update, since the local view of the instances is only refreshed
+// every static.MemorystoreExportPeriod and can lag behind Memorystore.
 func (h *heartbeatStatusTracker) UpdatePrometheus(hostnames, machines map[string]bool) error {
 	var err error
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	expired := 0
 	for _, instance := range h.instances {
 		pm := constructPrometheusMessage(instance, hostnames, machines)
-		if pm != nil {
-			updateErr := h.updatePrometheusMessage(instance, pm)
-
-			if updateErr != nil {
-				log.Printf("Failed to write Prometheus message for instance %s to Memorystore: %v", instance.Registration.Hostname, updateErr)
-				err = errPrometheus
-			}
+		if pm == nil {
+			continue
 		}
+
+		updateErr := h.updatePrometheusMessage(instance, pm)
+		if updateErr == nil {
+			continue
+		}
+
+		if errors.Is(updateErr, memorystore.ErrFieldNotFound) {
+			// The instance is not registered in Memorystore anymore, so there is
+			// nothing to update. This happens when an instance stops heartbeating
+			// and its entry expires before the next import replaces the local
+			// view. These writes are counted by the "EVAL error" status of the
+			// locate_memorystore_request_duration metric.
+			expired++
+			continue
+		}
+
+		log.Printf("Failed to write Prometheus message for instance %s to Memorystore: %v", instance.Registration.Hostname, updateErr)
+		err = errPrometheus
+	}
+
+	if expired > 0 {
+		log.Printf("Skipped Prometheus update for %d instance(s) no longer registered in Memorystore", expired)
 	}
 
 	return err

@@ -39,6 +39,22 @@ func (c *fakeMemorystoreClient[V]) FakeAdd(key string, value V) {
 	c.m[key] = value
 }
 
+// FakePutErrorMemorystoreClient provides an implementation that returns a
+// per-key error from Put. Keys that are not in PutErrors succeed.
+type FakePutErrorMemorystoreClient[V any] struct {
+	PutErrors map[string]error
+}
+
+// Put returns the error configured for the key, or nil.
+func (c *FakePutErrorMemorystoreClient[V]) Put(key string, field string, value redis.Scanner, opts *memorystore.PutOptions) error {
+	return c.PutErrors[key]
+}
+
+// GetAll returns an empty map and a nil error.
+func (c *FakePutErrorMemorystoreClient[V]) GetAll() (map[string]V, error) {
+	return map[string]V{}, nil
+}
+
 type fakeErrorMemorystoreClient[V any] struct{}
 
 // Put returns a FakeError.

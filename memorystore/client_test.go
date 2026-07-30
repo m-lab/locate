@@ -75,6 +75,27 @@ func TestPut_EVALError(t *testing.T) {
 	}
 }
 
+func TestPut_EVALFieldNotFound(t *testing.T) {
+	conn, client := setUpTest[v2.HeartbeatMessage]()
+
+	eval := conn.GenericCommand("EVAL").Expect(int64(fieldMissingReply))
+	expire := conn.GenericCommand("EXPIRE").Expect(int64(1))
+	opts := &PutOptions{FieldMustExist: "Registration", WithExpire: true}
+	err := client.Put(testdata.FakeHostname, "Health", testdata.FakeHealth.Health, opts)
+
+	if conn.Stats(eval) != 1 {
+		t.Fatal("Put() failure, EVAL command should have been called")
+	}
+
+	if conn.Stats(expire) != 0 {
+		t.Error("Put() failure, EXPIRE command should not have been called")
+	}
+
+	if !errors.Is(err, ErrFieldNotFound) {
+		t.Errorf("Put() error: %+v, want: %+v", err, ErrFieldNotFound)
+	}
+}
+
 func TestPut_EXPIREError(t *testing.T) {
 	conn, client := setUpTest[v2.HeartbeatMessage]()
 

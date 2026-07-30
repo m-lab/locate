@@ -13,6 +13,7 @@ import (
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/connection/testdata"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
+	"github.com/m-lab/locate/memorystore"
 	"github.com/m-lab/locate/metrics"
 	prometheus "github.com/prometheus/client_model/go"
 )
@@ -22,6 +23,8 @@ var (
 	fakeErrDC    = &heartbeattest.FakeErrorMemorystoreClient
 	testMachine  = "mlab1-lga00.mlab-sandbox.measurement-lab.org"
 	testHostname = "ndt-" + testMachine
+	goneMachine  = "mlab2-lga00.mlab-sandbox.measurement-lab.org"
+	goneHostname = "ndt-" + goneMachine
 )
 
 func TestRegisterInstance_PutError(t *testing.T) {
@@ -163,6 +166,83 @@ func TestUpdatePrometheus_Success(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("UpdatePrometheus() err: %v, want: nil", err)
+	}
+}
+
+// TestUpdatePrometheus_FieldNotFound verifies that instances whose Memorystore
+// entry has already expired do not fail the update for the whole platform.
+// The local view of the instances is only refreshed every
+// static.MemorystoreExportPeriod, so it can contain instances whose entries
+// are gone.
+func TestUpdatePrometheus_FieldNotFound(t *testing.T) {
+	h := heartbeatStatusTracker{
+		MemorystoreClient: &heartbeattest.FakePutErrorMemorystoreClient[v2.HeartbeatMessage]{
+			PutErrors: map[string]error{
+				goneHostname: memorystore.ErrFieldNotFound,
+			},
+		},
+		instances: map[string]v2.HeartbeatMessage{
+			testHostname: {
+				Registration: &v2.Registration{
+					Hostname: testHostname,
+				},
+			},
+			goneHostname: {
+				Registration: &v2.Registration{
+					Hostname: goneHostname,
+				},
+			},
+		},
+	}
+	hostnames := map[string]bool{testHostname: true, goneHostname: true}
+	machines := map[string]bool{testMachine: true, goneMachine: true}
+
+	err := h.UpdatePrometheus(hostnames, machines)
+
+	if err != nil {
+		t.Errorf("UpdatePrometheus() err: %v, want: nil", err)
+	}
+
+	if h.instances[testHostname].Prometheus == nil {
+		t.Error("UpdatePrometheus() did not update the instance that is still registered")
+	}
+
+	if h.instances[goneHostname].Prometheus != nil {
+		t.Error("UpdatePrometheus() updated an instance that is no longer in Memorystore")
+	}
+}
+
+// TestUpdatePrometheus_FieldNotFoundAndPutError verifies that a genuine
+// Memorystore failure is still reported, even when another instance was only
+// rejected by the FieldMustExist guard.
+func TestUpdatePrometheus_FieldNotFoundAndPutError(t *testing.T) {
+	h := heartbeatStatusTracker{
+		MemorystoreClient: &heartbeattest.FakePutErrorMemorystoreClient[v2.HeartbeatMessage]{
+			PutErrors: map[string]error{
+				goneHostname: memorystore.ErrFieldNotFound,
+				testHostname: heartbeattest.FakeError,
+			},
+		},
+		instances: map[string]v2.HeartbeatMessage{
+			testHostname: {
+				Registration: &v2.Registration{
+					Hostname: testHostname,
+				},
+			},
+			goneHostname: {
+				Registration: &v2.Registration{
+					Hostname: goneHostname,
+				},
+			},
+		},
+	}
+	hostnames := map[string]bool{testHostname: true, goneHostname: true}
+	machines := map[string]bool{testMachine: true, goneMachine: true}
+
+	err := h.UpdatePrometheus(hostnames, machines)
+
+	if !errors.Is(err, errPrometheus) {
+		t.Errorf("UpdatePrometheus() err: %v, want: %v", err, errPrometheus)
 	}
 }
 
