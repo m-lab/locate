@@ -42,6 +42,10 @@ steps:
       # After deploying the new service, deploy the openapi spec.
       - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/' -e 's/{{DEPLOYMENT}}/$PROJECT_ID/' openapi.yaml
       - gcloud endpoints services deploy openapi.yaml
+      # Reconcile the Cloud Scheduler job that drives the periodic Prometheus
+      # health refresh. This runs last so that the OIDC-enabled openapi spec is
+      # already live before the job switches away from API key authentication.
+      - bash cloudbuild/schedule_prometheus_job.sh $PROJECT_ID
 
   # Deployment of APIs in mlab-ns.
   - name: us-central1-docker.pkg.dev/$_ARTIFACT_PROJECT_ID/build-images/gcloud-jsonnet-cbif:1.1
@@ -67,3 +71,7 @@ steps:
       # After deploying the new service, deploy the openapi spec.
       - sed -i -e 's/{{PROJECT}}/$PROJECT_ID/' -e 's/{{PLATFORM_PROJECT}}/$_PLATFORM_PROJECT/' -e 's/{{DEPLOYMENT}}/Production/' openapi.yaml
       - gcloud endpoints services deploy openapi.yaml
+      # Reconcile the Cloud Scheduler job that drives the periodic Prometheus
+      # health refresh. This runs last so that the OIDC-enabled openapi spec is
+      # already live before the job switches away from API key authentication.
+      - bash cloudbuild/schedule_prometheus_job.sh $PROJECT_ID
