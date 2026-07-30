@@ -16,6 +16,15 @@
 # version of this job used "locate.<project>.appspot.com", which cannot match
 # App Engine's single-label wildcard certificate, so Cloud Scheduler failed TLS
 # validation and the request never reached the service.
+#
+# AUTHENTICATION: the endpoint is protected by an API key, which the job sends
+# in an X-API-Key header. This script deliberately does not manage that header.
+# The key is set once per project by hand, and no header flags are passed here so
+# that a deploy cannot overwrite or erase it. Consequently a newly created job
+# has no key and will receive 401 until someone adds one:
+#
+#   gcloud --project <project> scheduler jobs update http prometheus \
+#       --location <location> --update-headers X-API-Key=<key>
 
 set -euxo pipefail
 
@@ -40,24 +49,17 @@ esac
 # Must match "host" in openapi.yaml and endpoints_api_service.name in app.yaml.
 URI="https://locate-dot-${PROJECT}.appspot.com/v2/platform/prometheus"
 
-# The App Engine default service account, which is also the issuer configured
-# for scheduler_oidc in openapi.yaml.
-SERVICE_ACCOUNT="${PROJECT}@appspot.gserviceaccount.com"
-
-# Must match x-google-audiences for scheduler_oidc in openapi.yaml.
-AUDIENCE="locate-prometheus"
-
-# "update" merges headers rather than replacing them, so an existing job needs
-# its headers cleared explicitly to drop the X-API-Key left by the hand-created
-# version. Cloud Scheduler sets its own User-Agent, so no custom headers are
-# needed. "create" has no --clear-headers flag and starts with none.
 if gcloud --project "${PROJECT}" scheduler jobs describe prometheus \
     --location "${LOCATION}" > /dev/null 2>&1; then
   verb="update"
-  header_args=(--clear-headers)
+  # The job authenticates with a header, so it should carry no OIDC or OAuth
+  # token. --clear-auth-token removes one left by an earlier configuration and is
+  # harmless when none is set. Header flags are intentionally omitted so that the
+  # hand-managed X-API-Key survives.
+  extra_args=(--clear-auth-token)
 else
   verb="create"
-  header_args=()
+  extra_args=()
 fi
 
 gcloud --project "${PROJECT}" scheduler jobs "${verb}" http prometheus \
@@ -67,7 +69,5 @@ gcloud --project "${PROJECT}" scheduler jobs "${verb}" http prometheus \
   --uri "${URI}" \
   --http-method GET \
   --attempt-deadline 180s \
-  --oidc-service-account-email "${SERVICE_ACCOUNT}" \
-  --oidc-token-audience "${AUDIENCE}" \
   --description "Refreshes locate Prometheus health signals (managed by CI)" \
-  "${header_args[@]}"
+  "${extra_args[@]}"
