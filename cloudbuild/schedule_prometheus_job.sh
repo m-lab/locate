@@ -41,8 +41,12 @@ case "${PROJECT}" in
     LOCATION="us-central1"
     ;;
   *)
-    echo "No Cloud Scheduler location known for ${PROJECT}; skipping." >&2
-    exit 0
+    # Both cloudbuild steps are gated by PROJECT_IN to the three projects above,
+    # so this is unreachable today. Fail rather than skip so that adding a new
+    # deployment project surfaces the missing mapping instead of silently
+    # leaving that project without a job.
+    echo "No Cloud Scheduler location known for ${PROJECT}" >&2
+    exit 1
     ;;
 esac
 
