@@ -2,6 +2,7 @@ package heartbeat
 
 import (
 	"errors"
+	"math"
 	"math/rand"
 	"net/url"
 	"sort"
@@ -26,6 +27,29 @@ var (
 	// organization. It is populated once at startup and read-only thereafter.
 	ProbabilityOverrides = map[string]float64{}
 )
+
+// NearestSettings holds the startup-time configuration for the nearest
+// selection algorithm.
+type NearestSettings struct {
+	// Weighted enables distance-weighted site sampling instead of the
+	// exponential draw over the distance-ranked list.
+	Weighted bool
+	// EQRadiusKm is the distance, in km, below which sites are considered
+	// equivalent: distances are clamped to this value before weighting.
+	EQRadiusKm float64
+	// MaxDistanceRatio drops candidate sites whose effective distance exceeds
+	// this ratio times the nearest site's, always keeping at least the 4
+	// nearest. Zero disables the cutoff.
+	MaxDistanceRatio float64
+}
+
+// NearestConfig configures the nearest selection algorithm. Like
+// ProbabilityOverrides, it is populated once at startup and read-only
+// thereafter.
+var NearestConfig = NearestSettings{
+	EQRadiusKm:       100,
+	MaxDistanceRatio: 20,
+}
 
 // Randomness seams. Production uses the goroutine-safe default math/rand
 // source; tests substitute functions backed by a seeded *rand.Rand for
@@ -97,8 +121,11 @@ func NewServerLocator(tracker StatusTracker) *Locator {
 	}
 }
 
-// Nearest discovers the nearest machines for the target service, using
-// an exponentially distributed function based on distance.
+// Nearest discovers the nearest machines for the target service. Sites are
+// sampled either through an exponential draw over the distance-ranked list
+// (the default) or, when NearestConfig.Weighted is set, proportionally to
+// 1/max(distance, EQRadiusKm)^2, so that nearby sites share the load instead
+// of the closest one capturing nearly all of it.
 func (l *Locator) Nearest(service string, lat, lon float64, opts *NearestOptions) (*TargetInfo, error) {
 	// Filter.
 	sites := filterSites(service, lat, lon, l.Instances(), opts)
@@ -110,7 +137,7 @@ func (l *Locator) Nearest(service string, lat, lon float64, opts *NearestOptions
 	rank(sites)
 
 	// Pick.
-	result := pickTargets(service, sites)
+	result := pickTargets(service, sites, opts)
 
 	if len(result.Targets) == 0 {
 		return nil, ErrNoAvailableServers
@@ -268,18 +295,32 @@ func rank(sites []site) {
 	}
 }
 
-// pickTargets picks up to 4 sites using an exponentially distributed function based
-// on distance. For each site, it picks a machine at random and returns them
-// as []v2.Target.
+// pickTargets picks up to 4 sites from the distance-sorted candidates, using
+// either the exponential-rank draw or, when NearestConfig.Weighted is set,
+// sampling proportional to each site's distance weight. For each site, it
+// picks a machine at random and returns them as []v2.Target.
 // For any of the picked targets, it also returns the service URL templates as []url.URL.
-func pickTargets(service string, sites []site) *TargetInfo {
+func pickTargets(service string, sites []site, opts *NearestOptions) *TargetInfo {
+	weighted := NearestConfig.Weighted
+	if weighted {
+		sites = truncateByDistance(sites)
+		metrics.NearestSelectionTotal.WithLabelValues("weighted").Inc()
+	} else {
+		metrics.NearestSelectionTotal.WithLabelValues("legacy").Inc()
+	}
+
 	numTargets := mathx.Min(4, len(sites))
 	targets := make([]v2.Target, numTargets)
 	ranks := make(map[string]int)
 	var urls []url.URL
 
 	for i := 0; i < numTargets; i++ {
-		index := pickSiteIndex(sites)
+		var index int
+		if weighted {
+			index = pickSiteIndexWeighted(sites, opts)
+		} else {
+			index = pickSiteIndex(sites)
+		}
 		s := sites[index]
 		metrics.ServerDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(s.rank))
 		metrics.MetroDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(s.metroRank))
@@ -321,6 +362,72 @@ func pickSiteIndex(sites []site) int {
 	// A rate of 6 yields index 0 around 95% of the time, index 1 a little less
 	// than 5% of the time, and higher indices infrequently.
 	return randExpDistributedInt(6) % len(sites)
+}
+
+// pickSiteIndexWeighted samples a site index proportionally to each site's
+// weight.
+func pickSiteIndexWeighted(sites []site, opts *NearestOptions) int {
+	weights := make([]float64, len(sites))
+	total := 0.0
+	for i := range sites {
+		weights[i] = weight(&sites[i], opts)
+		total += weights[i]
+	}
+	r := randFloat64() * total
+	sum := 0.0
+	for i, w := range weights {
+		sum += w
+		if r < sum {
+			return i
+		}
+	}
+	// Only reachable through floating-point rounding.
+	return len(sites) - 1
+}
+
+// effDist returns the effective distance used for weighting: distances below
+// the equivalence radius are clamped so that all nearby sites weigh the same.
+// TODO(m-lab/locate): EQRadiusKm may need to be regional (e.g. a function of
+// the site's country or metro); the site's registration is available for that.
+func effDist(s *site) float64 {
+	return math.Max(s.distance, NearestConfig.EQRadiusKm)
+}
+
+// weight returns the sampling weight for a site:
+// bias / max(distance, EQRadiusKm)^2.
+func weight(s *site, opts *NearestOptions) float64 {
+	d := effDist(s)
+	return countryBias(&s.registration, opts) * continentBias(&s.registration, opts) / (d * d)
+}
+
+// countryBias is a seam for a future in-country preference: a multiplier
+// applied to the site's weight. No bias is applied for now.
+func countryBias(r *v2.Registration, opts *NearestOptions) float64 {
+	return 1.0
+}
+
+// continentBias is a seam for a future in-continent preference: a multiplier
+// applied to the site's weight. No bias is applied for now.
+func continentBias(r *v2.Registration, opts *NearestOptions) float64 {
+	return 1.0
+}
+
+// truncateByDistance drops sites whose effective distance exceeds
+// NearestConfig.MaxDistanceRatio times the nearest site's, always keeping at
+// least the 4 nearest sites. The input must be sorted by distance. A ratio of
+// zero disables the cutoff.
+func truncateByDistance(sites []site) []site {
+	ratio := NearestConfig.MaxDistanceRatio
+	if ratio == 0 || len(sites) <= 4 {
+		return sites
+	}
+	maxDist := ratio * effDist(&sites[0])
+	for i := 4; i < len(sites); i++ {
+		if effDist(&sites[i]) > maxDist {
+			return sites[:i]
+		}
+	}
+	return sites
 }
 
 func alwaysPick(opts *NearestOptions) bool {

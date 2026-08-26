@@ -35,6 +35,15 @@ func seedRandom(t *testing.T, seed int64) {
 	})
 }
 
+// setNearestConfig replaces NearestConfig for the duration of the test.
+func setNearestConfig(t *testing.T, cfg NearestSettings) {
+	prev := NearestConfig
+	NearestConfig = cfg
+	t.Cleanup(func() {
+		NearestConfig = prev
+	})
+}
+
 var (
 	// Test services.
 	validNDT7Services = map[string][]string{
@@ -961,6 +970,7 @@ func TestPickTargets(t *testing.T) {
 	tests := []struct {
 		name          string
 		sites         []site
+		weighted      bool
 		expectedCount int
 		expectedURLs  []url.URL
 	}{
@@ -976,10 +986,25 @@ func TestPickTargets(t *testing.T) {
 			expectedCount: 1,
 			expectedURLs:  NDT7Urls,
 		},
+		{
+			name:          "4-sites-weighted",
+			sites:         []site{site1, site2, site3, site4},
+			weighted:      true,
+			expectedCount: 4,
+			expectedURLs:  NDT7Urls,
+		},
+		{
+			name:          "1-site-weighted",
+			sites:         []site{site1},
+			weighted:      true,
+			expectedCount: 1,
+			expectedURLs:  NDT7Urls,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := pickTargets("ndt/ndt7", tt.sites)
+			setNearestConfig(t, NearestSettings{Weighted: tt.weighted, EQRadiusKm: 100, MaxDistanceRatio: 20})
+			got := pickTargets("ndt/ndt7", tt.sites, &NearestOptions{})
 
 			// Verify the correct number of targets.
 			if len(got.Targets) != tt.expectedCount {
@@ -1089,5 +1114,130 @@ func TestPickWithProbability(t *testing.T) {
 		if got := pickWithProbability(0.0); got {
 			t.Errorf("pickWithProbability(0.0) = true, want false")
 		}
+	}
+}
+
+func TestWeight(t *testing.T) {
+	setNearestConfig(t, NearestSettings{Weighted: true, EQRadiusKm: 100})
+	opts := &NearestOptions{}
+
+	// Distances below the equivalence radius weigh the same as the radius.
+	near := site{distance: 10}
+	eq := site{distance: 100}
+	if got, want := weight(&near, opts), weight(&eq, opts); got != want {
+		t.Errorf("weight(distance=10) = %v, want %v (same as distance=100)", got, want)
+	}
+
+	// Doubling the distance beyond the radius quarters the weight.
+	far := site{distance: 200}
+	if got, want := weight(&far, opts), weight(&eq, opts)/4; math.Abs(got-want) > 1e-15 {
+		t.Errorf("weight(distance=200) = %v, want %v (1/4 of distance=100)", got, want)
+	}
+}
+
+func TestPickSiteIndexWeightedDistribution(t *testing.T) {
+	setNearestConfig(t, NearestSettings{Weighted: true, EQRadiusKm: 100})
+	seedRandom(t, 1)
+
+	sites := []site{
+		{distance: 50},
+		{distance: 100},
+		{distance: 200},
+		{distance: 1000},
+	}
+	opts := &NearestOptions{}
+
+	// Expected share of each site is weight_i / sum(weights).
+	total := 0.0
+	for i := range sites {
+		total += weight(&sites[i], opts)
+	}
+
+	const draws = 10000
+	counts := make([]int, len(sites))
+	for i := 0; i < draws; i++ {
+		counts[pickSiteIndexWeighted(sites, opts)]++
+	}
+
+	for i := range sites {
+		got := float64(counts[i]) / draws
+		want := weight(&sites[i], opts) / total
+		if math.Abs(got-want) > 0.02 {
+			t.Errorf("site %d empirical share = %v, want %v +/- 0.02", i, got, want)
+		}
+	}
+}
+
+func TestTruncateByDistance(t *testing.T) {
+	tests := []struct {
+		name  string
+		ratio float64
+		sites []site
+		want  int
+	}{
+		{
+			name:  "cutoff-drops-far-sites",
+			ratio: 20,
+			// Effective distances: 100, 100, 150, 200, 1900, 2100; cutoff is
+			// 20*100=2000, so the last site is dropped.
+			sites: []site{{distance: 50}, {distance: 100}, {distance: 150}, {distance: 200}, {distance: 1900}, {distance: 2100}},
+			want:  5,
+		},
+		{
+			name:  "keeps-at-least-four",
+			ratio: 2,
+			// All but the first exceed the 200 km cutoff, but the 4 nearest
+			// are always kept.
+			sites: []site{{distance: 100}, {distance: 5000}, {distance: 6000}, {distance: 7000}, {distance: 8000}},
+			want:  4,
+		},
+		{
+			name:  "zero-disables",
+			ratio: 0,
+			sites: []site{{distance: 100}, {distance: 20000}},
+			want:  2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setNearestConfig(t, NearestSettings{Weighted: true, EQRadiusKm: 100, MaxDistanceRatio: tt.ratio})
+			got := truncateByDistance(tt.sites)
+			if len(got) != tt.want {
+				t.Errorf("truncateByDistance() kept %d sites, want %d", len(got), tt.want)
+			}
+		})
+	}
+}
+
+func TestPickTargetsAlgorithmRouting(t *testing.T) {
+	sites := func() []site {
+		return []site{{
+			distance:     10,
+			registration: v2.Registration{Services: validNDT7Services},
+			machines:     []machine{{name: "mlab1-abc01"}},
+		}}
+	}
+
+	// The legacy path draws the site index from the exponential seam; the
+	// weighted path does not use it.
+	expCalled := false
+	seedRandom(t, 1)
+	randExpDistributedInt = func(rate float64) int {
+		expCalled = true
+		return 0
+	}
+
+	setNearestConfig(t, NearestSettings{Weighted: false, EQRadiusKm: 100})
+	pickTargets("ndt/ndt7", sites(), &NearestOptions{})
+	if !expCalled {
+		t.Errorf("pickTargets() with Weighted=false did not use the exponential-rank draw")
+	}
+
+	expCalled = false
+	setNearestConfig(t, NearestSettings{Weighted: true, EQRadiusKm: 100})
+	pickTargets("ndt/ndt7", sites(), &NearestOptions{})
+	if expCalled {
+		t.Errorf("pickTargets() with Weighted=true used the exponential-rank draw")
 	}
 }

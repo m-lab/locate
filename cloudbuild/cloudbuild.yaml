@@ -37,6 +37,9 @@ steps:
         -e 's/{{RATE_LIMIT_IP_MAX}}/$_RATE_LIMIT_IP_MAX/'
         -e 's/{{EARLY_EXIT_CLIENTS}}/$_EARLY_EXIT_CLIENTS/'
         -e 's/{{PROBABILITY_OVERRIDE}}/$_PROBABILITY_OVERRIDE/'
+        -e 's/{{NEAREST_WEIGHTED}}/$_NEAREST_WEIGHTED/'
+        -e 's/{{NEAREST_EQ_RADIUS_KM}}/$_NEAREST_EQ_RADIUS_KM/'
+        -e 's/{{NEAREST_MAX_DISTANCE_RATIO}}/$_NEAREST_MAX_DISTANCE_RATIO/'
         app.yaml
       - gcloud --project $PROJECT_ID app deploy --promote app.yaml
       # After deploying the new service, deploy the openapi spec.
@@ -65,6 +68,9 @@ steps:
         -e 's/{{RATE_LIMIT_IP_MAX}}/$_RATE_LIMIT_IP_MAX/'
         -e 's/{{EARLY_EXIT_CLIENTS}}/$_EARLY_EXIT_CLIENTS/'
         -e 's/{{PROBABILITY_OVERRIDE}}/$_PROBABILITY_OVERRIDE/'
+        -e 's/{{NEAREST_WEIGHTED}}/$_NEAREST_WEIGHTED/'
+        -e 's/{{NEAREST_EQ_RADIUS_KM}}/$_NEAREST_EQ_RADIUS_KM/'
+        -e 's/{{NEAREST_MAX_DISTANCE_RATIO}}/$_NEAREST_MAX_DISTANCE_RATIO/'
         app.yaml
       - gcloud --project $PROJECT_ID app deploy --no-promote app.yaml
       # After deploying the new service, deploy the openapi spec.

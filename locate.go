@@ -68,6 +68,10 @@ var (
 
 	probabilityOverrides = flagx.KeyValue{}
 
+	nearestWeighted         bool
+	nearestEQRadiusKm       float64
+	nearestMaxDistanceRatio float64
+
 	jwtAuthMode = flagx.Enum{
 		Options: []string{"espv1", "direct", "insecure"},
 		Value:   "espv1",
@@ -104,6 +108,12 @@ func init() {
 	flag.Var(&earlyExitClients, "early-exit-clients", "Client names that should receive early_exit parameter (can be specified multiple times)")
 	flag.Var(&probabilityOverrides, "probability-override",
 		"Per-machine probability override as machine=probability, e.g. mlab1-lga01.mlab-oti.measurement-lab.org=0 (can be specified multiple times)")
+	flag.BoolVar(&nearestWeighted, "nearest-weighted", false,
+		"Sample nearest sites proportionally to 1/max(distance, eq-radius)^2 instead of the exponential-rank draw")
+	flag.Float64Var(&nearestEQRadiusKm, "nearest-eq-radius-km", 100,
+		"Distance in km below which sites are considered equivalent by weighted selection")
+	flag.Float64Var(&nearestMaxDistanceRatio, "nearest-max-distance-ratio", 20,
+		"Weighted selection drops sites farther than this ratio times the nearest site's effective distance, keeping at least 4 (0 disables)")
 	flag.Var(&jwtAuthMode, "jwt-auth-mode", "JWT authentication mode: espv1 (Cloud Endpoints, production default), direct (JWKS validation for integration testing), insecure (dev/test only, requires ALLOW_INSECURE_JWT=true)")
 	flag.Var(&jwtJWKS, "jwt-jwks-url", "JWKS URL for direct mode JWT verification (e.g., https://auth.example.com/.well-known/jwks.json)")
 	// Enable logging with line numbers to trace error locations.
@@ -131,6 +141,19 @@ func main() {
 			rtx.Must(fmt.Errorf("probability %v out of range [0,1]", p), "Invalid probability-override for %s", machine)
 		}
 		heartbeat.ProbabilityOverrides[machine] = p
+	}
+
+	// Configure the nearest selection algorithm.
+	if nearestEQRadiusKm <= 0 {
+		rtx.Must(fmt.Errorf("value %v must be positive", nearestEQRadiusKm), "Invalid nearest-eq-radius-km")
+	}
+	if nearestMaxDistanceRatio < 0 {
+		rtx.Must(fmt.Errorf("value %v must be non-negative", nearestMaxDistanceRatio), "Invalid nearest-max-distance-ratio")
+	}
+	heartbeat.NearestConfig = heartbeat.NearestSettings{
+		Weighted:         nearestWeighted,
+		EQRadiusKm:       nearestEQRadiusKm,
+		MaxDistanceRatio: nearestMaxDistanceRatio,
 	}
 
 	prom := prometheusx.MustServeMetrics()

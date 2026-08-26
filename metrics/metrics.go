@@ -124,6 +124,16 @@ var (
 		[]string{"index"},
 	)
 
+	// NearestSelectionTotal counts nearest server selections by algorithm
+	// (legacy exponential-rank draw vs distance-weighted sampling).
+	NearestSelectionTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "locate_nearest_selection_total",
+			Help: "Number of nearest server selections, by algorithm.",
+		},
+		[]string{"algorithm"},
+	)
+
 	// ConnectionRequestsTotal counts the number of (re)connection requests the Heartbeat Service
 	// makes to the Locate Service.
 	ConnectionRequestsTotal = promauto.NewCounterVec(
