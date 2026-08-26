@@ -27,6 +27,15 @@ var (
 	ProbabilityOverrides = map[string]float64{}
 )
 
+// Randomness seams. Production uses the goroutine-safe default math/rand
+// source; tests substitute functions backed by a seeded *rand.Rand for
+// deterministic draws.
+var (
+	randFloat64           = rand.Float64
+	randInt               = mathx.GetRandomInt
+	randExpDistributedInt = mathx.GetExpDistributedInt
+)
+
 // Locator manages requests to "locate" mlab-ns servers.
 type Locator struct {
 	StatusTracker
@@ -270,15 +279,13 @@ func pickTargets(service string, sites []site) *TargetInfo {
 	var urls []url.URL
 
 	for i := 0; i < numTargets; i++ {
-		// A rate of 6 yields index 0 around 95% of the time, index 1 a little less
-		// than 5% of the time, and higher indices infrequently.
-		index := mathx.GetExpDistributedInt(6) % len(sites)
+		index := pickSiteIndex(sites)
 		s := sites[index]
 		metrics.ServerDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(s.rank))
 		metrics.MetroDistanceRanking.WithLabelValues(strconv.Itoa(i)).Observe(float64(s.metroRank))
 		// TODO(cristinaleon): Once health values range between 0 and 1,
 		// pick based on health. For now, pick at random.
-		machineIndex := mathx.GetRandomInt(len(s.machines))
+		machineIndex := randInt(len(s.machines))
 		machine := s.machines[machineIndex]
 
 		r := s.registration
@@ -308,6 +315,14 @@ func pickTargets(service string, sites []site) *TargetInfo {
 	}
 }
 
+// pickSiteIndex returns the index of the next site to select from the
+// distance-sorted candidate list.
+func pickSiteIndex(sites []site) int {
+	// A rate of 6 yields index 0 around 95% of the time, index 1 a little less
+	// than 5% of the time, and higher indices infrequently.
+	return randExpDistributedInt(6) % len(sites)
+}
+
 func alwaysPick(opts *NearestOptions) bool {
 	// Sites do not need further filtering if the query is already requesting
 	// only virtual machines or a specific set of sites or a specific org.
@@ -317,7 +332,7 @@ func alwaysPick(opts *NearestOptions) bool {
 // pickWithProbability returns true if a pseudo-random number in the interval
 // [0.0,1.0) is less than the given site's defined probability.
 func pickWithProbability(probability float64) bool {
-	return rand.Float64() < probability
+	return randFloat64() < probability
 }
 
 // getURLs extracts the URL templates from v2.Registration.Services and outputs
@@ -335,17 +350,4 @@ func getURLs(service string, registration v2.Registration) []url.URL {
 	}
 
 	return result
-}
-
-func biasedDistance(country string, r *v2.Registration, distance float64) float64 {
-	// The 'ZZ' country code is used for unknown or unspecified countries.
-	if country == "" || country == "ZZ" {
-		return distance
-	}
-
-	if country == r.CountryCode {
-		return distance
-	}
-
-	return 2 * distance
 }

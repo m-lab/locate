@@ -9,9 +9,31 @@ import (
 	"testing"
 
 	"github.com/m-lab/go/host"
+	"github.com/m-lab/go/mathx"
 	v2 "github.com/m-lab/locate/api/v2"
 	"github.com/m-lab/locate/heartbeat/heartbeattest"
 )
+
+// seedRandom routes the package randomness seams through a deterministically
+// seeded source for the duration of the test.
+func seedRandom(t *testing.T, seed int64) {
+	src := rand.New(rand.NewSource(seed))
+	randFloat64 = src.Float64
+	randInt = func(max int) int {
+		if max <= 0 {
+			return 0
+		}
+		return src.Intn(max)
+	}
+	randExpDistributedInt = func(rate float64) int {
+		return int(math.Round(src.ExpFloat64() / rate))
+	}
+	t.Cleanup(func() {
+		randFloat64 = rand.Float64
+		randInt = mathx.GetRandomInt
+		randExpDistributedInt = mathx.GetExpDistributedInt
+	})
+}
 
 var (
 	// Test services.
@@ -414,7 +436,7 @@ func TestNearest(t *testing.T) {
 			tracker := NewHeartbeatStatusTracker(&memorystore)
 			locator := NewServerLocator(tracker)
 			locator.StopImport()
-			rand.Seed(1658458451000000000)
+			seedRandom(t, 1658458451000000000)
 
 			for _, i := range instances {
 				locator.RegisterInstance(*i.Registration)
@@ -1067,62 +1089,5 @@ func TestPickWithProbability(t *testing.T) {
 		if got := pickWithProbability(0.0); got {
 			t.Errorf("pickWithProbability(0.0) = true, want false")
 		}
-	}
-}
-
-func TestBiasedDistance(t *testing.T) {
-	tests := []struct {
-		name     string
-		country  string
-		r        *v2.Registration
-		distance float64
-		want     float64
-	}{
-		{
-			name:    "empty-country",
-			country: "",
-			r: &v2.Registration{
-				CountryCode: "foo",
-			},
-			distance: 100,
-			want:     100,
-		},
-		{
-			name:    "unknown-country",
-			country: "ZZ",
-			r: &v2.Registration{
-				CountryCode: "foo",
-			},
-			distance: 100,
-			want:     100,
-		},
-		{
-			name:    "same-country",
-			country: "foo",
-			r: &v2.Registration{
-				CountryCode: "foo",
-			},
-			distance: 100,
-			want:     100,
-		},
-		{
-			name:    "different-country",
-			country: "bar",
-			r: &v2.Registration{
-				CountryCode: "foo",
-			},
-			distance: 100,
-			want:     200,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := biasedDistance(tt.country, tt.r, tt.distance)
-
-			if got != tt.want {
-				t.Errorf("biasedDistance() got: %f, want: %f", got, tt.want)
-			}
-		})
 	}
 }
