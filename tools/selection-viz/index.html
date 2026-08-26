@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Locate selection explorer</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #666; --border: #d0d0d0; --panel: #f6f6f6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0 auto; padding: 16px 24px; max-width: 1600px; background: var(--bg); color: var(--fg);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 0 0 6px; font-weight: 600; }
+  p.intro { margin: 0 0 12px; color: var(--muted); max-width: 100ch; }
+  #status { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
+  #controls { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: end;
+              background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+              padding: 12px 16px; margin-bottom: 14px; }
+  #controls label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  #controls .val { font-weight: 600; color: var(--fg); }
+  #controls input[type=range] { width: 180px; }
+  #maps { display: flex; flex-wrap: wrap; gap: 16px; }
+  .map { flex: 1 1 480px; min-width: 380px; }
+  canvas { width: 100%; border: 1px solid var(--border); border-radius: 4px; cursor: crosshair;
+           background: #0b2437; display: block; touch-action: none; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  #inspect { margin-top: 14px; }
+  table { border-collapse: collapse; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 3px 10px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { background: var(--panel); font-weight: 600; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px;
+            vertical-align: baseline; }
+  button, input[type=file] { font: inherit; }
+  #progress { font-size: 12px; color: var(--muted); min-width: 8ch; }
+</style>
+</head>
+<body>
+<h1>Locate server selection explorer</h1>
+<p class="intro">
+Each point on the map is colored by the site most likely to be returned as the <em>first</em>
+result for a client at that location. Left: the current algorithm (strict distance sort, then an
+exponential draw with rate 6, so the nearest site wins ~95% of the time, effectively a Voronoi
+diagram). Right: weighted sampling with weight = 1/max(distance, EQ&nbsp;radius)<sup>k</sup>, with an
+optional relative distance cutoff. Opacity shows the winning site's share: soft edges mean traffic
+is spread across sites. Click anywhere to see per-site probabilities. Drag to pan, scroll to zoom.
+</p>
+<div id="status">Loading site list&hellip;</div>
+<div id="controls">
+  <div>
+    <label>EQ radius: <span class="val" id="eqVal">100 km</span></label>
+    <input type="range" id="eq" min="0" max="1" step="0.001" value="0.4344">
+  </div>
+  <div>
+    <label>Decay exponent k: <span class="val" id="kVal">2.0</span></label>
+    <input type="range" id="k" min="0.5" max="4" step="0.1" value="2">
+  </div>
+  <div>
+    <label>Cutoff ratio (0 = off): <span class="val" id="ratioVal">20</span></label>
+    <input type="range" id="ratio" min="0" max="100" step="1" value="20">
+  </div>
+  <div>
+    <label>Site data</label>
+    <button id="reload">Reload from siteinfo</button>
+    <input type="file" id="file" accept=".json" title="Load a local registration.json">
+  </div>
+  <div>
+    <label>&nbsp;</label>
+    <button id="resetView">Reset view</button>
+  </div>
+  <div id="progress"></div>
+</div>
+<div id="maps">
+  <div class="map">
+    <h2>Current: exponential rank draw (&asymp; Voronoi)</h2>
+    <canvas id="legacy" width="720" height="360"></canvas>
+  </div>
+  <div class="map">
+    <h2>Weighted: 1 / max(d, EQ)<sup>k</sup></h2>
+    <canvas id="weighted" width="720" height="360"></canvas>
+  </div>
+</div>
+<div class="hint">The two maps share pan/zoom and the clicked inspection point.</div>
+<div id="inspect"></div>
+
+<script>
+"use strict";
+
+// Embedded snapshot of M-Lab sites (site, lat, lon, country, metro), generated
+// from siteinfo registration.json. Used when the live fetch fails (e.g. CORS
+// or opening this file offline).
+const EMBEDDED_SITES = [{"site":"akl01","lat":-37.0081,"lon":174.792,"country":"NZ","metro":"akl"},{"site":"ams05","lat":52.3086,"lon":4.76389,"country":"NL","metro":"ams"},{"site":"ams12","lat":52.3086,"lon":4.76389,"country":"NL","metro":"ams"},{"site":"arn02","lat":59.6519,"lon":17.9186,"country":"SE","metro":"arn"},{"site":"arn03","lat":59.6519,"lon":17.9186,"country":"SE","metro":"arn"},{"site":"arn04","lat":59.6519,"lon":17.9186,"country":"SE","metro":"arn"},{"site":"ath03","lat":37.9364,"lon":23.9445,"country":"GR","metro":"ath"},{"site":"bcn01","lat":41.2971,"lon":2.07846,"country":"ES","metro":"bcn"},{"site":"beg01","lat":44.8184,"lon":20.3091,"country":"RS","metro":"beg"},{"site":"ber03","lat":52.3514,"lon":13.4939,"country":"DE","metro":"ber"},{"site":"bog02","lat":4.70159,"lon":-74.1469,"country":"CO","metro":"bog"},{"site":"bog05","lat":4.70159,"lon":-74.1469,"country":"CO","metro":"bog"},{"site":"bom02","lat":19.0887,"lon":72.8679,"country":"IN","metro":"bom"},{"site":"bom04","lat":19.0887,"lon":72.8679,"country":"IN","metro":"bom"},{"site":"bom07","lat":19.0887,"lon":72.8679,"country":"IN","metro":"bom"},{"site":"bru01","lat":50.9014,"lon":4.48444,"country":"BE","metro":"bru"},{"site":"bru02","lat":50.9014,"lon":4.48444,"country":"BE","metro":"bru"},{"site":"bru04","lat":50.9014,"lon":4.48444,"country":"BE","metro":"bru"},{"site":"bru08","lat":50.9014,"lon":4.48444,"country":"BE","metro":"bru"},{"site":"cgk03","lat":-6.12556,"lon":106.656,"country":"ID","metro":"cgk"},{"site":"chs03","lat":32.8986,"lon":-80.0405,"country":"US","metro":"chs"},{"site":"chs0t","lat":32.8986,"lon":-80.0405,"country":"US","metro":"chs"},{"site":"cmh03","lat":39.998,"lon":-82.8919,"country":"US","metro":"cmh"},{"site":"cpt01","lat":-33.9648,"lon":18.6017,"country":"ZA","metro":"cpt"},{"site":"del02","lat":28.5665,"lon":77.1031,"country":"IN","metro":"del"},{"site":"del04","lat":28.5665,"lon":77.1031,"country":"IN","metro":"del"},{"site":"del06","lat":28.5665,"lon":77.1031,"country":"IN","metro":"del"},{"site":"den02","lat":39.8617,"lon":-104.673,"country":"US","metro":"den"},{"site":"den04","lat":39.8617,"lon":-104.673,"country":"US","metro":"den"},{"site":"den05","lat":39.8617,"lon":-104.673,"country":"US","metro":"den"},{"site":"dfw02","lat":32.8968,"lon":-97.038,"country":"US","metro":"dfw"},{"site":"dfw03","lat":32.8968,"lon":-97.038,"country":"US","metro":"dfw"},{"site":"dfw08","lat":32.8968,"lon":-97.038,"country":"US","metro":"dfw"},{"site":"dfw13","lat":32.8968,"lon":-97.038,"country":"US","metro":"dfw"},{"site":"doh03","lat":25.2731,"lon":51.6081,"country":"QA","metro":"doh"},{"site":"dub01","lat":53.4213,"lon":-6.27007,"country":"IE","metro":"dub"},{"site":"eze01","lat":-34.8222,"lon":-58.5358,"country":"AR","metro":"eze"},{"site":"fln01","lat":-27.6703,"lon":-48.5525,"country":"BR","metro":"fln"},{"site":"fra03","lat":50.0333,"lon":8.57056,"country":"DE","metro":"fra"},{"site":"fra04","lat":50.0333,"lon":8.57056,"country":"DE","metro":"fra"},{"site":"fra09","lat":50.0333,"lon":8.57056,"country":"DE","metro":"fra"},{"site":"geg01","lat":47.6199,"lon":-117.534,"country":"US","metro":"geg"},{"site":"gru02","lat":-23.4322,"lon":-46.4692,"country":"BR","metro":"gru"},{"site":"gru03","lat":-23.4322,"lon":-46.4692,"country":"BR","metro":"gru"},{"site":"gru07","lat":-23.4322,"lon":-46.4692,"country":"BR","metro":"gru"},{"site":"ham02","lat":53.6304,"lon":9.98823,"country":"DE","metro":"ham"},{"site":"hel03","lat":60.3172,"lon":24.9633,"country":"FI","metro":"hel"},{"site":"hkg03","lat":22.3089,"lon":113.915,"country":"HK","metro":"hkg"},{"site":"hkg06","lat":22.3089,"lon":113.915,"country":"HK","metro":"hkg"},{"site":"hnd02","lat":35.5533,"lon":139.781,"country":"JP","metro":"hnd"},{"site":"hnd08","lat":35.5533,"lon":139.781,"country":"JP","metro":"hnd"},{"site":"hnl02","lat":21.3206,"lon":-157.924,"country":"US","metro":"hnl"},{"site":"iad02","lat":38.9445,"lon":-77.4558,"country":"US","metro":"iad"},{"site":"iad03","lat":38.9445,"lon":-77.4558,"country":"US","metro":"iad"},{"site":"iad04","lat":38.9445,"lon":-77.4558,"country":"US","metro":"iad"},{"site":"iad08","lat":38.9445,"lon":-77.4558,"country":"US","metro":"iad"},{"site":"iad10","lat":38.9445,"lon":-77.4558,"country":"US","metro":"iad"},{"site":"icn03","lat":37.4633,"lon":126.44,"country":"KR","metro":"icn"},{"site":"jnb01","lat":-26.1392,"lon":28.246,"country":"ZA","metro":"jnb"},{"site":"jnb03","lat":-26.1392,"lon":28.246,"country":"ZA","metro":"jnb"},{"site":"kix03","lat":34.4305,"lon":135.23,"country":"JP","metro":"kix"},{"site":"las03","lat":36.0801,"lon":-115.152,"country":"US","metro":"las"},{"site":"lax04","lat":33.9425,"lon":-118.408,"country":"US","metro":"lax"},{"site":"lax06","lat":33.9425,"lon":-118.408,"country":"US","metro":"lax"},{"site":"lax08","lat":33.9425,"lon":-118.408,"country":"US","metro":"lax"},{"site":"lax0t","lat":33.9425,"lon":-118.408,"country":"US","metro":"lax"},{"site":"lax11","lat":33.9425,"lon":-118.408,"country":"US","metro":"lax"},{"site":"lga04","lat":40.775,"lon":-73.875,"country":"US","metro":"lga"},{"site":"lga05","lat":40.775,"lon":-73.875,"country":"US","metro":"lga"},{"site":"lga06","lat":40.775,"lon":-73.875,"country":"US","metro":"lga"},{"site":"lga08","lat":40.775,"lon":-73.875,"country":"US","metro":"lga"},{"site":"lga0t","lat":40.775,"lon":-73.875,"country":"US","metro":"lga"},{"site":"lga1t","lat":40.775,"lon":-73.875,"country":"US","metro":"lga"},{"site":"lhr04","lat":51.4775,"lon":-0.461389,"country":"GB","metro":"lhr"},{"site":"lhr07","lat":51.4775,"lon":-0.461389,"country":"GB","metro":"lhr"},{"site":"lhr11","lat":51.4775,"lon":-0.461389,"country":"GB","metro":"lhr"},{"site":"lim01","lat":-12.0219,"lon":-77.1143,"country":"PE","metro":"lim"},{"site":"lim02","lat":-12.0219,"lon":-77.1143,"country":"PE","metro":"lim"},{"site":"lis01","lat":38.7813,"lon":-9.13592,"country":"PT","metro":"lis"},{"site":"lis02","lat":38.7813,"lon":-9.13592,"country":"PT","metro":"lis"},{"site":"lis03","lat":38.7813,"lon":-9.13592,"country":"PT","metro":"lis"},{"site":"los02","lat":6.57737,"lon":3.32116,"country":"NG","metro":"los"},{"site":"maa01","lat":12.99,"lon":80.1693,"country":"IN","metro":"maa"},{"site":"maa02","lat":12.99,"lon":80.1693,"country":"IN","metro":"maa"},{"site":"maa03","lat":12.99,"lon":80.1693,"country":"IN","metro":"maa"},{"site":"mad04","lat":40.4719,"lon":-3.56264,"country":"ES","metro":"mad"},{"site":"mad06","lat":40.4719,"lon":-3.56264,"country":"ES","metro":"mad"},{"site":"mad09","lat":40.4719,"lon":-3.56264,"country":"ES","metro":"mad"},{"site":"mel03","lat":-37.6733,"lon":144.843,"country":"AU","metro":"mel"},{"site":"mex01","lat":19.4363,"lon":-99.0721,"country":"MX","metro":"mex"},{"site":"mex04","lat":19.4363,"lon":-99.0721,"country":"MX","metro":"mex"},{"site":"mia02","lat":25.7932,"lon":-80.2906,"country":"US","metro":"mia"},{"site":"mia04","lat":25.7932,"lon":-80.2906,"country":"US","metro":"mia"},{"site":"mia05","lat":25.7932,"lon":-80.2906,"country":"US","metro":"mia"},{"site":"mil05","lat":45.4494,"lon":9.2783,"country":"IT","metro":"mil"},{"site":"mil06","lat":45.4494,"lon":9.2783,"country":"IT","metro":"mil"},{"site":"mil07","lat":45.4494,"lon":9.2783,"country":"IT","metro":"mil"},{"site":"mil10","lat":45.4494,"lon":9.2783,"country":"IT","metro":"mil"},{"site":"mnl01","lat":14.5086,"lon":121.0194,"country":"PH","metro":"mnl"},{"site":"mnl02","lat":14.5086,"lon":121.0194,"country":"PH","metro":"mnl"},{"site":"mpm02","lat":-25.9208,"lon":32.5726,"country":"MZ","metro":"mpm"},{"site":"mrs01","lat":43.4393,"lon":5.22142,"country":"FR","metro":"mrs"},{"site":"mrs02","lat":43.4393,"lon":5.22142,"country":"FR","metro":"mrs"},{"site":"mrs04","lat":43.4393,"lon":5.22142,"country":"FR","metro":"mrs"},{"site":"mty01","lat":25.7785,"lon":-100.107,"country":"MX","metro":"mty"},{"site":"nbo01","lat":-1.31924,"lon":36.9278,"country":"KE","metro":"nbo"},{"site":"nuq03","lat":37.4161,"lon":-122.049,"country":"US","metro":"nuq"},{"site":"nuq04","lat":37.4161,"lon":-122.049,"country":"US","metro":"nuq"},{"site":"nuq06","lat":37.4161,"lon":-122.049,"country":"US","metro":"nuq"},{"site":"nuq08","lat":37.4161,"lon":-122.049,"country":"US","metro":"nuq"},{"site":"oma03","lat":41.3032,"lon":-95.8941,"country":"US","metro":"oma"},{"site":"ord02","lat":41.9786,"lon":-87.9047,"country":"US","metro":"ord"},{"site":"ord03","lat":41.9786,"lon":-87.9047,"country":"US","metro":"ord"},{"site":"ord06","lat":41.9786,"lon":-87.9047,"country":"US","metro":"ord"},{"site":"par05","lat":49.0097,"lon":2.54778,"country":"FR","metro":"par"},{"site":"par08","lat":49.0097,"lon":2.54778,"country":"FR","metro":"par"},{"site":"pdx01","lat":45.5886,"lon":-122.5975,"country":"US","metro":"pdx"},{"site":"pdx0t","lat":45.5886,"lon":-122.5975,"country":"US","metro":"pdx"},{"site":"per01","lat":-31.9403,"lon":115.967,"country":"AU","metro":"per"},{"site":"per02","lat":-31.9403,"lon":115.967,"country":"AU","metro":"per"},{"site":"prg03","lat":50.1008,"lon":14.26,"country":"CZ","metro":"prg"},{"site":"prg04","lat":50.1008,"lon":14.26,"country":"CZ","metro":"prg"},{"site":"prg05","lat":50.1008,"lon":14.26,"country":"CZ","metro":"prg"},{"site":"scl01","lat":-33.3928,"lon":-70.7856,"country":"CL","metro":"scl"},{"site":"scl07","lat":-33.3928,"lon":-70.7856,"country":"CL","metro":"scl"},{"site":"sea03","lat":47.449,"lon":-122.309,"country":"US","metro":"sea"},{"site":"sea04","lat":47.449,"lon":-122.309,"country":"US","metro":"sea"},{"site":"sea08","lat":47.449,"lon":-122.309,"country":"US","metro":"sea"},{"site":"sin01","lat":1.35019,"lon":103.994,"country":"SG","metro":"sin"},{"site":"sin04","lat":1.35019,"lon":103.994,"country":"SG","metro":"sin"},{"site":"slc03","lat":40.7884,"lon":-111.978,"country":"US","metro":"slc"},{"site":"sof01","lat":42.6967,"lon":23.4114,"country":"BG","metro":"sof"},{"site":"sof02","lat":42.6967,"lon":23.4114,"country":"BG","metro":"sof"},{"site":"svg01","lat":58.8767,"lon":5.63778,"country":"NO","metro":"svg"},{"site":"syd03","lat":-33.9461,"lon":151.177,"country":"AU","metro":"syd"},{"site":"syd09","lat":-33.9461,"lon":151.177,"country":"AU","metro":"syd"},{"site":"tgd01","lat":42.3594,"lon":19.2519,"country":"ME","metro":"tgd"},{"site":"tlv03","lat":32.0114,"lon":34.8867,"country":"IL","metro":"tlv"},{"site":"tnr01","lat":-18.7969,"lon":47.4788,"country":"MG","metro":"tnr"},{"site":"tpe01","lat":25.0777,"lon":121.233,"country":"TW","metro":"tpe"},{"site":"tpe04","lat":25.0777,"lon":121.233,"country":"TW","metro":"tpe"},{"site":"trn02","lat":45.2008,"lon":7.64963,"country":"IT","metro":"trn"},{"site":"trn05","lat":45.2008,"lon":7.64963,"country":"IT","metro":"trn"},{"site":"tun01","lat":36.8511,"lon":10.2272,"country":"TN","metro":"tun"},{"site":"waw03","lat":52.1657,"lon":20.9671,"country":"PL","metro":"waw"},{"site":"wlg02","lat":-41.3272,"lon":174.805,"country":"NZ","metro":"wlg"},{"site":"yqm02","lat":46.1122,"lon":-64.6786,"country":"CA","metro":"yqm"},{"site":"yul03","lat":45.4657,"lon":-73.7455,"country":"CA","metro":"yul"},{"site":"yul06","lat":45.4657,"lon":-73.7455,"country":"CA","metro":"yul"},{"site":"yul09","lat":45.4657,"lon":-73.7455,"country":"CA","metro":"yul"},{"site":"yvr03","lat":49.1939,"lon":-123.184,"country":"CA","metro":"yvr"},{"site":"yvr04","lat":49.1939,"lon":-123.184,"country":"CA","metro":"yvr"},{"site":"ywg02","lat":49.91,"lon":-97.2399,"country":"CA","metro":"ywg"},{"site":"yyc03","lat":51.1139,"lon":-114.02,"country":"CA","metro":"yyc"},{"site":"yyz03","lat":43.6797,"lon":-79.6227,"country":"CA","metro":"yyz"},{"site":"yyz04","lat":43.6797,"lon":-79.6227,"country":"CA","metro":"yyz"},{"site":"yyz06","lat":43.6797,"lon":-79.6227,"country":"CA","metro":"yyz"},{"site":"yyz09","lat":43.6797,"lon":-79.6227,"country":"CA","metro":"yyz"},{"site":"zrh03","lat":47.4647,"lon":8.54917,"country":"CH","metro":"zrh"}];
+
+const SITEINFO_URL = "https://siteinfo.mlab-oti.measurementlab.net/v2/sites/registration.json";
+const EARTH_RADIUS_KM = 6371;          // matches m-lab/go mathx haversine
+const LEGACY_RATE = 6;                 // matches pickSiteIndex in heartbeat/location.go
+const EQ_MIN = 10, EQ_MAX = 2000;      // log-scaled slider range
+
+let sites = [];        // [{site, lat, lon, country, metro, color}]
+let view = null;       // {lonMin, lonMax, latMin, latMax}
+let inspectPoint = null;
+let renderToken = 0;
+
+const legacyCanvas = document.getElementById("legacy");
+const weightedCanvas = document.getElementById("weighted");
+
+// ---------- math (mirrors heartbeat/location.go) ----------
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+// First-draw probability of each index in the current algorithm:
+// index = round(Exp(1)/rate) % n, so P(draw=i) = e^-max(0, rate*i - rate/2) - e^-(rate*i + rate/2),
+// folded onto [0, n) by the modulo.
+const legacySharesCache = new Map();
+function legacyShares(n) {
+  if (legacySharesCache.has(n)) return legacySharesCache.get(n);
+  const shares = new Float64Array(n);
+  for (let i = 0; ; i++) {
+    const lo = i === 0 ? 0 : LEGACY_RATE * i - LEGACY_RATE / 2;
+    const p = Math.exp(-lo) - Math.exp(-(LEGACY_RATE * i + LEGACY_RATE / 2));
+    shares[i % n] += p;
+    if ((i >= n && p < 1e-9) || i > 5000) break;
+  }
+  legacySharesCache.set(n, shares);
+  return shares;
+}
+
+function effDist(d, eq) { return Math.max(d, eq); }
+
+// Weighted first-draw shares over the distance-sorted candidates. Applies the
+// relative cutoff (always keeping at least the 4 nearest), then normalizes
+// 1/effDist^k. Returns an array aligned with the sorted input; sites past the
+// cutoff get share 0.
+function weightedShares(sortedDists, params) {
+  const n = sortedDists.length;
+  let keep = n;
+  if (params.ratio > 0 && n > 4) {
+    const maxDist = params.ratio * effDist(sortedDists[0], params.eq);
+    for (let i = 4; i < n; i++) {
+      if (effDist(sortedDists[i], params.eq) > maxDist) { keep = i; break; }
+    }
+  }
+  const shares = new Float64Array(n);
+  let total = 0;
+  for (let i = 0; i < keep; i++) {
+    shares[i] = 1 / Math.pow(effDist(sortedDists[i], params.eq), params.k);
+    total += shares[i];
+  }
+  for (let i = 0; i < keep; i++) shares[i] /= total;
+  return shares;
+}
+
+// ---------- colors ----------
+
+function siteColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  const hue = h % 360, sat = 60 + (h >> 9) % 25, light = 45 + (h >> 17) % 15;
+  return hslToRgb(hue, sat / 100, light / 100);
+}
+
+function hslToRgb(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+  let r, g, b;
+  if (h < 60) [r, g, b] = [c, x, 0]; else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x]; else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c]; else [r, g, b] = [c, 0, x];
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+}
+
+// ---------- data loading ----------
+
+function setSites(list, sourceLabel) {
+  sites = list.map(s => ({ ...s, color: siteColor(s.site) }));
+  document.getElementById("status").textContent =
+    `${sites.length} sites loaded from ${sourceLabel}.`;
+  scheduleRender();
+}
+
+// Accepts either the compact embedded format or siteinfo registration.json
+// (a map of hostname -> Registration).
+function parseSiteData(data) {
+  if (Array.isArray(data)) return data;
+  const bySite = new Map();
+  for (const v of Object.values(data)) {
+    if (!v || !v.Site || typeof v.Latitude !== "number") continue;
+    bySite.set(v.Site, {
+      site: v.Site, lat: v.Latitude, lon: v.Longitude,
+      country: v.CountryCode || "", metro: v.Metro || "",
+    });
+  }
+  return [...bySite.values()].sort((a, b) => a.site.localeCompare(b.site));
+}
+
+async function loadFromSiteinfo() {
+  try {
+    const resp = await fetch(SITEINFO_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    setSites(parseSiteData(await resp.json()), "siteinfo (live)");
+  } catch (err) {
+    setSites(parseSiteData(EMBEDDED_SITES),
+      `embedded snapshot (live fetch failed: ${err.message})`);
+  }
+}
+
+document.getElementById("reload").addEventListener("click", loadFromSiteinfo);
+document.getElementById("file").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try {
+    setSites(parseSiteData(JSON.parse(await f.text())), f.name);
+  } catch (err) {
+    document.getElementById("status").textContent = `Could not parse ${f.name}: ${err.message}`;
+  }
+});
+
+// ---------- controls ----------
+
+function eqFromSlider(v) {
+  return Math.round(EQ_MIN * Math.pow(EQ_MAX / EQ_MIN, v));
+}
+
+function params() {
+  return {
+    eq: eqFromSlider(parseFloat(document.getElementById("eq").value)),
+    k: parseFloat(document.getElementById("k").value),
+    ratio: parseFloat(document.getElementById("ratio").value),
+  };
+}
+
+function updateLabels() {
+  const p = params();
+  document.getElementById("eqVal").textContent = `${p.eq} km`;
+  document.getElementById("kVal").textContent = p.k.toFixed(1);
+  document.getElementById("ratioVal").textContent = p.ratio === 0 ? "off" : p.ratio;
+}
+
+for (const id of ["eq", "k", "ratio"]) {
+  document.getElementById(id).addEventListener("input", () => { updateLabels(); scheduleRender(); });
+}
+
+// ---------- view (shared pan/zoom) ----------
+
+function resetView() { view = { lonMin: -180, lonMax: 180, latMin: -90, latMax: 90 }; }
+resetView();
+document.getElementById("resetView").addEventListener("click", () => { resetView(); scheduleRender(); });
+
+function cellToLonLat(canvas, x, y) {
+  return [
+    view.lonMin + (x / canvas.width) * (view.lonMax - view.lonMin),
+    view.latMax - (y / canvas.height) * (view.latMax - view.latMin),
+  ];
+}
+
+function lonLatToPixel(canvas, lon, lat) {
+  return [
+    (lon - view.lonMin) / (view.lonMax - view.lonMin) * canvas.width,
+    (view.latMax - lat) / (view.latMax - view.latMin) * canvas.height,
+  ];
+}
+
+function canvasPos(canvas, ev) {
+  const r = canvas.getBoundingClientRect();
+  return [(ev.clientX - r.left) * canvas.width / r.width,
+          (ev.clientY - r.top) * canvas.height / r.height];
+}
+
+for (const canvas of [legacyCanvas, weightedCanvas]) {
+  let drag = null;
+  canvas.addEventListener("pointerdown", (ev) => {
+    drag = { x: ev.clientX, y: ev.clientY, view: { ...view }, moved: false };
+    canvas.setPointerCapture(ev.pointerId);
+  });
+  canvas.addEventListener("pointermove", (ev) => {
+    if (!drag) return;
+    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    if (!drag.moved) return;
+    const r = canvas.getBoundingClientRect();
+    const dLon = -dx / r.width * (drag.view.lonMax - drag.view.lonMin);
+    const dLat = dy / r.height * (drag.view.latMax - drag.view.latMin);
+    view = {
+      lonMin: drag.view.lonMin + dLon, lonMax: drag.view.lonMax + dLon,
+      latMin: drag.view.latMin + dLat, latMax: drag.view.latMax + dLat,
+    };
+    scheduleRender();
+  });
+  canvas.addEventListener("pointerup", (ev) => {
+    const wasDrag = drag && drag.moved;
+    drag = null;
+    if (wasDrag) return;
+    const [x, y] = canvasPos(canvas, ev);
+    inspectPoint = cellToLonLat(canvas, x, y);
+    renderInspect();
+    scheduleRender();
+  });
+  canvas.addEventListener("wheel", (ev) => {
+    ev.preventDefault();
+    const [x, y] = canvasPos(canvas, ev);
+    const [lon, lat] = cellToLonLat(canvas, x, y);
+    const f = ev.deltaY > 0 ? 1.3 : 1 / 1.3;
+    const newW = Math.min(360, (view.lonMax - view.lonMin) * f);
+    const newH = Math.min(180, (view.latMax - view.latMin) * f);
+    view = {
+      lonMin: lon - (lon - view.lonMin) * newW / (view.lonMax - view.lonMin),
+      latMax: lat + (view.latMax - lat) * newH / (view.latMax - view.latMin),
+    };
+    view.lonMax = view.lonMin + newW;
+    view.latMin = view.latMax - newH;
+    scheduleRender();
+  }, { passive: false });
+}
+
+// ---------- rendering ----------
+
+let renderTimer = null;
+function scheduleRender() {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(render, 60);
+}
+
+function render() {
+  if (sites.length === 0) return;
+  const token = ++renderToken;
+  const p = params();
+  const CELL = 3;
+  const w = legacyCanvas.width, h = legacyCanvas.height;
+  const legacyImg = new ImageData(w, h);
+  const weightedImg = new ImageData(w, h);
+  const progress = document.getElementById("progress");
+
+  const dists = new Float64Array(sites.length);
+  const order = new Int32Array(sites.length);
+  let y = 0;
+
+  function paintCell(img, x0, y0, rgb, alpha) {
+    for (let dy = 0; dy < CELL && y0 + dy < h; dy++) {
+      for (let dx = 0; dx < CELL && x0 + dx < w; dx++) {
+        const o = ((y0 + dy) * w + x0 + dx) * 4;
+        img.data[o] = rgb[0]; img.data[o + 1] = rgb[1]; img.data[o + 2] = rgb[2];
+        img.data[o + 3] = Math.round(alpha * 255);
+      }
+    }
+  }
+
+  function rowChunk() {
+    if (token !== renderToken) return;   // superseded by a newer render
+    const yEnd = Math.min(h, y + CELL * 12);
+    for (; y < yEnd; y += CELL) {
+      for (let x = 0; x < w; x += CELL) {
+        const [lon, lat] = cellToLonLat(legacyCanvas, x + CELL / 2, y + CELL / 2);
+        for (let i = 0; i < sites.length; i++) {
+          dists[i] = haversine(lat, lon, sites[i].lat, sites[i].lon);
+          order[i] = i;
+        }
+        order.sort((a, b) => dists[a] - dists[b]);
+
+        // Legacy: winner is essentially the nearest site (index 0 share ~95%).
+        const ls = legacyShares(sites.length);
+        paintCell(legacyImg, x, y, sites[order[0]].color, Math.min(1, ls[0] + 0.05));
+
+        // Weighted: dominant site by share, opacity = its share.
+        const sortedDists = new Float64Array(sites.length);
+        for (let i = 0; i < sites.length; i++) sortedDists[i] = dists[order[i]];
+        const ws = weightedShares(sortedDists, p);
+        let best = 0;
+        for (let i = 1; i < ws.length; i++) if (ws[i] > ws[best]) best = i;
+        paintCell(weightedImg, x, y, sites[order[best]].color, 0.15 + 0.85 * ws[best]);
+      }
+    }
+    progress.textContent = y < h ? `rendering ${Math.round(100 * y / h)}%` : "";
+    if (y < h) { setTimeout(rowChunk, 0); return; }
+    finish();
+  }
+
+  function finish() {
+    if (token !== renderToken) return;
+    for (const [canvas, img] of [[legacyCanvas, legacyImg], [weightedCanvas, weightedImg]]) {
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#0b2437";
+      ctx.fillRect(0, 0, w, h);
+      ctx.putImageData(img, 0, 0);
+      drawOverlay(canvas, ctx);
+    }
+  }
+
+  rowChunk();
+}
+
+function drawOverlay(canvas, ctx) {
+  // Graticule every 30 degrees for orientation.
+  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.lineWidth = 1;
+  for (let lon = -180; lon <= 180; lon += 30) {
+    const [x] = lonLatToPixel(canvas, lon, 0);
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let lat = -90; lat <= 90; lat += 30) {
+    const [, yy] = lonLatToPixel(canvas, 0, lat);
+    ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(canvas.width, yy); ctx.stroke();
+  }
+  // Site markers.
+  for (const s of sites) {
+    const [x, yy] = lonLatToPixel(canvas, s.lon, s.lat);
+    if (x < 0 || x > canvas.width || yy < 0 || yy > canvas.height) continue;
+    ctx.beginPath();
+    ctx.arc(x, yy, 2.5, 0, 2 * Math.PI);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+  }
+  // Inspection point.
+  if (inspectPoint) {
+    const [x, yy] = lonLatToPixel(canvas, inspectPoint[0], inspectPoint[1]);
+    ctx.beginPath();
+    ctx.arc(x, yy, 6, 0, 2 * Math.PI);
+    ctx.strokeStyle = "#ffdd00";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+// ---------- inspection ----------
+
+function renderInspect() {
+  const el = document.getElementById("inspect");
+  if (!inspectPoint || sites.length === 0) { el.innerHTML = ""; return; }
+  const [lon, lat] = inspectPoint;
+  const p = params();
+
+  const rows = sites.map(s => ({ s, dist: haversine(lat, lon, s.lat, s.lon) }))
+                    .sort((a, b) => a.dist - b.dist);
+  const ls = legacyShares(sites.length);
+  const ws = weightedShares(Float64Array.from(rows.map(r => r.dist)), p);
+
+  const fmtPct = (v) => v >= 0.001 ? (100 * v).toFixed(1) + "%" : (v > 0 ? "<0.1%" : "0%");
+  const top = rows.slice(0, 12);
+  el.innerHTML = `
+    <h2>Client at ${lat.toFixed(2)}, ${lon.toFixed(2)}: first-result probability (12 nearest sites)</h2>
+    <table>
+      <tr><th>Site</th><th>Country</th><th>Distance</th><th>Current</th><th>Weighted</th></tr>
+      ${top.map((r, i) => `
+        <tr>
+          <td><span class="swatch" style="background: rgb(${r.s.color})"></span>${r.s.site}</td>
+          <td>${r.s.country}</td>
+          <td>${Math.round(r.dist)} km</td>
+          <td>${fmtPct(ls[i])}</td>
+          <td>${fmtPct(ws[i])}</td>
+        </tr>`).join("")}
+    </table>`;
+}
+
+// re-render inspection when parameters change
+for (const id of ["eq", "k", "ratio"]) {
+  document.getElementById(id).addEventListener("input", renderInspect);
+}
+
+updateLabels();
+loadFromSiteinfo();
+</script>
+</body>
+</html>
