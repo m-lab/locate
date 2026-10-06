@@ -43,9 +43,11 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.event.release.tag_name || github.sha }}
 
+      # Read from the checked-out sources, so a backfill builds a tag with the
+      # Go version that tag declares.
       - uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: go.mod
 
       - name: Build
         run: |
