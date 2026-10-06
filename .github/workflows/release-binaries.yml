@@ -1,0 +1,70 @@
+# Build the official heartbeat binary and attach it to GitHub Releases.
+#
+# Publishing a release builds cmd/heartbeat (the locate service itself is not
+# shipped as a binary) for linux/amd64 and uploads it to that release,
+# together with a checksums.txt:
+#
+#   heartbeat_<tag>_linux_amd64
+#   checksums.txt
+#
+# The binary is pure Go, statically linked (CGO_ENABLED=0), and stripped
+# (-s -w); like the container image, it is stamped with
+# prometheusx.GitShortCommit.
+#
+# To attach the binary to a release that predates this workflow, dispatch it
+# with that release's tag; the workflow from the default branch then builds
+# the tagged sources:
+#
+#   gh workflow run release-binaries.yml -f tag=v0.19.1
+name: release-binaries
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of an existing release to build and upload binaries for
+        required: true
+        type: string
+  pull_request:
+
+jobs:
+  release-binaries:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      # Empty on pull requests: the binary is then named after `git describe`
+      # output and nothing is uploaded.
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.sha }}
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+
+      - name: Build
+        run: |
+          version="${TAG:-$(git describe --tags --always)}"
+          bin="dist/heartbeat_${version}_linux_amd64"
+          ldflags="-s -w"
+          ldflags+=" -X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h)"
+          CGO_ENABLED=0 go build -trimpath -ldflags "${ldflags}" -o "${bin}" ./cmd/heartbeat
+
+          file -L "${bin}" | grep "statically linked" ||
+            { echo "ERROR: ${bin} is not statically linked" >&2; exit 1; }
+          go version -m "${bin}"
+
+      - name: Upload to the release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum heartbeat_* > checksums.txt
+          cat checksums.txt
+          gh release upload "${TAG}" heartbeat_* checksums.txt --clobber --repo "${GITHUB_REPOSITORY}"
